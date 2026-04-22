@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env
+.env*.local
+.env.local
+!.env.example
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Trellis (workspace-local, not committed)
+.trellis/.current-task
+.trellis/.developer
+.trellis/workspace/*/
+!.trellis/workspace/.gitkeep
+
+# Database (local dev)
+*.db
+*.db-journal
+
+# Logs
+*.log
+logs/
+
+# Turbo
+.turbo/
+
+# pnpm debug
+.pnpm-debug.log
