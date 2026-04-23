@@ -1,0 +1,5 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "React component patterns"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "State management with localStorage"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "TypeScript type definitions"}
