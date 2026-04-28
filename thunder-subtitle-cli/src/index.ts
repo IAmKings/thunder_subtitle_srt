@@ -23,14 +23,16 @@ program
   .argument('<name>', 'Search keyword for subtitles')
   .option('-c, --chinese-only', 'Filter to Chinese subtitles only', false)
   .option('-m, --multi-select', 'Enable multi-select for batch download', false)
+  .option('-d, --max-duration <duration>', 'Filter by max video duration (e.g., 1h30m, 90m, 45s)')
   .option('-o, --output <dir>', 'Output directory for downloads')
-  .action(async (name: string, options: { chineseOnly?: boolean; multiSelect?: boolean; output?: string }) => {
+  .action(async (name: string, options: { chineseOnly?: boolean; multiSelect?: boolean; output?: string; maxDuration?: string }) => {
     try {
       await searchCommand({
         name,
         chineseOnly: options.chineseOnly ?? false,
         multiSelect: options.multiSelect ?? false,
         outputDir: options.output,
+        maxDuration: options.maxDuration,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';

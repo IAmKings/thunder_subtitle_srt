@@ -8,6 +8,49 @@ import type { ApiResponse, SearchResult, Subtitle } from './types.js';
 const API_BASE_URL = 'https://api-shoulei-ssl.xunlei.com/oracle';
 const DEFAULT_TIMEOUT = 30000;
 
+/**
+ * Parse human-readable duration string to milliseconds
+ * Supports: 1h, 30m, 45s, 1h30m, 2h30m20s, etc.
+ */
+export function parseDuration(durationStr: string): number {
+  const trimmed = durationStr.trim().toLowerCase();
+  if (!trimmed) {
+    throw new Error('Duration string cannot be empty');
+  }
+
+  let totalMs = 0;
+  let hasMatch = false;
+
+  // Match hours: Xh
+  const hoursMatch = trimmed.match(/(\d+)h/);
+  if (hoursMatch?.[1]) {
+    totalMs += parseInt(hoursMatch[1], 10) * 3600000;
+    hasMatch = true;
+  }
+
+  // Match minutes: Xm
+  const minutesMatch = trimmed.match(/(\d+)m/);
+  if (minutesMatch?.[1]) {
+    totalMs += parseInt(minutesMatch[1], 10) * 60000;
+    hasMatch = true;
+  }
+
+  // Match seconds: Xs
+  const secondsMatch = trimmed.match(/(\d+)s/);
+  if (secondsMatch?.[1]) {
+    totalMs += parseInt(secondsMatch[1], 10) * 1000;
+    hasMatch = true;
+  }
+
+  if (!hasMatch) {
+    throw new Error(
+      `Invalid duration format: "${durationStr}". Expected format like 1h30m, 90m, 45s`
+    );
+  }
+
+  return totalMs;
+}
+
 export class SubtitleApiClient {
   private baseUrl: string;
   private timeout: number;
@@ -74,6 +117,17 @@ export class SubtitleApiClient {
 
       return hasChineseLang || (hasChineseName && isEmptyLang);
     });
+  }
+
+  /**
+   * Filter subtitles by max video duration
+   * Keeps only subtitles where 0 < duration <= maxDurationMs
+   * Sorted by duration descending (closest to target duration first)
+   */
+  filterByMaxDuration(subtitles: Subtitle[], maxDurationMs: number): Subtitle[] {
+    return subtitles
+      .filter((subtitle) => subtitle.duration > 0 && subtitle.duration <= maxDurationMs)
+      .sort((a, b) => b.duration - a.duration);
   }
 
   /**

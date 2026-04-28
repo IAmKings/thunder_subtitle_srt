@@ -4,7 +4,7 @@
 
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { SubtitleApiClient } from './api.js';
+import { SubtitleApiClient, parseDuration } from './api.js';
 import { displaySubtitleList, displayError, displaySuccess } from './ui.js';
 import { downloadSubtitle, downloadBatch, getDefaultDownloadDir } from './download.js';
 import type { Subtitle } from './types.js';
@@ -14,6 +14,7 @@ export interface SearchCommandOptions {
   chineseOnly: boolean;
   multiSelect: boolean;
   outputDir?: string;
+  maxDuration?: string;
 }
 
 const client = new SubtitleApiClient();
@@ -22,13 +23,29 @@ const client = new SubtitleApiClient();
  * Execute search command
  */
 export async function searchCommand(options: SearchCommandOptions): Promise<void> {
-  const { name, chineseOnly, multiSelect, outputDir } = options;
+  const { name, chineseOnly, multiSelect, outputDir, maxDuration } = options;
   const output = outputDir ?? getDefaultDownloadDir();
+
+  // Parse max duration if provided
+  let maxDurationMs: number | undefined;
+  if (maxDuration) {
+    try {
+      maxDurationMs = parseDuration(maxDuration);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid duration format';
+      displayError(message);
+      return;
+    }
+  }
 
   console.log(chalk.bold(`\n  Searching for: "${name}"`));
   if (chineseOnly) {
-    console.log(chalk.gray('  Filtering: Chinese subtitles only\n'));
+    console.log(chalk.gray('  Filtering: Chinese subtitles only'));
   }
+  if (maxDuration && maxDurationMs) {
+    console.log(chalk.gray(`  Filtering: Max video duration ${maxDuration}`));
+  }
+  console.log();
 
   try {
     // Search subtitles
@@ -50,9 +67,29 @@ export async function searchCommand(options: SearchCommandOptions): Promise<void
       }
     }
 
+    // Apply max duration filter if requested
+    if (maxDurationMs !== undefined) {
+      subtitles = client.filterByMaxDuration(subtitles, maxDurationMs);
+
+      if (subtitles.length === 0) {
+        displayError(
+          `No subtitles found with video duration within ${maxDuration} (${maxDurationMs}ms).`
+        );
+        return;
+      }
+    }
+
     console.log(chalk.green(`\n  Found ${result.total} subtitle(s)`));
+    let filterInfo = '';
     if (chineseOnly) {
-      console.log(chalk.green(`  Filtered to ${subtitles.length} Chinese subtitle(s)`));
+      filterInfo += `Chinese-only: ${subtitles.length}`;
+    }
+    if (maxDurationMs !== undefined) {
+      if (filterInfo) filterInfo += ', ';
+      filterInfo += `Max duration ${maxDuration}: ${subtitles.length}`;
+    }
+    if (filterInfo) {
+      console.log(chalk.green(`  Filtered (${filterInfo})`));
     }
 
     // Display subtitle list
