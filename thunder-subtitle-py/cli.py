@@ -12,6 +12,7 @@ from src.api import SubtitleApiClient
 from src.ui import display_subtitle_list, display_error, display_success
 from src.download import download_subtitle, download_batch, get_default_download_dir
 from src.utils import parse_duration
+from src.scanner import process_scanned_movies
 
 
 def cmd_search(args: argparse.Namespace) -> None:
@@ -150,6 +151,11 @@ def cmd_download(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_scan(args: argparse.Namespace) -> None:
+    """执行 Jellyfin 扫描命令"""
+    process_scanned_movies(args.directory, dry_run=args.dry_run)
+
+
 def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> None:
     """执行下载（单个或批量），文件名使用搜索名 + .zh 标识"""
 
@@ -256,12 +262,30 @@ def main() -> None:
         help="Output directory for downloads",
     )
 
+    # ===== scan 命令 =====
+    scan_parser = subparsers.add_parser(
+        "scan",
+        help="Scan Jellyfin movie directories and auto-download subtitles",
+    )
+    scan_parser.add_argument(
+        "directory",
+        help="Base directory to scan (演员/电影 structure)",
+    )
+    scan_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Show what would be done without downloading",
+    )
+
     args = parser.parse_args()
 
     if args.command == "search":
         cmd_search(args)
     elif args.command == "download":
         cmd_download(args)
+    elif args.command == "scan":
+        cmd_scan(args)
     else:
         parser.print_help()
 
