@@ -22,6 +22,7 @@ thunder-subtitle-srt/
 - [x] 视频时长匹配筛选（`--max-duration`，最接近但不超过）
 - [x] 单选/多选字幕（TS 交互式 / Python 参数式）
 - [x] 字幕下载（单文件/批量）
+- [x] Jellyfin 扫描器（自动扫描 演员/电影 目录，批量下载字幕）
 - [x] 下载文件名规则：`{搜索名}{.zh}.{ext}`，中文字幕自动加 `.zh` 标识
 
 ## 快速开始
@@ -72,8 +73,11 @@ python3 cli.py search "电影名称" -c -d 2h -f --all
 # 限制显示条数
 python3 cli.py search "电影名称" --limit 10
 
-# 直接下载指定 URL
-python3 cli.py download "url" "filename" -o ~/subtitles
+# Jellyfin 目录扫描（预览模式）
+python3 cli.py scan /path/to/media --dry-run
+
+# Jellyfin 目录扫描（实际下载）
+python3 cli.py scan /path/to/media
 ```
 
 ### WebApp
@@ -101,6 +105,13 @@ pnpm dev
 | `--all` | `-a` | 下载全部结果（仅 Python 版） |
 | `--limit` | | 限制显示前 N 条（仅 Python 版） |
 
+### `scan` 命令（仅 Python 版）
+
+| 参数 | 说明 |
+|------|------|
+| `directory` | 扫描根目录（演员/电影 结构） |
+| `--dry-run` | 预览模式，不实际下载 |
+
 ### 文件名规则
 
 下载的字幕文件按以下规则命名：
@@ -114,6 +125,62 @@ pnpm dev
 | 中文字幕 | `流浪地球.zh.srt` |
 | 非中文字幕 | `inception.srt` |
 | `-f` 降级非中文 | `stranger things.srt`（不误导加 .zh） |
+
+## Jellyfin 扫描器
+
+自动扫描 Jellyfin 媒体库目录，批量下载中文字幕。
+
+### 目录结构
+
+扫描器期望以下目录结构：
+
+```
+/path/to/media/
+├── 演员A/
+│   ├── 电影1/
+│   │   ├── movie.nfo          # 电影元数据（必需）
+│   │   └── 电影1.zh.srt       # 已有字幕（会跳过）
+│   └── 电影2/
+│       └── movie.nfo
+└── 演员B/
+    └── 电影3/
+        └── movie.nfo
+```
+
+### movie.nfo 格式
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<movie>
+  <fileinfo>
+    <durationinseconds>7140</durationinseconds>  <!-- 用于时长匹配 -->
+  </fileinfo>
+  <genre>科幻</genre>
+  <!-- 含"中文字幕"的标签会自动跳过 -->
+</movie>
+```
+
+### 跳过条件（满足任一即跳过）
+
+| 条件 | 说明 |
+|------|------|
+| NFO 任意标签含"中文字幕" | 已内置中文字幕 |
+| `{电影名}.zh.srt` 文件已存在 | 已下载过 |
+| movie.nfo 无 `durationinseconds` | 无法匹配时长 |
+
+### 下载优先级
+
+每次搜索匹配后，按以下优先级选择字幕：
+
+| 优先级 | 条件 | 说明 |
+|:------:|------|------|
+| **1** | `-U` 后缀 | 可用度最高（如 `电影名-U.srt`） |
+| **2** | 中文字幕 | languages 含中文 或 name 含中文标识 |
+| **3** | duration 降序 | 最接近视频时长 |
+
+### 防抖机制
+
+每次 API 查询间隔 3 秒，避免请求过频被封。
 
 ## 技术栈
 

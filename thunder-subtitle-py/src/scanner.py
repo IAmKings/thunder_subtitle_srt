@@ -32,7 +32,9 @@ class ScanResult:
 
 def scan_movie_dirs(base_dir: str) -> list[str]:
     """
-    扫描 Jellyfin 目录结构：base_dir/演员/电影/
+    扫描 Jellyfin 目录结构，自动识别两种模式：
+      - 媒体库根目录：base_dir/演员/电影/movie.nfo
+      - 单个演员目录：base_dir/电影/movie.nfo
     返回包含 movie.nfo 的电影目录路径列表
     """
     movie_dirs: list[str] = []
@@ -40,20 +42,36 @@ def scan_movie_dirs(base_dir: str) -> list[str]:
     if not os.path.isdir(base_dir):
         return movie_dirs
 
+    # 检测是否为演员目录：直接子目录下是否有 movie.nfo
+    for entry in sorted(os.listdir(base_dir)):
+        entry_path = os.path.join(base_dir, entry)
+        if not os.path.isdir(entry_path) or entry.startswith("."):
+            continue
+        nfo_path = os.path.join(entry_path, "movie.nfo")
+        if os.path.isfile(nfo_path):
+            # 演员目录模式：base_dir 直接包含电影目录
+            return _scan_actor_dir(base_dir)
+
+    # 媒体库根目录模式：base_dir/演员/电影/
     for actor_name in sorted(os.listdir(base_dir)):
         actor_path = os.path.join(base_dir, actor_name)
         if not os.path.isdir(actor_path) or actor_name.startswith("."):
             continue
+        movie_dirs.extend(_scan_actor_dir(actor_path))
 
-        for movie_name in sorted(os.listdir(actor_path)):
-            movie_path = os.path.join(actor_path, movie_name)
-            if not os.path.isdir(movie_path) or movie_name.startswith("."):
-                continue
+    return movie_dirs
 
-            nfo_path = os.path.join(movie_path, "movie.nfo")
-            if os.path.isfile(nfo_path):
-                movie_dirs.append(movie_path)
 
+def _scan_actor_dir(actor_path: str) -> list[str]:
+    """扫描单个演员目录下的电影目录"""
+    movie_dirs: list[str] = []
+    for movie_name in sorted(os.listdir(actor_path)):
+        movie_path = os.path.join(actor_path, movie_name)
+        if not os.path.isdir(movie_path) or movie_name.startswith("."):
+            continue
+        nfo_path = os.path.join(movie_path, "movie.nfo")
+        if os.path.isfile(nfo_path):
+            movie_dirs.append(movie_path)
     return movie_dirs
 
 
