@@ -85,15 +85,19 @@ def parse_nfo(nfo_path: str) -> NfoInfo:
 
     info = NfoInfo()
 
-    # 提取 durationinseconds
+    # 提取 durationinseconds（路径：fileinfo > streamdetails > video > durationinseconds）
     fileinfo = root.find(".//fileinfo")
     if fileinfo is not None:
-        dur_elem = fileinfo.find("durationinseconds")
-        if dur_elem is not None and dur_elem.text:
-            try:
-                info.duration_seconds = int(dur_elem.text.strip())
-            except (ValueError, TypeError):
-                info.duration_seconds = 0
+        streamdetails = fileinfo.find("streamdetails")
+        if streamdetails is not None:
+            video = streamdetails.find("video")
+            if video is not None:
+                dur_elem = video.find("durationinseconds")
+                if dur_elem is not None and dur_elem.text:
+                    try:
+                        info.duration_seconds = int(dur_elem.text.strip())
+                    except (ValueError, TypeError):
+                        info.duration_seconds = 0
 
     # 检查是否已有中文字幕标记：遍历所有元素
     for elem in root.iter():

@@ -153,7 +153,11 @@ pnpm dev
 <?xml version="1.0" encoding="utf-8"?>
 <movie>
   <fileinfo>
-    <durationinseconds>7140</durationinseconds>  <!-- 用于时长匹配 -->
+    <streamdetails>
+      <video>
+        <durationinseconds>7140</durationinseconds>  <!-- 用于时长匹配 -->
+      </video>
+    </streamdetails>
   </fileinfo>
   <genre>科幻</genre>
   <!-- 含"中文字幕"的标签会自动跳过 -->
