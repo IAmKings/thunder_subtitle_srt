@@ -24,8 +24,9 @@ program
   .option('-c, --chinese-only', 'Filter to Chinese subtitles only', false)
   .option('-m, --multi-select', 'Enable multi-select for batch download', false)
   .option('-d, --max-duration <duration>', 'Filter by max video duration (e.g., 1h30m, 90m, 45s)')
+  .option('-f, --chinese-first', 'Prioritize Chinese subtitles, fallback to others if none found', false)
   .option('-o, --output <dir>', 'Output directory for downloads')
-  .action(async (name: string, options: { chineseOnly?: boolean; multiSelect?: boolean; output?: string; maxDuration?: string }) => {
+  .action(async (name: string, options: { chineseOnly?: boolean; multiSelect?: boolean; output?: string; maxDuration?: string; chineseFirst?: boolean }) => {
     try {
       await searchCommand({
         name,
@@ -33,6 +34,7 @@ program
         multiSelect: options.multiSelect ?? false,
         outputDir: options.output,
         maxDuration: options.maxDuration,
+        chineseFirst: options.chineseFirst ?? false,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';

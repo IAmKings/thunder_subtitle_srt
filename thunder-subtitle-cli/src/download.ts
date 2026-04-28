@@ -21,9 +21,10 @@ export interface DownloadResult {
  */
 export async function downloadSubtitle(
   subtitle: Subtitle,
-  outputDir: string
+  outputDir: string,
+  customFilename?: string
 ): Promise<DownloadResult> {
-  const filename = subtitle.name;
+  const filename = customFilename ?? subtitle.name;
   const filepath = path.join(outputDir, filename);
 
   // Ensure output directory exists
@@ -97,6 +98,7 @@ export async function downloadSubtitle(
 export async function downloadBatch(
   subtitles: Subtitle[],
   outputDir: string,
+  filenames?: string[],
   onProgress?: (completed: number, total: number) => void
 ): Promise<{ successful: number; failed: number; results: DownloadResult[] }> {
   console.log(chalk.bold(`\n  Downloading ${subtitles.length} subtitle(s) to: ${outputDir}\n`));
@@ -110,7 +112,8 @@ export async function downloadBatch(
     if (!subtitle) {
       continue;
     }
-    const result = await downloadSubtitle(subtitle, outputDir);
+    const filename = filenames?.[i];
+    const result = await downloadSubtitle(subtitle, outputDir, filename);
     results.push(result);
 
     if (result.success) {

@@ -102,21 +102,25 @@ export class SubtitleApiClient {
   }
 
   /**
+   * Check if a single subtitle is Chinese
+   */
+  isChineseSubtitle(subtitle: Subtitle): boolean {
+    const hasChineseLang = subtitle.languages.some((lang) =>
+      /chinese|中文|简体|繁体|cn/i.test(lang)
+    );
+    const hasChineseName =
+      /[\u4e00-\u9fa5]/.test(subtitle.name) ||
+      /zh|cn|chinese|中文/i.test(subtitle.name);
+    const isEmptyLang = subtitle.languages.length === 0 || subtitle.languages[0] === '';
+
+    return hasChineseLang || (hasChineseName && isEmptyLang);
+  }
+
+  /**
    * Filter Chinese subtitles (by language field or name pattern)
    */
   filterChineseSubtitles(subtitles: Subtitle[]): Subtitle[] {
-    return subtitles.filter((subtitle) => {
-      // Check if languages array contains Chinese indicators
-      const hasChineseLang = subtitle.languages.some((lang) =>
-        /chinese|中文|简体|繁体|cn/i.test(lang)
-      );
-      // Also check name for Chinese patterns
-      const hasChineseName = /[\u4e00-\u9fa5]/.test(subtitle.name);
-      // If languages array is empty but name has Chinese, include it
-      const isEmptyLang = subtitle.languages.length === 0 || subtitle.languages[0] === '';
-
-      return hasChineseLang || (hasChineseName && isEmptyLang);
-    });
+    return subtitles.filter((subtitle) => this.isChineseSubtitle(subtitle));
   }
 
   /**

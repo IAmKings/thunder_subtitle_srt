@@ -15,6 +15,7 @@ export interface SearchCommandOptions {
   multiSelect: boolean;
   outputDir?: string;
   maxDuration?: string;
+  chineseFirst?: boolean;
 }
 
 const client = new SubtitleApiClient();
@@ -23,7 +24,7 @@ const client = new SubtitleApiClient();
  * Execute search command
  */
 export async function searchCommand(options: SearchCommandOptions): Promise<void> {
-  const { name, chineseOnly, multiSelect, outputDir, maxDuration } = options;
+  const { name, chineseOnly, multiSelect, outputDir, maxDuration, chineseFirst } = options;
   const output = outputDir ?? getDefaultDownloadDir();
 
   // Parse max duration if provided
@@ -44,6 +45,9 @@ export async function searchCommand(options: SearchCommandOptions): Promise<void
   }
   if (maxDuration && maxDurationMs) {
     console.log(chalk.gray(`  Filtering: Max video duration ${maxDuration}`));
+  }
+  if (chineseFirst && !chineseOnly) {
+    console.log(chalk.gray('  Priority: Chinese subtitles first'));
   }
   console.log();
 
@@ -88,8 +92,23 @@ export async function searchCommand(options: SearchCommandOptions): Promise<void
       if (filterInfo) filterInfo += ', ';
       filterInfo += `Max duration ${maxDuration}: ${subtitles.length}`;
     }
+    if (chineseFirst && !chineseOnly) {
+      if (filterInfo) filterInfo += ', ';
+      filterInfo += 'Chinese-first';
+    }
     if (filterInfo) {
       console.log(chalk.green(`  Filtered (${filterInfo})`));
+    }
+
+    // 中文字幕优先排序：中文排前面，非中文排后面
+    if (chineseFirst && !chineseOnly) {
+      subtitles = [...subtitles].sort((a, b) => {
+        const aIsChinese = client.isChineseSubtitle(a);
+        const bIsChinese = client.isChineseSubtitle(b);
+        if (aIsChinese && !bIsChinese) return -1;
+        if (!aIsChinese && bIsChinese) return 1;
+        return 0;
+      });
     }
 
     // Display subtitle list
@@ -125,13 +144,22 @@ export async function searchCommand(options: SearchCommandOptions): Promise<void
       return;
     }
 
+    // 构建下载文件名：{搜索名}{.zh}.{ext}
+    const buildFilename = (subtitle: Subtitle): string => {
+      const isChinese = client.isChineseSubtitle(subtitle);
+      const suffix = isChinese ? '.zh' : '';
+      return `${name}${suffix}.${subtitle.ext}`;
+    };
+
     if (selectedSubtitles.length === 1) {
-      const result = await downloadSubtitle(firstSubtitle, output);
+      const filename = buildFilename(firstSubtitle);
+      const result = await downloadSubtitle(firstSubtitle, output, filename);
       if (result.success) {
         displaySuccess(`Downloaded: ${result.filename}`);
       }
     } else {
-      const batchResult = await downloadBatch(selectedSubtitles, output);
+      const filenames = selectedSubtitles.map((s) => buildFilename(s));
+      const batchResult = await downloadBatch(selectedSubtitles, output, filenames);
       displaySuccess(
         `Batch download complete: ${batchResult.successful} successful, ${batchResult.failed} failed`
       );
