@@ -116,17 +116,32 @@ def _has_u_suffix(subtitle) -> bool:
 def process_scanned_movies(
     base_dir: str,
     dry_run: bool = False,
+    name_filter: str = "",
 ) -> list[ScanResult]:
     """
     扫描并处理所有电影目录
+    name_filter: 电影名包含此关键词才处理（空字符串 = 全部处理）
     """
     movie_dirs = scan_movie_dirs(base_dir)
 
+    # 按电影名过滤
+    if name_filter:
+        movie_dirs = [
+            d for d in movie_dirs
+            if name_filter.lower() in os.path.basename(d).lower()
+        ]
+
     if not movie_dirs:
-        print(f"\033[90m  No movie directories with movie.nfo found.\033[0m\n")
+        if name_filter:
+            print(f"\033[90m  No movies matching \"{name_filter}\" found.\033[0m\n")
+        else:
+            print(f"\033[90m  No movie directories with movie.nfo found.\033[0m\n")
         return []
 
-    print(f"\033[1m\n  Found {len(movie_dirs)} movie(s) to process\033[0m\n")
+    if name_filter:
+        print(f"\033[1m\n  Found {len(movie_dirs)} movie(s) matching \"{name_filter}\"\033[0m\n")
+    else:
+        print(f"\033[1m\n  Found {len(movie_dirs)} movie(s) to process\033[0m\n")
 
     client = SubtitleApiClient()
     results: list[ScanResult] = []

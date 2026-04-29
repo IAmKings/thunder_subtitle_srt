@@ -153,7 +153,7 @@ def cmd_download(args: argparse.Namespace) -> None:
 
 def cmd_scan(args: argparse.Namespace) -> None:
     """执行 Jellyfin 扫描命令"""
-    process_scanned_movies(args.directory, dry_run=args.dry_run)
+    process_scanned_movies(args.directory, dry_run=args.dry_run, name_filter=args.filter or "")
 
 
 def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> None:
@@ -276,6 +276,12 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Show what would be done without downloading",
+    )
+    scan_parser.add_argument(
+        "--filter",
+        type=str,
+        default=None,
+        help="Only process movies whose name contains this keyword",
     )
 
     args = parser.parse_args()
