@@ -113,6 +113,15 @@ def _has_u_suffix(subtitle) -> bool:
     return bool(re.search(r"-u\.\w+$", subtitle.name, re.IGNORECASE))
 
 
+def _find_existing_subtitle(movie_path: str, movie_name: str) -> str | None:
+    """检查目录中是否已有该电影的字幕文件，返回找到的文件名"""
+    for ext in ("zh.srt", "srt", "zh.ass", "ass"):
+        path = os.path.join(movie_path, f"{movie_name}.{ext}")
+        if os.path.isfile(path):
+            return f"{movie_name}.{ext}"
+    return None
+
+
 def process_scanned_movies(
     base_dir: str,
     dry_run: bool = False,
@@ -188,12 +197,10 @@ def process_scanned_movies(
             ))
             continue
 
-        # 已有字幕文件（.zh.srt 或 .srt），跳过
-        zh_srt_path = os.path.join(movie_path, f"{movie_name}.zh.srt")
-        srt_path = os.path.join(movie_path, f"{movie_name}.srt")
-        if os.path.isfile(zh_srt_path) or os.path.isfile(srt_path):
-            existing = f"{movie_name}.zh.srt" if os.path.isfile(zh_srt_path) else f"{movie_name}.srt"
-            print(f"\033[90m    ✓ {existing} already exists, skipped\033[0m")
+        # 已有字幕文件（.zh.srt / .srt / .zh.ass / .ass），跳过
+        existing_sub = _find_existing_subtitle(movie_path, movie_name)
+        if existing_sub:
+            print(f"\033[90m    ✓ {existing_sub} already exists, skipped\033[0m")
             results.append(ScanResult(
                 movie_path=movie_path,
                 movie_name=movie_name,
