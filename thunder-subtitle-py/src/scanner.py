@@ -262,26 +262,19 @@ def process_scanned_movies(
             best_filename = f"{movie_name}{best_suffix}.{best.ext}"
             to_download.append((best, best_filename))
 
-            # 最新中文字幕（API 返回顺序第一个中文 = 最新上传）
-            # 仅在时长筛选范围内找
-            chinese_in_range = [
-                s for s in subtitles if client.is_chinese_subtitle(s)
-            ]
-            if chinese_in_range:
-                # 按 API 原始顺序排列（保留 result.subtitles 中的顺序）
-                orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
-                chinese_in_range.sort(key=lambda s: orig_order.get(id(s), 9999))
+            # 最新字幕：API 返回顺序第一条即为最新上传（不做中文筛选）
+            # 按 API 原始顺序在时长筛选范围内取第一条
+            orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
+            in_range_sorted = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
+            newest = in_range_sorted[0]
 
-                newest = chinese_in_range[0]
-                # 如果最新和最佳是同一个，取下一个最新的
-                if newest is best and len(chinese_in_range) > 1:
-                    newest = chinese_in_range[1]
+            # 如果最新和最佳是同一个，取 API 顺序第二条
+            if newest is best and len(in_range_sorted) > 1:
+                newest = in_range_sorted[1]
 
-                if newest is not best:
-                    new_filename = f"{movie_name}-new.zh.srt"
-                    # 保留原始扩展名
-                    new_filename = f"{movie_name}-new.zh.{newest.ext}"
-                    to_download.append((newest, new_filename))
+            if newest is not best:
+                new_filename = f"{movie_name}-new.zh.{newest.ext}"
+                to_download.append((newest, new_filename))
 
             # 执行下载
             downloaded_files = []
