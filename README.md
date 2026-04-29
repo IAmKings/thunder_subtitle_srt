@@ -22,7 +22,9 @@ thunder-subtitle-srt/
 - [x] 视频时长匹配筛选（`--max-duration`，最接近但不超过）
 - [x] 单选/多选字幕（TS 交互式 / Python 参数式）
 - [x] 字幕下载（单文件/批量）
-- [x] Jellyfin 扫描器（自动扫描 演员/电影 目录，批量下载字幕）
+- [x] Jellyfin 扫描器（自动扫描、多关键词过滤、双字幕下载）
+- [x] 多关键词过滤（`--filter` 可重复，命中任一即处理）
+- [x] 配置文件持久化（`~/.thunder-subtitle.json`，支持 `config` 命令管理）
 - [x] 下载文件名规则：`{搜索名}{.zh}.{ext}`，中文字幕自动加 `.zh` 标识
 
 ## 快速开始
@@ -214,7 +216,12 @@ pnpm dev
 
 ### 防抖机制
 
-每次 API 查询间隔 3 秒，避免请求过频被封。
+API 查询间隔可通过配置调整，避免请求过频（默认 3 秒）：
+
+```bash
+python3 cli.py config --set rate_limit 5   # 改为 5 秒
+python3 cli.py config --set rate_limit 0   # 不等待（测试用）
+```
 
 ## 技术栈
 
