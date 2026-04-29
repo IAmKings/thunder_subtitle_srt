@@ -9,6 +9,7 @@ import argparse
 import sys
 
 from src.api import SubtitleApiClient
+from src.config import Config
 from src.ui import display_subtitle_list, display_error, display_success
 from src.download import download_subtitle, download_batch, get_default_download_dir
 from src.utils import parse_duration
@@ -153,7 +154,39 @@ def cmd_download(args: argparse.Namespace) -> None:
 
 def cmd_scan(args: argparse.Namespace) -> None:
     """执行 Jellyfin 扫描命令"""
-    process_scanned_movies(args.directory, dry_run=args.dry_run, name_filters=args.filters)
+    config = Config.load()
+    process_scanned_movies(
+        args.directory, dry_run=args.dry_run, name_filters=args.filters, config=config
+    )
+
+
+def cmd_config(args: argparse.Namespace) -> None:
+    """配置管理"""
+    config = Config.load()
+
+    if args.reset:
+        config = Config()
+        config.save()
+        print(f"\033[32m\n  ✓ Config reset to defaults\033[0m\n")
+        return
+
+    if args.set_pair:
+        key, value = args.set_pair[0], args.set_pair[1]
+        if not hasattr(config, key):
+            valid = ", ".join(Config.__dataclass_fields__.keys())
+            print(f"\033[31m\n  ✗ Unknown key: {key}\033[0m")
+            print(f"\033[90m  Valid keys: {valid}\033[0m\n")
+            return
+        current = getattr(config, key)
+        if isinstance(current, int):
+            setattr(config, key, int(value))
+        else:
+            setattr(config, key, value)
+        config.save()
+        print(f"\033[32m\n  ✓ {key} = {getattr(config, key)}\033[0m\n")
+        return
+
+    config.show()
 
 
 def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> None:
@@ -262,6 +295,19 @@ def main() -> None:
         help="Output directory for downloads",
     )
 
+    # ===== config 命令 =====
+    config_parser = subparsers.add_parser(
+        "config", help="View or update configuration"
+    )
+    config_parser.add_argument(
+        "--set", nargs=2, metavar=("KEY", "VALUE"), dest="set_pair",
+        help="Set a config value (e.g., --set rate_limit 5)",
+    )
+    config_parser.add_argument(
+        "--reset", action="store_true", default=False,
+        help="Reset config to defaults",
+    )
+
     # ===== scan 命令 =====
     scan_parser = subparsers.add_parser(
         "scan",
@@ -294,6 +340,8 @@ def main() -> None:
         cmd_download(args)
     elif args.command == "scan":
         cmd_scan(args)
+    elif args.command == "config":
+        cmd_config(args)
     else:
         parser.print_help()
 

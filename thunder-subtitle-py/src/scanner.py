@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
 from .api import SubtitleApiClient
+from .config import Config
 from .download import download_subtitle
 from .utils import seconds_to_duration_str
 
@@ -126,11 +127,15 @@ def process_scanned_movies(
     base_dir: str,
     dry_run: bool = False,
     name_filters: list[str] | None = None,
+    config: Config | None = None,
 ) -> list[ScanResult]:
     """
     扫描并处理所有电影目录
     name_filters: 电影名包含任一关键词才处理（None = 全部处理）
+    config: 应用配置（None 时使用默认值）
     """
+    if config is None:
+        config = Config.load()
     movie_dirs = scan_movie_dirs(base_dir)
 
     # 按电影名过滤（命中任一关键词即可）
@@ -231,8 +236,8 @@ def process_scanned_movies(
 
         # 搜索字幕（非首次查询间隔 3 秒，避免请求过频）
         try:
-            if has_queried:
-                time.sleep(3)
+            if has_queried and config.rate_limit > 0:
+                time.sleep(config.rate_limit)
             has_queried = True
 
             result = client.search_subtitles(movie_name)

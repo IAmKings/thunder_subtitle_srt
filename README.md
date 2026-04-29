@@ -82,6 +82,10 @@ python3 cli.py scan /path/to/media
 # 只处理特定系列电影（支持多关键词）
 python3 cli.py scan /path/to/media --filter "星球大战"
 python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" --filter "漫威"
+
+# 查看/修改配置
+python3 cli.py config
+python3 cli.py config --set rate_limit 5
 ```
 
 ### WebApp
@@ -116,6 +120,16 @@ pnpm dev
 | `directory` | 扫描根目录（演员/电影 结构） |
 | `--dry-run` | 预览模式，不实际下载 |
 | `--filter` | 仅处理电影名包含该关键词的目录（可重复多次） |
+
+### `config` 命令（仅 Python 版）
+
+| 参数 | 说明 |
+|------|------|
+| （无参数） | 查看当前配置 |
+| `--set KEY VALUE` | 设置配置项 |
+| `--reset` | 恢复默认配置 |
+
+配置项：`output_dir`、`timeout`、`rate_limit`。文件：`~/.thunder-subtitle.json`
 
 ### 文件名规则
 
