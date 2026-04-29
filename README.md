@@ -81,6 +81,9 @@ python3 cli.py scan /path/to/media --dry-run
 # Jellyfin 目录扫描（实际下载）
 python3 cli.py scan /path/to/media
 
+# 断点续扫（中断后继续）
+python3 cli.py scan /path/to/media --resume
+
 # 只处理特定系列电影（支持多关键词）
 python3 cli.py scan /path/to/media --filter "星球大战"
 python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" --filter "漫威"
@@ -122,6 +125,7 @@ pnpm dev
 | `directory` | 扫描根目录（演员/电影 结构） |
 | `--dry-run` | 预览模式，不实际下载 |
 | `--filter` | 仅处理电影名包含该关键词的目录（可重复多次） |
+| `--resume` | 断点续扫，跳过已处理的电影 |
 
 ### `config` 命令（仅 Python 版）
 
@@ -213,6 +217,16 @@ pnpm dev
 | **1** | `-U` 后缀 | 可用度最高（如 `电影名-U.srt`） |
 | **2** | 中文字幕 | languages 含中文 或 name 含中文标识 |
 | **3** | duration 降序 | 最接近视频时长 |
+
+### 断点续扫
+
+意外中断后，使用 `--resume` 跳过已处理的电影继续扫描：
+
+```bash
+python3 cli.py scan /path/to/media --resume
+```
+
+进度文件 `.scan-progress` 保存在扫描目录下，全部完成后自动清理。
 
 ### 防抖机制
 

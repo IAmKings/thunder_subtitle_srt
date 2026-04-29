@@ -156,7 +156,11 @@ def cmd_scan(args: argparse.Namespace) -> None:
     """执行 Jellyfin 扫描命令"""
     config = Config.load()
     process_scanned_movies(
-        args.directory, dry_run=args.dry_run, name_filters=args.filters, config=config
+        args.directory,
+        dry_run=args.dry_run,
+        name_filters=args.filters,
+        config=config,
+        resume=args.resume,
     )
 
 
@@ -330,6 +334,12 @@ def main() -> None:
         default=None,
         dest="filters",
         help="Only process movies matching this keyword (can repeat)",
+    )
+    scan_parser.add_argument(
+        "--resume",
+        action="store_true",
+        default=False,
+        help="Resume from last interruption, skip already-processed movies",
     )
 
     args = parser.parse_args()

@@ -134,13 +134,30 @@ def process_scanned_movies(
     dry_run: bool = False,
     name_filters: list[str] | None = None,
     config: Config | None = None,
+    resume: bool = False,
 ) -> list[ScanResult]:
     """扫描并处理所有电影目录"""
     if config is None:
         config = Config.load()
 
+    progress_file = os.path.join(base_dir, ".scan-progress")
+
     movie_dirs = _apply_filters(scan_movie_dirs(base_dir), name_filters)
     if not movie_dirs:
+        return []
+
+    # 断点续扫：加载已完成的电影列表，跳过
+    completed_paths: set[str] = set()
+    if resume and os.path.isfile(progress_file):
+        with open(progress_file, "r", encoding="utf-8") as f:
+            completed_paths = {line.strip() for line in f if line.strip()}
+        skipped_count = sum(1 for d in movie_dirs if d in completed_paths)
+        movie_dirs = [d for d in movie_dirs if d not in completed_paths]
+        if skipped_count > 0:
+            print(f"\033[90m  Resuming: {skipped_count} already done, {len(movie_dirs)} remaining\033[0m")
+
+    if not movie_dirs:
+        print(f"\033[90m  All movies already processed, nothing to do.\033[0m\n")
         return []
 
     client = SubtitleApiClient()
@@ -165,6 +182,14 @@ def process_scanned_movies(
 
         if result.status in ("downloaded", "no_match"):
             has_queried = True
+
+        # 断点续扫：记录已处理电影
+        if resume and result.status != "error":
+            _save_progress(progress_file, movie_path)
+
+    # 全部完成，清理进度文件
+    if resume and os.path.isfile(progress_file):
+        os.remove(progress_file)
 
     _print_scan_summary(results)
     return results
@@ -323,6 +348,15 @@ def _search_and_download(
 
     _print_status("✗", "All downloads failed")
     return ScanResult(movie_path, movie_name, "error", "All downloads failed")
+
+
+def _save_progress(progress_file: str, movie_path: str) -> None:
+    """追加一条已处理记录到进度文件"""
+    try:
+        with open(progress_file, "a", encoding="utf-8") as f:
+            f.write(movie_path + "\n")
+    except OSError:
+        pass  # 写进度文件失败不影响主流程
 
 
 # ---- 输出辅助 ----
