@@ -125,30 +125,32 @@ def _find_existing_subtitle(movie_path: str, movie_name: str) -> str | None:
 def process_scanned_movies(
     base_dir: str,
     dry_run: bool = False,
-    name_filter: str = "",
+    name_filters: list[str] | None = None,
 ) -> list[ScanResult]:
     """
     扫描并处理所有电影目录
-    name_filter: 电影名包含此关键词才处理（空字符串 = 全部处理）
+    name_filters: 电影名包含任一关键词才处理（None = 全部处理）
     """
     movie_dirs = scan_movie_dirs(base_dir)
 
-    # 按电影名过滤
-    if name_filter:
+    # 按电影名过滤（命中任一关键词即可）
+    if name_filters:
         movie_dirs = [
             d for d in movie_dirs
-            if name_filter.lower() in os.path.basename(d).lower()
+            if any(f.lower() in os.path.basename(d).lower() for f in name_filters)
         ]
 
     if not movie_dirs:
-        if name_filter:
-            print(f"\033[90m  No movies matching \"{name_filter}\" found.\033[0m\n")
+        if name_filters:
+            kw = ", ".join(name_filters)
+            print(f"\033[90m  No movies matching [{kw}] found.\033[0m\n")
         else:
             print(f"\033[90m  No movie directories with movie.nfo found.\033[0m\n")
         return []
 
-    if name_filter:
-        print(f"\033[1m\n  Found {len(movie_dirs)} movie(s) matching \"{name_filter}\"\033[0m\n")
+    if name_filters:
+        kw = ", ".join(name_filters)
+        print(f"\033[1m\n  Found {len(movie_dirs)} movie(s) matching [{kw}]\033[0m\n")
     else:
         print(f"\033[1m\n  Found {len(movie_dirs)} movie(s) to process\033[0m\n")
 

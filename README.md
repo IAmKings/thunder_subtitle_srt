@@ -79,9 +79,9 @@ python3 cli.py scan /path/to/media --dry-run
 # Jellyfin 目录扫描（实际下载）
 python3 cli.py scan /path/to/media
 
-# 只处理特定系列电影
+# 只处理特定系列电影（支持多关键词）
 python3 cli.py scan /path/to/media --filter "星球大战"
-python3 cli.py scan /path/to/media --filter "Star Wars" --dry-run
+python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" --filter "漫威"
 ```
 
 ### WebApp
@@ -115,7 +115,7 @@ pnpm dev
 |------|------|
 | `directory` | 扫描根目录（演员/电影 结构） |
 | `--dry-run` | 预览模式，不实际下载 |
-| `--filter` | 仅处理电影名包含该关键词的目录 |
+| `--filter` | 仅处理电影名包含该关键词的目录（可重复多次） |
 
 ### 文件名规则
 
