@@ -188,15 +188,17 @@ def process_scanned_movies(
             ))
             continue
 
-        # 已存在 .zh.srt 字幕文件，跳过
+        # 已有字幕文件（.zh.srt 或 .srt），跳过
         zh_srt_path = os.path.join(movie_path, f"{movie_name}.zh.srt")
-        if os.path.isfile(zh_srt_path):
-            print(f"\033[90m    ✓ {movie_name}.zh.srt already exists, skipped\033[0m")
+        srt_path = os.path.join(movie_path, f"{movie_name}.srt")
+        if os.path.isfile(zh_srt_path) or os.path.isfile(srt_path):
+            existing = f"{movie_name}.zh.srt" if os.path.isfile(zh_srt_path) else f"{movie_name}.srt"
+            print(f"\033[90m    ✓ {existing} already exists, skipped\033[0m")
             results.append(ScanResult(
                 movie_path=movie_path,
                 movie_name=movie_name,
                 status="skipped",
-                reason="Chinese subtitle file already exists",
+                reason="Subtitle file already exists",
             ))
             continue
 
