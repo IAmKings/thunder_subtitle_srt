@@ -251,51 +251,50 @@ def process_scanned_movies(
                 ))
                 continue
 
-            # 按优先级排序：-U 后缀 > 中文 > duration 降序
             u_count = sum(1 for s in subtitles if _has_u_suffix(s))
             cn_count = sum(1 for s in subtitles if client.is_chinese_subtitle(s))
-            if u_count:
-                print(f"\033[90m    -U (highest available): {u_count}, Chinese: {cn_count}\033[0m")
-            else:
-                print(f"\033[90m    Chinese: {cn_count}, Total in range: {len(subtitles)}\033[0m")
 
-            # 排序优先级：-U 后缀 > 中文 > duration 降序
+            # 按 API 原始顺序排序（第一条 = 最新上传）
+            orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
+            subtitles_by_api = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
+
+            # 主字幕：API 返回第一条（80% 场景翻译质量最高）
+            primary = subtitles_by_api[0]
+
+            # 备选字幕：优先级算法最佳（-U > 中文 > duration）
             subtitles.sort(key=lambda s: (
                 0 if _has_u_suffix(s) else 1,
                 0 if client.is_chinese_subtitle(s) else 1,
                 -s.duration,
             ))
-
-            # 取最佳匹配
             best = subtitles[0]
 
-            # 确定要下载的字幕列表（最佳 + 最新备选）
+            # 去重：算法最佳和主字幕同一个时，后延取 API 顺序第二条
+            if best is primary and len(subtitles_by_api) > 1:
+                best = subtitles_by_api[1]
+
             to_download: list[tuple] = []
 
-            # 最佳匹配 → 主字幕
-            best_suffix = ".zh" if client.is_chinese_subtitle(best) else ""
-            best_filename = f"{movie_name}{best_suffix}.{best.ext}"
-            to_download.append((best, best_filename))
+            # 主字幕
+            primary_suffix = ".zh" if client.is_chinese_subtitle(primary) else ""
+            primary_filename = f"{movie_name}{primary_suffix}.{primary.ext}"
+            to_download.append((primary, primary_filename))
 
-            # 最新字幕：API 返回顺序第一条即为最新上传（不做中文筛选）
-            # 按 API 原始顺序在时长筛选范围内取第一条
-            orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
-            in_range_sorted = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
-            newest = in_range_sorted[0]
+            # 备选字幕
+            if best is not primary:
+                alt_filename = f"{movie_name}-alt.zh.{best.ext}"
+                to_download.append((best, alt_filename))
 
-            # 如果最新和最佳是同一个，取 API 顺序第二条
-            if newest is best and len(in_range_sorted) > 1:
-                newest = in_range_sorted[1]
-
-            if newest is not best:
-                new_filename = f"{movie_name}-new.zh.{newest.ext}"
-                to_download.append((newest, new_filename))
+            if u_count:
+                print(f"\033[90m    -U: {u_count}, Chinese: {cn_count}, Primary (newest): {primary.name}\033[0m")
+            else:
+                print(f"\033[90m    Chinese: {cn_count}, Primary (newest): {primary.name}\033[0m")
 
             # 执行下载
             downloaded_files = []
             for sub, fname in to_download:
-                is_new = "-new" in fname
-                tag = " [new]" if is_new else ""
+                is_alt = "-alt" in fname
+                tag = " [alt]" if is_alt else " [primary]"
                 print(f"\033[90m    Downloading{tag}: {sub.name} → {fname}\033[0m")
 
                 dl_result = download_subtitle(sub, movie_path, custom_filename=fname)
