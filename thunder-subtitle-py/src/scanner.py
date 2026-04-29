@@ -245,13 +245,15 @@ def process_scanned_movies(
                 ))
                 continue
 
-            # 按时长筛选（保留所有语言，后续再按优先级排序）
-            subtitles = result.subtitles
+            # 按时长筛选（duration=0 的字幕保留，排在有时长字幕之后）
             max_duration_ms = nfo.duration_seconds * 1000
-            subtitles = client.filter_by_max_duration(subtitles, max_duration_ms)
+            with_duration = [s for s in result.subtitles if s.duration > 0]
+            without_duration = [s for s in result.subtitles if s.duration == 0]
+            matched = client.filter_by_max_duration(with_duration, max_duration_ms)
+            subtitles = matched + without_duration  # 有时长在前，无时长在后
 
             if not subtitles:
-                print(f"\033[90m    ✗ No matching subtitles within duration\033[0m")
+                print(f"\033[90m    ✗ No subtitles found\033[0m")
                 results.append(ScanResult(
                     movie_path=movie_path,
                     movie_name=movie_name,
