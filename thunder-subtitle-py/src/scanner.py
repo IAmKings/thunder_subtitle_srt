@@ -116,7 +116,7 @@ def _has_u_suffix(subtitle) -> bool:
 
 def _find_existing_subtitle(movie_path: str, movie_name: str) -> str | None:
     """检查目录中是否已有该电影的字幕文件，返回找到的文件名"""
-    for ext in ("zh.srt", "srt", "zh.ass", "ass"):
+    for ext in ("zh.srt", "srt", "zh.ass", "ass", "zh.ssa", "ssa", "zh.sub", "sub", "zh.vtt", "vtt"):
         path = os.path.join(movie_path, f"{movie_name}.{ext}")
         if os.path.isfile(path):
             return f"{movie_name}.{ext}"
