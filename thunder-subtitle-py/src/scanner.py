@@ -253,29 +253,65 @@ def process_scanned_movies(
 
             # 取最佳匹配
             best = subtitles[0]
-            is_chinese = client.is_chinese_subtitle(best)
-            suffix = ".zh" if is_chinese else ""
-            filename = f"{movie_name}{suffix}.{best.ext}"
 
-            print(f"\033[90m    Downloading: {best.name} → {filename}\033[0m")
+            # 确定要下载的字幕列表（最佳 + 最新备选）
+            to_download: list[tuple] = []
 
-            dl_result = download_subtitle(best, movie_path, custom_filename=filename)
+            # 最佳匹配 → 主字幕
+            best_suffix = ".zh" if client.is_chinese_subtitle(best) else ""
+            best_filename = f"{movie_name}{best_suffix}.{best.ext}"
+            to_download.append((best, best_filename))
 
-            if dl_result.success:
-                print(f"\033[32m    ✓ Downloaded: {dl_result.filename}\033[0m")
+            # 最新中文字幕（API 返回顺序第一个中文 = 最新上传）
+            # 仅在时长筛选范围内找
+            chinese_in_range = [
+                s for s in subtitles if client.is_chinese_subtitle(s)
+            ]
+            if chinese_in_range:
+                # 按 API 原始顺序排列（保留 result.subtitles 中的顺序）
+                orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
+                chinese_in_range.sort(key=lambda s: orig_order.get(id(s), 9999))
+
+                newest = chinese_in_range[0]
+                # 如果最新和最佳是同一个，取下一个最新的
+                if newest is best and len(chinese_in_range) > 1:
+                    newest = chinese_in_range[1]
+
+                if newest is not best:
+                    new_filename = f"{movie_name}-new.zh.srt"
+                    # 保留原始扩展名
+                    new_filename = f"{movie_name}-new.zh.{newest.ext}"
+                    to_download.append((newest, new_filename))
+
+            # 执行下载
+            downloaded_files = []
+            for sub, fname in to_download:
+                is_new = "-new" in fname
+                tag = " [new]" if is_new else ""
+                print(f"\033[90m    Downloading{tag}: {sub.name} → {fname}\033[0m")
+
+                dl_result = download_subtitle(sub, movie_path, custom_filename=fname)
+
+                if dl_result.success:
+                    downloaded_files.append(dl_result.filename)
+                else:
+                    print(f"\033[31m    ✗ Download failed: {dl_result.error}\033[0m")
+
+            if downloaded_files:
+                print(f"\033[32m    ✓ Downloaded: {', '.join(downloaded_files)}\033[0m")
                 results.append(ScanResult(
                     movie_path=movie_path,
                     movie_name=movie_name,
                     status="downloaded",
-                    filename=dl_result.filename,
+                    filename=", ".join(downloaded_files),
                 ))
             else:
-                print(f"\033[31m    ✗ Download failed: {dl_result.error}\033[0m")
+                print(f"\033[31m    ✗ All downloads failed\033[0m")
                 results.append(ScanResult(
                     movie_path=movie_path,
                     movie_name=movie_name,
                     status="error",
-                    reason=dl_result.error,
+                    reason="All downloads failed",
                 ))
 
         except Exception as e:
