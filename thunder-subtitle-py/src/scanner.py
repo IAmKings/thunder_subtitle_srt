@@ -178,10 +178,6 @@ def process_scanned_movies(
 
         print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m")
 
-        # 查询间隔控制
-        if has_queried and config.rate_limit > 0:
-            time.sleep(config.rate_limit)
-
         result = _process_one_movie(
             movie_path, movie_name, dry_run, client, config, has_queried
         )
@@ -274,7 +270,7 @@ def _process_one_movie(
 
     # ---- 搜索 + 下载 ----
     try:
-        return _search_and_download(movie_path, movie_name, nfo, client, config)
+        return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried)
     except Exception as e:
         print(f"\033[31m    ✗ Error: {e}\033[0m")
         return ScanResult(movie_path, movie_name, "error", str(e))
@@ -298,8 +294,12 @@ def _search_and_download(
     nfo: NfoInfo,
     client: SubtitleApiClient,
     config: Config,
+    needs_delay: bool = False,
 ) -> ScanResult:
     """搜索字幕并下载（主力 + 备选）"""
+    if needs_delay and config.rate_limit > 0:
+        time.sleep(config.rate_limit)
+
     result = client.search_subtitles(movie_name)
 
     if result.total == 0:
