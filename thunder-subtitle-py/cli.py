@@ -6,6 +6,7 @@ Thunder Subtitle Python CLI - Entry Point
 """
 
 import argparse
+import hashlib
 import os
 import sys
 
@@ -244,15 +245,29 @@ def cmd_dump(args: argparse.Namespace) -> None:
 
         os.makedirs(output_dir, exist_ok=True)
         downloaded = 0
+        dupes = 0
+        seen_hashes: dict[str, str] = {}  # md5 → filename
+
         for i, sub in enumerate(subtitles, 1):
             filename = f"{i}.{sub.ext}"
             print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
 
             dl = download_subtitle(sub, output_dir, custom_filename=filename)
             if dl.success:
-                downloaded += 1
+                filepath = os.path.join(output_dir, filename)
+                file_hash = _md5_file(filepath)
+                if file_hash and file_hash in seen_hashes:
+                    os.remove(filepath)
+                    print(f"\033[90m    ↳ Duplicate of {seen_hashes[file_hash]}, removed\033[0m")
+                    dupes += 1
+                else:
+                    if file_hash:
+                        seen_hashes[file_hash] = filename
+                    downloaded += 1
 
-        print(f"\n\033[32m  ✓ Downloaded {downloaded}/{len(subtitles)}\033[0m\n")
+        total = len(subtitles)
+        dup_msg = f" ({dupes} dupes skipped)" if dupes > 0 else ""
+        print(f"\n\033[32m  ✓ Downloaded {downloaded}/{total}{dup_msg}\033[0m\n")
 
     except RuntimeError as e:
         display_error(str(e))
@@ -296,6 +311,18 @@ def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> 
             f"Batch download complete: {batch['successful']} successful, "
             f"{batch['failed']} failed"
         )
+
+
+def _md5_file(filepath: str) -> str | None:
+    """计算文件 MD5，失败返回 None"""
+    try:
+        h = hashlib.md5()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return None
 
 
 def _parse_indices(index_str: str) -> list[int]:
