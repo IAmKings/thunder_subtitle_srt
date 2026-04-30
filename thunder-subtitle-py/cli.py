@@ -268,6 +268,8 @@ def cmd_review(args: argparse.Namespace) -> None:
         mark=args.mark,
         unmark=args.unmark,
         mark_all=args.mark_all,
+        mark_path=args.mark_path,
+        unmark_path=args.unmark_path,
     )
 
 
@@ -436,6 +438,14 @@ def main() -> None:
     review_parser.add_argument(
         "--mark-all", action="store_true", default=False,
         help="Mark all movies as reviewed",
+    )
+    review_parser.add_argument(
+        "--mark-path", type=str, default=None,
+        help="Mark a specific movie directory as reviewed",
+    )
+    review_parser.add_argument(
+        "--unmark-path", type=str, default=None,
+        help="Remove review mark from a specific movie directory",
     )
 
     # ===== scan 命令 =====

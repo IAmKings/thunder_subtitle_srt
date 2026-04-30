@@ -41,10 +41,29 @@ def review_directory(
     mark: str | None = None,
     unmark: str | None = None,
     mark_all: bool = False,
+    **kwargs: str | None,
 ) -> list[ReviewItem] | None:
     """审查目录下所有字幕文件（或执行标记操作）"""
     # ---- 标记操作 ----
-    if mark or unmark or mark_all:
+    mark_path: str | None = kwargs.get("mark_path")
+    unmark_path: str | None = kwargs.get("unmark_path")
+
+    if mark or unmark or mark_all or mark_path or unmark_path:
+        # 精确路径操作
+        if mark_path:
+            if os.path.isdir(mark_path):
+                _batch_mark([mark_path], True)
+            else:
+                print(f"\033[31m  ✗ Directory not found: {mark_path}\033[0m\n")
+            return None
+        if unmark_path:
+            if os.path.isdir(unmark_path):
+                _batch_mark([unmark_path], False)
+            else:
+                print(f"\033[31m  ✗ Directory not found: {unmark_path}\033[0m\n")
+            return None
+
+        # 关键词模糊匹配
         movie_dirs = scan_movie_dirs(base_dir)
         if mark_all:
             _batch_mark(movie_dirs, True)
