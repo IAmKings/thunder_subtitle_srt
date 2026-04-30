@@ -6,6 +6,7 @@ Thunder Subtitle Python CLI - Entry Point
 """
 
 import argparse
+import os
 import sys
 
 from src.api import SubtitleApiClient
@@ -196,6 +197,68 @@ def cmd_config(args: argparse.Namespace) -> None:
     config.show()
 
 
+def cmd_dump(args: argparse.Namespace) -> None:
+    """全量下载字幕：搜索后下载全部匹配结果，按 1.{ext}, 2.{ext} 命名"""
+    client = SubtitleApiClient()
+    output_dir = args.output or "."
+
+    # 解析时长
+    max_duration_ms: int | None = None
+    if args.max_duration:
+        try:
+            max_duration_ms = parse_duration(args.max_duration)
+        except ValueError as e:
+            display_error(str(e))
+            sys.exit(1)
+
+    print(f"\033[1m\n  Dumping all subtitles for: \"{args.name}\"\033[0m")
+    if args.max_duration:
+        print(f"\033[90m  Filtering: Max video duration {args.max_duration}\033[0m")
+    print(f"\033[90m  Output: {os.path.abspath(output_dir)}\033[0m\n")
+
+    try:
+        result = client.search_subtitles(args.name)
+        if result.total == 0:
+            display_error("No subtitles found.")
+            sys.exit(1)
+
+        subtitles = result.subtitles
+
+        # 中文筛选
+        if args.chinese_only:
+            subtitles = client.filter_chinese_subtitles(subtitles)
+        elif args.chinese_first:
+            subtitles.sort(key=lambda s: 0 if client.is_chinese_subtitle(s) else 1)
+
+        # 时长筛选
+        if max_duration_ms is not None:
+            with_dur = [s for s in subtitles if s.duration > 0]
+            without_dur = [s for s in subtitles if s.duration == 0]
+            subtitles = client.filter_by_max_duration(with_dur, max_duration_ms) + without_dur
+
+        if not subtitles:
+            display_error("No subtitles match the filters.")
+            sys.exit(1)
+
+        print(f"\033[32m  Found {len(subtitles)} subtitle(s)\033[0m\n")
+
+        os.makedirs(output_dir, exist_ok=True)
+        downloaded = 0
+        for i, sub in enumerate(subtitles, 1):
+            filename = f"{i}.{sub.ext}"
+            print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
+
+            dl = download_subtitle(sub, output_dir, custom_filename=filename)
+            if dl.success:
+                downloaded += 1
+
+        print(f"\n\033[32m  ✓ Downloaded {downloaded}/{len(subtitles)}\033[0m\n")
+
+    except RuntimeError as e:
+        display_error(str(e))
+        sys.exit(1)
+
+
 def cmd_review(args: argparse.Namespace) -> None:
     """执行字幕审查或标记操作"""
     review_directory(
@@ -327,6 +390,28 @@ def main() -> None:
         help="Reset config to defaults",
     )
 
+    # ===== dump 命令 =====
+    dump_parser = subparsers.add_parser(
+        "dump", help="Download ALL subtitles for a movie, numbered 1.srt, 2.srt, ..."
+    )
+    dump_parser.add_argument("name", help="Movie name to search")
+    dump_parser.add_argument(
+        "-o", "--output", type=str, default=".",
+        help="Output directory (default: current dir)",
+    )
+    dump_parser.add_argument(
+        "-d", "--max-duration", type=str, default=None,
+        help="Filter by max video duration (e.g., 1h30m)",
+    )
+    dump_parser.add_argument(
+        "-c", "--chinese-only", action="store_true", default=False,
+        help="Only Chinese subtitles",
+    )
+    dump_parser.add_argument(
+        "-f", "--chinese-first", action="store_true", default=False,
+        help="Prioritize Chinese subtitles first",
+    )
+
     # ===== review 命令 =====
     review_parser = subparsers.add_parser(
         "review", help="Review downloaded subtitle files for quality issues"
@@ -405,6 +490,8 @@ def main() -> None:
         cmd_scan(args)
     elif args.command == "review":
         cmd_review(args)
+    elif args.command == "dump":
+        cmd_dump(args)
     elif args.command == "config":
         cmd_config(args)
     else:

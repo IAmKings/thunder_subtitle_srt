@@ -99,6 +99,9 @@ python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" 
 python3 cli.py review /path/to/media
 python3 cli.py review /path/to/media --filter "星球大战" --log
 
+# 全量下载（评分低时人工筛选）
+python3 cli.py dump "流浪地球" -o /path/to/movie -d 2h --chinese-first
+
 # 标记人工审查
 python3 cli.py review /path/to/media --mark "星球大战"
 python3 cli.py review /path/to/media --mark-all
@@ -159,6 +162,18 @@ pnpm dev
 审查项：编码、文件大小、SRT时间轴解析（序号/重叠/空内容/行长度/时长）、中文占比。输出百分制评分。
 
 标记文件：`.reviewed` 空文件放在电影目录下，`scan --dry-run` 联动提示未审查项。
+
+### `dump` 命令（仅 Python 版）
+
+| 参数 | 简写 | 说明 |
+|------|------|------|
+| `name` | | 搜索的电影名 |
+| `--output` | `-o` | 输出目录（默认当前目录） |
+| `--max-duration` | `-d` | 最大视频时长筛选 |
+| `--chinese-only` | `-c` | 仅中文字幕 |
+| `--chinese-first` | `-f` | 中文优先排序 |
+
+下载全部匹配字幕，按 `1.srt`、`2.srt`、... 命名，方便人工逐个筛选。
 
 ### `config` 命令（仅 Python 版）
 
