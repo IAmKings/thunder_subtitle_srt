@@ -14,6 +14,7 @@ from src.ui import display_subtitle_list, display_error, display_success
 from src.download import download_subtitle, download_batch, get_default_download_dir
 from src.utils import parse_duration
 from src.scanner import process_scanned_movies
+from src.reviewer import review_directory
 
 
 def cmd_search(args: argparse.Namespace) -> None:
@@ -195,6 +196,11 @@ def cmd_config(args: argparse.Namespace) -> None:
     config.show()
 
 
+def cmd_review(args: argparse.Namespace) -> None:
+    """执行字幕审查"""
+    review_directory(args.directory, name_filters=args.filters, log=args.log)
+
+
 def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> None:
     """执行下载（单个或批量），文件名使用搜索名 + .zh 标识"""
 
@@ -314,6 +320,20 @@ def main() -> None:
         help="Reset config to defaults",
     )
 
+    # ===== review 命令 =====
+    review_parser = subparsers.add_parser(
+        "review", help="Review downloaded subtitle files for quality issues"
+    )
+    review_parser.add_argument("directory", help="Base directory to review (演员/电影 structure)")
+    review_parser.add_argument(
+        "--filter", type=str, action="append", default=None, dest="filters",
+        help="Only review movies matching this keyword (can repeat)",
+    )
+    review_parser.add_argument(
+        "--log", action="store_true", default=False,
+        help="Save review report to the scan directory",
+    )
+
     # ===== scan 命令 =====
     scan_parser = subparsers.add_parser(
         "scan",
@@ -364,6 +384,8 @@ def main() -> None:
         cmd_download(args)
     elif args.command == "scan":
         cmd_scan(args)
+    elif args.command == "review":
+        cmd_review(args)
     elif args.command == "config":
         cmd_config(args)
     else:
