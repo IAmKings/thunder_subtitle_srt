@@ -84,6 +84,9 @@ python3 cli.py scan /path/to/media
 # 断点续扫（中断后继续）
 python3 cli.py scan /path/to/media --resume
 
+# 保存扫描日志
+python3 cli.py scan /path/to/media --log
+
 # 只处理特定系列电影（支持多关键词）
 python3 cli.py scan /path/to/media --filter "星球大战"
 python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" --filter "漫威"
@@ -126,6 +129,7 @@ pnpm dev
 | `--dry-run` | 预览模式，不实际下载 |
 | `--filter` | 仅处理电影名包含该关键词的目录（可重复多次） |
 | `--resume` | 断点续扫，跳过已处理的电影 |
+| `--log` | 保存扫描日志到目录下 |
 
 ### `config` 命令（仅 Python 版）
 
@@ -227,6 +231,20 @@ python3 cli.py scan /path/to/media --resume
 ```
 
 进度文件 `.scan-progress` 保存在扫描目录下，全部完成后自动清理。
+
+### 扫描日志
+
+`--log` 在扫描目录下生成日志文件 `scan_{时间戳}.log`：
+
+```
+[16:19:43] [OK] 流浪地球 - 流浪地球.zh.srt, 流浪地球-alt.zh.ass
+[16:20:15] [SKIP] 星际穿越 - NFO has Chinese subtitle tag
+[16:20:15] [NONE] 盗梦空间 - No subtitles found
+[16:20:45] [ERR] 未知电影 - NFO parse error: ...
+
+--- Summary ---
+Total: 4  OK: 1  Skip: 1  None: 1  Err: 1
+```
 
 ### 下载重试
 

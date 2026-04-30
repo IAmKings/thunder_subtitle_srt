@@ -7,6 +7,7 @@ import re
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from datetime import datetime
 
 from .api import SubtitleApiClient
 from .config import Config
@@ -135,10 +136,16 @@ def process_scanned_movies(
     name_filters: list[str] | None = None,
     config: Config | None = None,
     resume: bool = False,
+    log: bool = False,
 ) -> list[ScanResult]:
     """扫描并处理所有电影目录"""
     if config is None:
         config = Config.load()
+
+    log_path = ""
+    if log:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_path = os.path.join(base_dir, f"scan_{ts}.log")
 
     progress_file = os.path.join(base_dir, ".scan-progress")
 
@@ -187,11 +194,21 @@ def process_scanned_movies(
         if resume and result.status != "error":
             _save_progress(progress_file, movie_path)
 
+        # 日志：写入结果
+        if log_path:
+            _write_log(log_path, movie_path, result)
+
     # 全部完成，清理进度文件
     if resume and os.path.isfile(progress_file):
         os.remove(progress_file)
 
     _print_scan_summary(results)
+
+    # 日志：写入汇总
+    if log_path:
+        _write_log_summary(log_path, results)
+        print(f"\033[90m  Log saved: {log_path}\033[0m\n")
+
     return results
 
 
@@ -360,6 +377,36 @@ def _save_progress(progress_file: str, movie_path: str) -> None:
             f.write(movie_path + "\n")
     except OSError:
         pass  # 写进度文件失败不影响主流程
+
+
+def _write_log(log_path: str, movie_path: str, result: ScanResult) -> None:
+    """写入单条日志"""
+    ts = datetime.now().strftime("%H:%M:%S")
+    status_map = {"downloaded": "OK", "skipped": "SKIP", "no_match": "NONE", "error": "ERR"}
+    tag = status_map.get(result.status, "??")
+    extra = f" - {result.filename}" if result.filename else f" - {result.reason}" if result.reason else ""
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{ts}] [{tag}] {os.path.basename(movie_path)}{extra}\n")
+    except OSError:
+        pass
+
+
+def _write_log_summary(log_path: str, results: list[ScanResult]) -> None:
+    """写入汇总到日志末尾"""
+    counts = {"downloaded": 0, "skipped": 0, "no_match": 0, "error": 0}
+    for r in results:
+        if r.status in counts:
+            counts[r.status] += 1
+    total = len(results)
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"\n--- Summary ---\n")
+            f.write(f"Total: {total}  OK: {counts['downloaded']}  "
+                    f"Skip: {counts['skipped']}  None: {counts['no_match']}  "
+                    f"Err: {counts['error']}\n")
+    except OSError:
+        pass
 
 
 # ---- 输出辅助 ----

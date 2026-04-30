@@ -161,6 +161,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
         name_filters=args.filters,
         config=config,
         resume=args.resume,
+        log=args.log,
     )
 
 
@@ -340,6 +341,12 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Resume from last interruption, skip already-processed movies",
+    )
+    scan_parser.add_argument(
+        "--log",
+        action="store_true",
+        default=False,
+        help="Save scan log to the scan directory",
     )
 
     args = parser.parse_args()
