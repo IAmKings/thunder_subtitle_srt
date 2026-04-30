@@ -18,6 +18,14 @@ class Config:
     rate_limit: int = 3           # 扫描模式下查询间隔（秒）
     retry_count: int = 3          # 下载失败重试次数
     retry_delay: int = 2          # 重试间隔（秒）
+    preferred_groups: str = ""    # 偏好字幕组（逗号分隔，如 KitaujiSub,DMG）
+
+    @property
+    def preferred_groups_list(self) -> list[str]:
+        """返回偏好字幕组列表"""
+        if not self.preferred_groups.strip():
+            return []
+        return [g.strip() for g in self.preferred_groups.split(",") if g.strip()]
 
     @classmethod
     def load(cls) -> "Config":

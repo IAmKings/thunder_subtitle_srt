@@ -125,6 +125,14 @@ def _has_u_suffix(subtitle) -> bool:
     return bool(re.search(r"-u\.\w+$", subtitle.name, re.IGNORECASE))
 
 
+def _has_preferred_group(subtitle, groups: list[str]) -> bool:
+    """字幕名称是否来自偏好字幕组"""
+    if not groups:
+        return False
+    name_lower = subtitle.name.lower()
+    return any(g.lower() in name_lower for g in groups)
+
+
 def _existing_subtitle_file(movie_path: str, movie_name: str) -> str | None:
     """检查目录中是否已有字幕文件，返回找到的文件名"""
     for ext in ("zh.srt", "srt", "zh.ass", "ass", "zh.ssa", "ssa", "zh.sub", "sub", "zh.vtt", "vtt"):
@@ -346,8 +354,10 @@ def _search_and_download(
     by_api = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
     primary = by_api[0]  # 主力：API 第一条
 
-    # 按优先级排（-U > 中文 > duration）
+    # 按优先级排（偏好字幕组 > -U > 中文 > duration）
+    preferred = config.preferred_groups_list
     subtitles.sort(key=lambda s: (
+        0 if _has_preferred_group(s, preferred) else 1,
         0 if _has_u_suffix(s) else 1,
         0 if client.is_chinese_subtitle(s) else 1,
         -s.duration,
@@ -359,12 +369,16 @@ def _search_and_download(
         alt = by_api[1]
 
     # 统计信息
+    pref_count = sum(1 for s in subtitles if _has_preferred_group(s, preferred))
     u_count = sum(1 for s in subtitles if _has_u_suffix(s))
     cn_count = sum(1 for s in subtitles if client.is_chinese_subtitle(s))
+    parts = []
+    if preferred:
+        parts.append(f"Pref: {pref_count}")
     if u_count:
-        print(f"\033[90m    -U: {u_count}, Chinese: {cn_count}, Primary: {primary.name}\033[0m")
-    else:
-        print(f"\033[90m    Chinese: {cn_count}, Primary: {primary.name}\033[0m")
+        parts.append(f"-U: {u_count}")
+    parts.append(f"Chinese: {cn_count}")
+    print(f"\033[90m    {', '.join(parts)}, Primary: {primary.name}\033[0m")
 
     # 组装下载列表
     to_download: list[tuple] = []

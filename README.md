@@ -97,6 +97,7 @@ python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" 
 # 查看/修改配置
 python3 cli.py config
 python3 cli.py config --set rate_limit 5
+python3 cli.py config --set preferred_groups KitaujiSub,DMG
 ```
 
 ### WebApp
@@ -143,7 +144,7 @@ pnpm dev
 | `--set KEY VALUE` | 设置配置项 |
 | `--reset` | 恢复默认配置 |
 
-配置项：`output_dir`、`timeout`、`rate_limit`、`retry_count`、`retry_delay`。文件：`~/.thunder-subtitle.json`
+配置项：`output_dir`、`timeout`、`rate_limit`、`retry_count`、`retry_delay`、`preferred_groups`。文件：`~/.thunder-subtitle.json`
 
 ### 文件名规则
 
@@ -223,9 +224,10 @@ pnpm dev
 
 | 优先级 | 条件 | 说明 |
 |:------:|------|------|
-| **1** | `-U` 后缀 | 可用度最高（如 `电影名-U.srt`） |
-| **2** | 中文字幕 | languages 含中文 或 name 含中文标识 |
-| **3** | duration 降序 | 最接近视频时长 |
+| **1** | 偏好字幕组 | `preferred_groups` 中指定的字幕组 |
+| **2** | `-U` 后缀 | 可用度最高（如 `电影名-U.srt`） |
+| **3** | 中文字幕 | languages 含中文 或 name 含中文标识 |
+| **4** | duration 降序 | 最接近视频时长 |
 
 ### 断点续扫
 
