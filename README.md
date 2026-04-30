@@ -87,6 +87,9 @@ python3 cli.py scan /path/to/media --resume
 # 保存扫描日志
 python3 cli.py scan /path/to/media --log
 
+# 仅处理发布 30 天后的电影（新片字幕质量差）
+python3 cli.py scan /path/to/media --min-age 30
+
 # 只处理特定系列电影（支持多关键词）
 python3 cli.py scan /path/to/media --filter "星球大战"
 python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" --filter "漫威"
@@ -130,6 +133,7 @@ pnpm dev
 | `--filter` | 仅处理电影名包含该关键词的目录（可重复多次） |
 | `--resume` | 断点续扫，跳过已处理的电影 |
 | `--log` | 保存扫描日志到目录下 |
+| `--min-age` | 仅处理发布 N 天后的电影（默认 0，无日期也作 0） |
 
 ### `config` 命令（仅 Python 版）
 
@@ -200,6 +204,7 @@ pnpm dev
 | NFO 任意标签含"中文字幕" | 已内置中文字幕 |
 | `{电影名}{.zh}.{srt,ass,ssa,sub,vtt}` 已存在 | 已有字幕，不重复下载 |
 | movie.nfo 无 `durationinseconds` | 无法匹配时长 |
+| `releasedate` 距今天数 < `--min-age` | 新片前期字幕质量差 |
 
 ### 下载策略
 

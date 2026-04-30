@@ -162,6 +162,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
         config=config,
         resume=args.resume,
         log=args.log,
+        min_age_days=args.min_age,
     )
 
 
@@ -347,6 +348,12 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Save scan log to the scan directory",
+    )
+    scan_parser.add_argument(
+        "--min-age",
+        type=int,
+        default=0,
+        help="Only process movies released N+ days ago (default 0 = immediate)",
     )
 
     args = parser.parse_args()

@@ -20,6 +20,7 @@ class NfoInfo:
     """movie.nfo 解析结果"""
     duration_seconds: int = 0
     has_chinese_subtitle: bool = False
+    release_date: str = ""  # YYYY-MM-DD
 
 
 @dataclass
@@ -93,6 +94,11 @@ def parse_nfo(nfo_path: str) -> NfoInfo:
             except (ValueError, TypeError):
                 info.duration_seconds = 0
 
+    # releasedate（年-月-日格式）
+    rd = root.find("releasedate")
+    if rd is not None and rd.text:
+        info.release_date = rd.text.strip()
+
     # 检查是否已有中文字幕标记
     for elem in root.iter():
         if elem.text and "中文字幕" in elem.text:
@@ -137,6 +143,7 @@ def process_scanned_movies(
     config: Config | None = None,
     resume: bool = False,
     log: bool = False,
+    min_age_days: int = 0,
 ) -> list[ScanResult]:
     """扫描并处理所有电影目录"""
     if config is None:
@@ -179,7 +186,7 @@ def process_scanned_movies(
         print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m")
 
         result = _process_one_movie(
-            movie_path, movie_name, dry_run, client, config, has_queried
+            movie_path, movie_name, dry_run, client, config, has_queried, min_age_days
         )
         results.append(result)
 
@@ -237,6 +244,7 @@ def _process_one_movie(
     client: SubtitleApiClient,
     config: Config,
     has_queried: bool,
+    min_age_days: int = 0,
 ) -> ScanResult:
     """处理单部电影：解析 NFO → 跳过检查 → 搜索 → 下载"""
 
@@ -252,7 +260,7 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", "movie.nfo not found")
 
     # ---- 跳过检查 ----
-    skip_reason = _check_skip(movie_path, movie_name, nfo, dry_run)
+    skip_reason = _check_skip(movie_path, movie_name, nfo, dry_run, min_age_days)
     if skip_reason:
         _print_status("✓", skip_reason)
         return ScanResult(movie_path, movie_name, "skipped", skip_reason)
@@ -276,10 +284,20 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", str(e))
 
 
-def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False) -> str | None:
+def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False, min_age_days: int = 0) -> str | None:
     """检查是否应跳过该电影，返回跳过原因或 None"""
     if nfo.has_chinese_subtitle:
         return "NFO has Chinese subtitle tag"
+
+    # 发布日期检查：新片不满 min_age_days 天跳过
+    if min_age_days > 0 and nfo.release_date:
+        try:
+            rd = datetime.strptime(nfo.release_date[:10], "%Y-%m-%d")  # noqa: DTZ007 (only API timezone)
+            age = (datetime.now() - rd).days
+            if age < min_age_days:
+                return f"Released {age}d ago (< {min_age_days}d), skip"
+        except (ValueError, IndexError):
+            pass
 
     existing = _existing_subtitle_file(movie_path, movie_name)
     if existing:
