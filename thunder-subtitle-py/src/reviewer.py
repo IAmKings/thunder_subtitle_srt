@@ -30,14 +30,33 @@ class ReviewItem:
     entry_count: int = 0     # SRT 条目数
     encoding: str = ""
     cn_ratio: float = 0.0
+    reviewed: bool = False      # 是否已人工审查
+    reviewed_date: str = ""     # 审查日期
 
 
 def review_directory(
     base_dir: str,
     name_filters: list[str] | None = None,
     log: bool = False,
-) -> list[ReviewItem]:
-    """审查目录下所有字幕文件"""
+    mark: str | None = None,
+    unmark: str | None = None,
+    mark_all: bool = False,
+) -> list[ReviewItem] | None:
+    """审查目录下所有字幕文件（或执行标记操作）"""
+    # ---- 标记操作 ----
+    if mark or unmark or mark_all:
+        movie_dirs = scan_movie_dirs(base_dir)
+        if mark_all:
+            _batch_mark(movie_dirs, True)
+        elif mark:
+            filtered = [d for d in movie_dirs if mark.lower() in os.path.basename(d).lower()]
+            _batch_mark(filtered, True, mark)
+        elif unmark:
+            filtered = [d for d in movie_dirs if unmark.lower() in os.path.basename(d).lower()]
+            _batch_mark(filtered, False, unmark)
+        return None
+
+    # ---- 审查模式 ----
     movie_dirs = scan_movie_dirs(base_dir)
     if name_filters:
         movie_dirs = [
@@ -73,8 +92,15 @@ def review_directory(
             print(f"\033[90m    (no subtitle files found)\033[0m")
             continue
 
+        # 检查人工审查标记
+        reviewed, reviewed_date = _is_reviewed(movie_path)
+        if reviewed:
+            print(f"\033[90m    Reviewed: {reviewed_date}\033[0m")
+
         for filepath, filename in sub_files:
             item = _review_one_file(filepath, filename, movie_path, movie_name)
+            item.reviewed = reviewed
+            item.reviewed_date = reviewed_date
             items.append(item)
             _print_review_item(item)
 
@@ -88,6 +114,44 @@ def review_directory(
         print(f"\033[90m  Report saved: {log_path}\033[0m\n")
 
     return items
+
+
+REVIEWED_FILE = ".reviewed"
+
+
+def _is_reviewed(movie_path: str) -> tuple[bool, str]:
+    """检查电影是否已人工审查，返回 (是否审查, 日期字符串)"""
+    rf = os.path.join(movie_path, REVIEWED_FILE)
+    if os.path.isfile(rf):
+        try:
+            mtime = os.path.getmtime(rf)
+            dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+            return True, dt
+        except OSError:
+            return True, ""
+    return False, ""
+
+
+def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "") -> None:
+    """批量标记/取消标记"""
+    action = "Marked" if mark else "Unmarked"
+    kw_tag = f" matching \"{keyword}\"" if keyword else "s"
+    print(f"\033[1m\n  {action} {len(movie_dirs)} movie{kw_tag}\033[0m\n")
+    for d in movie_dirs:
+        rf = os.path.join(d, REVIEWED_FILE)
+        name = os.path.basename(d)
+        if mark:
+            try:
+                with open(rf, "a"):
+                    pass
+                print(f"  \033[32m✓\033[0m {name}")
+            except OSError as e:
+                print(f"  \033[31m✗\033[0m {name} — {e}")
+        else:
+            if os.path.isfile(rf):
+                os.remove(rf)
+                print(f"  \033[33m-\033[0m {name}")
+    print()
 
 
 def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str, str]]:
@@ -352,7 +416,8 @@ def _print_review_item(item: ReviewItem) -> None:
         extra.append(f"中文{item.cn_ratio:.0%}")
 
     detail = ", ".join(extra)
-    print(f"  {marker} {item.filename} — {color}{item.score}/100\033[0m ({detail})")
+    review_tag = f"\033[32m✓ Reviewed {item.reviewed_date}\033[0m" if item.reviewed else "\033[90m◇ Not reviewed\033[0m"
+    print(f"  {marker} {item.filename} — {color}{item.score}/100\033[0m ({detail}) {review_tag}")
 
     for d in item.deductions:
         c = "\033[31m" if item.status == "fail" else "\033[33m"

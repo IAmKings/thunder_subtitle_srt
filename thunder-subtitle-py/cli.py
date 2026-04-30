@@ -197,8 +197,15 @@ def cmd_config(args: argparse.Namespace) -> None:
 
 
 def cmd_review(args: argparse.Namespace) -> None:
-    """执行字幕审查"""
-    review_directory(args.directory, name_filters=args.filters, log=args.log)
+    """执行字幕审查或标记操作"""
+    review_directory(
+        args.directory,
+        name_filters=args.filters,
+        log=args.log,
+        mark=args.mark,
+        unmark=args.unmark,
+        mark_all=args.mark_all,
+    )
 
 
 def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> None:
@@ -332,6 +339,18 @@ def main() -> None:
     review_parser.add_argument(
         "--log", action="store_true", default=False,
         help="Save review report to the scan directory",
+    )
+    review_parser.add_argument(
+        "--mark", type=str, default=None,
+        help="Mark matching movies as reviewed",
+    )
+    review_parser.add_argument(
+        "--unmark", type=str, default=None,
+        help="Remove review mark from matching movies",
+    )
+    review_parser.add_argument(
+        "--mark-all", action="store_true", default=False,
+        help="Mark all movies as reviewed",
     )
 
     # ===== scan 命令 =====

@@ -25,7 +25,7 @@ thunder-subtitle-srt/
 - [x] Jellyfin 扫描器（自动扫描、多关键词过滤、双字幕下载）
 - [x] 多关键词过滤（`--filter` 可重复，命中任一即处理）
 - [x] 配置文件持久化（`~/.thunder-subtitle.json`，支持 `config` 命令管理）
-- [x] 字幕审查（`review` 命令，检测编码/大小/格式/中文占比）
+- [x] 字幕审查（`review` 命令，深度检测+百分制评分+人工审查标记）
 - [x] 下载文件名规则：`{搜索名}{.zh}.{ext}`，中文字幕自动加 `.zh` 标识
 
 ## 快速开始
@@ -99,6 +99,10 @@ python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" 
 python3 cli.py review /path/to/media
 python3 cli.py review /path/to/media --filter "星球大战" --log
 
+# 标记人工审查
+python3 cli.py review /path/to/media --mark "星球大战"
+python3 cli.py review /path/to/media --mark-all
+
 # 查看/修改配置
 python3 cli.py config
 python3 cli.py config --set rate_limit 5
@@ -148,8 +152,13 @@ pnpm dev
 | `directory` | 审查目录（演员/电影 结构） |
 | `--filter` | 仅审查匹配关键词的电影（可重复） |
 | `--log` | 保存审查报告 |
+| `--mark` | 标记匹配电影为已审查 |
+| `--unmark` | 取消匹配电影的审查标记 |
+| `--mark-all` | 批量标记全部电影为已审查 |
 
 审查项：编码、文件大小、SRT时间轴解析（序号/重叠/空内容/行长度/时长）、中文占比。输出百分制评分。
+
+标记文件：`.reviewed` 空文件放在电影目录下，`scan --dry-run` 联动提示未审查项。
 
 ### `config` 命令（仅 Python 版）
 

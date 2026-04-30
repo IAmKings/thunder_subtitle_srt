@@ -304,8 +304,13 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
 
     existing = _existing_subtitle_file(movie_path, movie_name)
     if existing:
-        if dry_run and not _has_zh_prefix(existing):
-            print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
+        if dry_run:
+            if not _has_zh_prefix(existing):
+                print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
+            # 检查是否已人工审查
+            reviewed_file = os.path.join(movie_path, ".reviewed")
+            if not os.path.isfile(reviewed_file):
+                print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
         return f"{existing} already exists"
 
     return None
