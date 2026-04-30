@@ -104,6 +104,7 @@ python3 cli.py dump "流浪地球" -o /path/to/movie -d 2h --chinese-first
 
 # 标记人工审查
 python3 cli.py review /path/to/media --mark "星球大战"
+python3 cli.py review /path/to/media --mark-path "A/流浪地球"
 python3 cli.py review /path/to/media --mark-all
 
 # 查看/修改配置
@@ -158,8 +159,8 @@ pnpm dev
 | `--mark` | 标记匹配电影为已审查 |
 | `--unmark` | 取消匹配电影的审查标记 |
 | `--mark-all` | 批量标记全部电影为已审查 |
-| `--mark-path` | 精确标记指定目录路径 |
-| `--unmark-path` | 精确取消指定目录路径的标记 |
+| `--mark-path` | 精确标记目录（相对/绝对路径） |
+| `--unmark-path` | 精确取消标记（相对/绝对路径） |
 
 审查项：编码、文件大小、SRT时间轴解析（序号/重叠/空内容/行长度/时长）、中文占比。输出百分制评分。
 
