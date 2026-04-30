@@ -1,16 +1,18 @@
 """
-字幕审查器 — 检测已下载字幕文件的质量
+字幕审查器 — 深度检测已下载字幕文件质量，给出百分制评分
 """
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
-from .scanner import scan_movie_dirs, _existing_subtitle_file
+from .scanner import scan_movie_dirs
 
 MIN_FILE_SIZE = 200  # 最小文件大小（字节）
 MIN_CN_RATIO = 0.05  # .zh 文件最低中文占比
+MAX_LINE_LENGTH = 60  # 单行最大推荐字符数
+MIN_SUB_DURATION_MS = 500  # 单条字幕最短推荐时长
 
 
 @dataclass
@@ -19,12 +21,13 @@ class ReviewItem:
     movie_path: str
     movie_name: str
     filename: str
-    status: str       # "ok" | "warn" | "fail"
-    checks: list[str]  # 通过的检查
-    warnings: list[str]  # 警告
-    errors: list[str]    # 失败
+    score: int = 100
+    status: str = "ok"       # "ok" | "warn" | "fail"
+    checks: list[str] = field(default_factory=list)
+    deductions: list[str] = field(default_factory=list)  # 扣分明细
     size_bytes: int = 0
     line_count: int = 0
+    entry_count: int = 0     # SRT 条目数
     encoding: str = ""
     cn_ratio: float = 0.0
 
@@ -65,7 +68,6 @@ def review_directory(
         label = f"{actor_name}/{movie_name}"
         print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m")
 
-        # 查找目录下所有字幕文件
         sub_files = _find_all_subtitle_files(movie_path, movie_name)
         if not sub_files:
             print(f"\033[90m    (no subtitle files found)\033[0m")
@@ -79,7 +81,6 @@ def review_directory(
             if log_path:
                 _write_review_log(log_path, item)
 
-    # 汇总
     _print_review_summary(items)
 
     if log_path:
@@ -96,7 +97,6 @@ def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str
     try:
         for fname in sorted(os.listdir(movie_path)):
             base, ext = os.path.splitext(fname)
-            # 匹配：电影名 / 电影名.zh / 电影名-alt / 电影名-alt.zh / 电影名-new 等
             valid = (
                 base == movie_name
                 or base.startswith(movie_name + ".")
@@ -109,46 +109,44 @@ def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str
     return result
 
 
+# ---- 核心审查逻辑 ----
+
 def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: str) -> ReviewItem:
-    """审查单个字幕文件"""
+    """深度审查单个字幕文件，返回带评分的 ReviewItem"""
     item = ReviewItem(
         movie_path=movie_path,
         movie_name=movie_name,
         filename=filename,
-        status="ok",
-        checks=[],
-        warnings=[],
-        errors=[],
     )
 
-    # 文件存在检查
+    # ---- 文件基础检查 ----
     if not os.path.isfile(filepath):
-        item.errors.append("File not found")
+        item.deductions.append("file_not_found")
+        item.score = 0
         item.status = "fail"
         return item
 
     item.size_bytes = os.path.getsize(filepath)
-
-    # 1. 文件大小检查
     if item.size_bytes < MIN_FILE_SIZE:
-        item.errors.append(f"Size too small ({item.size_bytes}B < {MIN_FILE_SIZE}B)")
+        item.deductions.append(f"文件过小 ({item.size_bytes}B)")
+        item.score = 0
         item.status = "fail"
         return item
-    item.checks.append("size")
 
-    # 读取文件内容
     try:
         with open(filepath, "rb") as f:
             raw = f.read()
     except OSError as e:
-        item.errors.append(f"Cannot read: {e}")
+        item.deductions.append(f"无法读取: {e}")
+        item.score = 0
         item.status = "fail"
         return item
 
-    # 2. 编码检测
+    # ---- 编码检测 ----
     item.encoding = _detect_encoding(raw)
     if item.encoding not in ("utf-8", "ascii"):
-        item.warnings.append(f"Encoding: {item.encoding} (non-UTF-8)")
+        item.score -= 10
+        item.deductions.append(f"非UTF-8编码({item.encoding}) -10")
     else:
         item.checks.append("encoding")
 
@@ -157,45 +155,153 @@ def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: 
         text = raw.decode(item.encoding)
     except (UnicodeDecodeError, LookupError):
         text = raw.decode("utf-8", errors="replace")
-        item.warnings.append("Encoding: fallback to UTF-8 (replace)")
+        item.score -= 5
+        item.deductions.append("编码回退UTF-8(replace) -5")
 
     lines = text.splitlines()
     item.line_count = len(lines)
 
-    # 3. SRT 结构检查（仅 .srt）
-    if filename.lower().endswith(".srt"):
-        if not _has_valid_srt_structure(text):
-            item.errors.append("Invalid SRT structure (no timestamp lines)")
+    # ---- SRT 深度解析 ----
+    is_srt = filename.lower().endswith(".srt")
+    if is_srt:
+        entries = _parse_srt_entries(text)
+        item.entry_count = len(entries)
+
+        if not entries:
+            item.score -= 30
+            item.deductions.append("无有效SRT时间轴 -30")
         else:
             item.checks.append("srt_structure")
+            _check_srt_quality(item, entries)
 
-    # 4. 中文内容检查（仅 .zh.* 文件）
+    # ---- 中文内容检查 ----
     if ".zh." in filename:
         item.cn_ratio = _calc_cn_ratio(text)
         if item.cn_ratio < MIN_CN_RATIO:
-            item.warnings.append(f"Low Chinese ratio ({item.cn_ratio:.0%} < {MIN_CN_RATIO:.0%})")
+            item.score -= 20
+            item.deductions.append(f"中文占比过低({item.cn_ratio:.0%}) -20")
         else:
             item.checks.append("cn_content")
 
+    # 扣分上限保护
+    item.score = max(0, item.score)
+
     # 综合判定
-    if item.errors:
-        item.status = "fail"
-    elif item.warnings:
+    if item.score >= 80:
+        item.status = "ok"
+    elif item.score >= 50:
         item.status = "warn"
+    else:
+        item.status = "fail"
 
     return item
 
 
+def _parse_srt_entries(text: str) -> list[dict]:
+    """解析 SRT 文件为条目列表"""
+    entries = []
+    # SRT 格式：序号\n时间轴\n文本\n\n
+    pattern = re.compile(
+        r"(\d+)\s*\n"
+        r"(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*\n"
+        r"((?:(?!\n\n).)+)",
+        re.MULTILINE | re.DOTALL,
+    )
+
+    for m in pattern.finditer(text):
+        idx = int(m.group(1))
+        start = _ts_to_ms(m.group(2))
+        end = _ts_to_ms(m.group(3))
+        content = m.group(4).strip()
+        entries.append({
+            "index": idx,
+            "start_ms": start,
+            "end_ms": end,
+            "content": content,
+        })
+
+    return entries
+
+
+def _ts_to_ms(ts: str) -> int:
+    """时间戳 'HH:MM:SS,mmm' → 毫秒"""
+    h, m, s_ms = ts.split(":")
+    s, ms = s_ms.replace(",", ".").split(".")
+    return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(ms)
+
+
+def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> None:
+    """SRT 质量深度检测"""
+    gaps = 0
+    missing = 0
+    overlaps = 0
+    too_short = 0
+    too_long = 0
+
+    prev_idx = 0
+    prev_end = 0
+
+    for e in entries:
+        # 序号连续性
+        if e["index"] != prev_idx + 1:
+            gaps += 1
+        prev_idx = e["index"]
+
+        # 空内容
+        if not e["content"] or len(e["content"]) < 2:
+            missing += 1
+
+        # 时间重叠
+        if prev_end > 0 and e["start_ms"] < prev_end:
+            overlaps += 1
+        prev_end = e["end_ms"]
+
+        # 时长过短
+        dur = e["end_ms"] - e["start_ms"]
+        if dur < MIN_SUB_DURATION_MS:
+            too_short += 1
+
+        # 单行过长
+        for line_text in e["content"].split("\n"):
+            if len(line_text) > MAX_LINE_LENGTH:
+                too_long += 1
+
+    if gaps > 0:
+        penalty = min(gaps, 10)
+        item.score -= penalty
+        item.deductions.append(f"序号不连续({gaps}处) -{penalty}")
+
+    if missing > 0:
+        penalty = min(missing * 2, 10)
+        item.score -= penalty
+        item.deductions.append(f"空内容条目({missing}处) -{penalty}")
+
+    if overlaps > 0:
+        penalty = min(overlaps * 5, 15)
+        item.score -= penalty
+        item.deductions.append(f"时间轴重叠({overlaps}处) -{penalty}")
+
+    if too_short > 0:
+        penalty = min(too_short, 5)
+        item.score -= penalty
+        item.deductions.append(f"时长过短({too_short}处<{MIN_SUB_DURATION_MS}ms) -{penalty}")
+
+    if too_long > 0:
+        penalty = min(too_long, 10)
+        item.score -= penalty
+        item.deductions.append(f"单行过长({too_long}处>{MAX_LINE_LENGTH}字) -{penalty}")
+
+
+# ---- 编码检测 ----
+
 def _detect_encoding(raw: bytes) -> str:
     """检测文本编码"""
-    # 尝试 UTF-8
     try:
         raw.decode("utf-8")
         return "utf-8"
     except UnicodeDecodeError:
         pass
 
-    # 尝试常见中文编码
     for enc in ("gbk", "gb2312", "big5", "shift_jis", "euc-kr"):
         try:
             raw.decode(enc)
@@ -206,17 +312,11 @@ def _detect_encoding(raw: bytes) -> str:
     return "unknown"
 
 
-def _has_valid_srt_structure(text: str) -> bool:
-    """检查是否包含 SRT 时间轴格式"""
-    return bool(re.search(r"\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}", text))
-
-
 def _calc_cn_ratio(text: str) -> float:
     """计算中文字符占比"""
     if not text:
         return 0.0
     cn_count = sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
-    # 排除空白和标点
     meaningful = sum(1 for ch in text if ch.isalnum() or "\u4e00" <= ch <= "\u9fff")
     if meaningful == 0:
         return 0.0
@@ -225,15 +325,26 @@ def _calc_cn_ratio(text: str) -> float:
 
 # ---- 输出 ----
 
+def _score_color(score: int) -> str:
+    if score >= 80:
+        return "\033[32m"
+    elif score >= 50:
+        return "\033[33m"
+    return "\033[31m"
+
+
 def _print_review_item(item: ReviewItem) -> None:
     """打印单条审查结果"""
+    color = _score_color(item.score)
     markers = {"ok": "\033[32m✓\033[0m", "warn": "\033[33m⚠\033[0m", "fail": "\033[31m✗\033[0m"}
     marker = markers.get(item.status, "?")
 
     extra = []
     if item.size_bytes > 0:
         extra.append(f"{_human_size(item.size_bytes)}")
-    if item.line_count > 0:
+    if item.entry_count > 0:
+        extra.append(f"{item.entry_count}条")
+    elif item.line_count > 0:
         extra.append(f"{item.line_count}行")
     if item.encoding:
         extra.append(item.encoding)
@@ -241,12 +352,11 @@ def _print_review_item(item: ReviewItem) -> None:
         extra.append(f"中文{item.cn_ratio:.0%}")
 
     detail = ", ".join(extra)
-    print(f"  {marker} {item.filename} — {item.status.upper()} ({detail})")
+    print(f"  {marker} {item.filename} — {color}{item.score}/100\033[0m ({detail})")
 
-    for w in item.warnings:
-        print(f"    \033[33m  ⚠ {w}\033[0m")
-    for e in item.errors:
-        print(f"    \033[31m  ✗ {e}\033[0m")
+    for d in item.deductions:
+        c = "\033[31m" if item.status == "fail" else "\033[33m"
+        print(f"    {c}  - {d}\033[0m")
 
 
 def _print_review_summary(items: list[ReviewItem]) -> None:
@@ -254,9 +364,10 @@ def _print_review_summary(items: list[ReviewItem]) -> None:
     ok_count = sum(1 for r in items if r.status == "ok")
     warn_count = sum(1 for r in items if r.status == "warn")
     fail_count = sum(1 for r in items if r.status == "fail")
+    avg_score = sum(r.score for r in items) // max(len(items), 1)
 
     print()
-    print(f"\033[1m  Review Summary:\033[0m")
+    print(f"\033[1m  Review Summary\033[0m (\033[36mavg {avg_score}/100\033[0m):")
     if ok_count > 0:
         print(f"\033[32m    ✓ OK: {ok_count}\033[0m")
     if warn_count > 0:
@@ -266,21 +377,18 @@ def _print_review_summary(items: list[ReviewItem]) -> None:
     print()
 
 
+# ---- 日志 ----
+
 def _write_review_log(log_path: str, item: ReviewItem) -> None:
     """写入单条日志"""
     ts = datetime.now().strftime("%H:%M:%S")
     status_map = {"ok": "OK", "warn": "WARN", "fail": "FAIL"}
     tag = status_map.get(item.status, "??")
-    warnings = "; ".join(item.warnings) if item.warnings else ""
-    errors = "; ".join(item.errors) if item.errors else ""
-    extra = ""
-    if warnings:
-        extra += f" [W: {warnings}]"
-    if errors:
-        extra += f" [E: {errors}]"
+    ded = "; ".join(item.deductions) if item.deductions else ""
     try:
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{ts}] [{tag}] {item.movie_name}/{item.filename}{extra}\n")
+            f.write(f"[{ts}] [{tag}] {item.movie_name}/{item.filename} "
+                    f"Score={item.score}/100 {ded}\n")
     except OSError:
         pass
 
@@ -290,10 +398,12 @@ def _write_review_summary(log_path: str, items: list[ReviewItem]) -> None:
     ok_count = sum(1 for r in items if r.status == "ok")
     warn_count = sum(1 for r in items if r.status == "warn")
     fail_count = sum(1 for r in items if r.status == "fail")
+    avg_score = sum(r.score for r in items) // max(len(items), 1)
     try:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"\n--- Summary ---\n")
-            f.write(f"Total: {len(items)}  OK: {ok_count}  WARN: {warn_count}  FAIL: {fail_count}\n")
+            f.write(f"Total: {len(items)}  OK: {ok_count}  WARN: {warn_count}  "
+                    f"FAIL: {fail_count}  Avg Score: {avg_score}/100\n")
     except OSError:
         pass
 
