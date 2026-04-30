@@ -252,7 +252,7 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", "movie.nfo not found")
 
     # ---- 跳过检查 ----
-    skip_reason = _check_skip(movie_path, movie_name, nfo)
+    skip_reason = _check_skip(movie_path, movie_name, nfo, dry_run)
     if skip_reason:
         _print_status("✓", skip_reason)
         return ScanResult(movie_path, movie_name, "skipped", skip_reason)
@@ -276,16 +276,23 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", str(e))
 
 
-def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo) -> str | None:
+def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False) -> str | None:
     """检查是否应跳过该电影，返回跳过原因或 None"""
     if nfo.has_chinese_subtitle:
         return "NFO has Chinese subtitle tag"
 
     existing = _existing_subtitle_file(movie_path, movie_name)
     if existing:
+        if dry_run and not _has_zh_prefix(existing):
+            print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
         return f"{existing} already exists"
 
     return None
+
+
+def _has_zh_prefix(filename: str) -> bool:
+    """检查文件名是否包含 .zh. 标识"""
+    return ".zh." in filename
 
 
 def _search_and_download(
