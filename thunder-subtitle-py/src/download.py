@@ -3,6 +3,7 @@ Download logic for Thunder Subtitle Python CLI
 """
 
 import os
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -21,9 +22,11 @@ def download_subtitle(
     subtitle: Subtitle,
     output_dir: str,
     custom_filename: Optional[str] = None,
+    max_retries: int = 3,
+    retry_delay: int = 2,
 ) -> DownloadResult:
     """
-    下载单个字幕文件
+    下载单个字幕文件，失败自动重试
     返回 DownloadResult
     """
     # 确保输出目录存在
@@ -48,38 +51,36 @@ def download_subtitle(
             filepath=filepath,
         )
 
-    try:
-        response = requests.get(subtitle.url, stream=True, timeout=60)
-        response.raise_for_status()
+    last_error = ""
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(subtitle.url, stream=True, timeout=60)
+            response.raise_for_status()
 
-        total_size = int(response.headers.get("content-length", 0))
-        downloaded = 0
+            total_size = int(response.headers.get("content-length", 0))
+            downloaded = 0
 
-        with open(filepath, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total_size > 0:
-                        display_download_progress(safe_name, downloaded, total_size)
+            with open(filepath, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            display_download_progress(safe_name, downloaded, total_size)
 
-        display_download_complete(safe_name, filepath)
+            display_download_complete(safe_name, filepath)
+            return DownloadResult(success=True, filename=safe_name, filepath=filepath)
 
-        return DownloadResult(
-            success=True,
-            filename=safe_name,
-            filepath=filepath,
-        )
+        except requests.RequestException as e:
+            last_error = str(e)
+            if os.path.exists(filepath):
+                os.unlink(filepath)
 
-    except requests.RequestException as e:
-        # 下载失败时清理部分文件
-        if os.path.exists(filepath):
-            os.unlink(filepath)
-        return DownloadResult(
-            success=False,
-            filename=safe_name,
-            error=str(e),
-        )
+            if attempt < max_retries:
+                print(f"\033[33m    ⚠ Retry {attempt}/{max_retries} after {retry_delay}s: {last_error}\033[0m")
+                time.sleep(retry_delay)
+
+    return DownloadResult(success=False, filename=safe_name, error=last_error)
 
 
 def download_batch(

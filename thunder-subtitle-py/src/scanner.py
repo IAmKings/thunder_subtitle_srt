@@ -257,7 +257,7 @@ def _process_one_movie(
 
     # ---- 搜索 + 下载 ----
     try:
-        return _search_and_download(movie_path, movie_name, nfo, client)
+        return _search_and_download(movie_path, movie_name, nfo, client, config)
     except Exception as e:
         print(f"\033[31m    ✗ Error: {e}\033[0m")
         return ScanResult(movie_path, movie_name, "error", str(e))
@@ -280,6 +280,7 @@ def _search_and_download(
     movie_name: str,
     nfo: NfoInfo,
     client: SubtitleApiClient,
+    config: Config,
 ) -> ScanResult:
     """搜索字幕并下载（主力 + 备选）"""
     result = client.search_subtitles(movie_name)
@@ -336,7 +337,9 @@ def _search_and_download(
     for sub, fname in to_download:
         tag = " [alt]" if "-alt" in fname else " [primary]"
         print(f"\033[90m    Downloading{tag}: {sub.name} → {fname}\033[0m")
-        dl = download_subtitle(sub, movie_path, custom_filename=fname)
+        dl = download_subtitle(sub, movie_path, custom_filename=fname,
+                               max_retries=config.retry_count,
+                               retry_delay=config.retry_delay)
         if dl.success:
             downloaded_files.append(dl.filename)
         else:

@@ -135,7 +135,7 @@ pnpm dev
 | `--set KEY VALUE` | 设置配置项 |
 | `--reset` | 恢复默认配置 |
 
-配置项：`output_dir`、`timeout`、`rate_limit`。文件：`~/.thunder-subtitle.json`
+配置项：`output_dir`、`timeout`、`rate_limit`、`retry_count`、`retry_delay`。文件：`~/.thunder-subtitle.json`
 
 ### 文件名规则
 
@@ -227,6 +227,15 @@ python3 cli.py scan /path/to/media --resume
 ```
 
 进度文件 `.scan-progress` 保存在扫描目录下，全部完成后自动清理。
+
+### 下载重试
+
+下载失败自动重试（默认 3 次，间隔 2 秒），可通过配置调整：
+
+```bash
+python3 cli.py config --set retry_count 5
+python3 cli.py config --set retry_delay 3
+```
 
 ### 防抖机制
 
