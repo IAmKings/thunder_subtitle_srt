@@ -4,7 +4,6 @@ API client for Xunlei Subtitle API
 
 import re
 import requests
-from typing import Optional
 
 from .types import Subtitle, SearchResult
 
@@ -69,8 +68,6 @@ class SubtitleApiClient:
     def filter_chinese_subtitles(self, subtitles: list[Subtitle]) -> list[Subtitle]:
         """筛选中文字幕（按语言字段或名称中的中文检测）"""
         return [sub for sub in subtitles if self.is_chinese_subtitle(sub)]
-
-        return result
 
     def filter_by_max_duration(
         self, subtitles: list[Subtitle], max_duration_ms: int
