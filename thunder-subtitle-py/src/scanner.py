@@ -120,11 +120,6 @@ def _find_elem(parent, tags: tuple[str, ...]):
 
 # ---- 字幕筛选辅助 ----
 
-def _has_u_suffix(subtitle) -> bool:
-    """字幕名称是否以 -U 结尾（可用度最高标记）"""
-    return bool(re.search(r"-u\.\w+$", subtitle.name, re.IGNORECASE))
-
-
 def _has_preferred_group(subtitle, groups: list[str]) -> bool:
     """字幕名称是否来自偏好字幕组"""
     if not groups:
@@ -354,11 +349,10 @@ def _search_and_download(
     by_api = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
     primary = by_api[0]  # 主力：API 第一条
 
-    # 按优先级排（偏好字幕组 > -U > 中文 > duration）
+    # 按优先级排（偏好字幕组 > 中文 > duration）
     preferred = config.preferred_groups_list
     subtitles.sort(key=lambda s: (
         0 if _has_preferred_group(s, preferred) else 1,
-        0 if _has_u_suffix(s) else 1,
         0 if client.is_chinese_subtitle(s) else 1,
         -s.duration,
     ))
@@ -370,13 +364,10 @@ def _search_and_download(
 
     # 统计信息
     pref_count = sum(1 for s in subtitles if _has_preferred_group(s, preferred))
-    u_count = sum(1 for s in subtitles if _has_u_suffix(s))
     cn_count = sum(1 for s in subtitles if client.is_chinese_subtitle(s))
     parts = []
     if preferred:
         parts.append(f"Pref: {pref_count}")
-    if u_count:
-        parts.append(f"-U: {u_count}")
     parts.append(f"Chinese: {cn_count}")
     print(f"\033[90m    {', '.join(parts)}, Primary: {primary.name}\033[0m")
 
