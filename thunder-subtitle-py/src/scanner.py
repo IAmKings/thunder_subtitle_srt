@@ -292,8 +292,12 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     # dry-run 时先检查人工审查状态（不管跳过原因都要提示）
     if dry_run:
         has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
-        if has_sub and not os.path.isfile(os.path.join(movie_path, ".reviewed")):
-            print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
+        reviewed_file = os.path.join(movie_path, ".reviewed")
+        if has_sub:
+            if os.path.isfile(reviewed_file):
+                print(f"\033[32m    ✓ Reviewed\033[0m")
+            else:
+                print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
 
     if nfo.has_chinese_subtitle:
         return "NFO has Chinese subtitle tag"
