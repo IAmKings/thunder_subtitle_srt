@@ -255,7 +255,7 @@ def cmd_dump(args: argparse.Namespace) -> None:
             dl = download_subtitle(sub, output_dir, custom_filename=filename)
             if dl.success:
                 filepath = os.path.join(output_dir, filename)
-                file_hash = _md5_file(filepath)
+                file_hash = _content_fingerprint(filepath)
                 if file_hash and file_hash in seen_hashes:
                     os.remove(filepath)
                     print(f"\033[90m    ↳ Duplicate of {seen_hashes[file_hash]}, removed\033[0m")
@@ -313,16 +313,44 @@ def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> 
         )
 
 
-def _md5_file(filepath: str) -> str | None:
-    """计算文件 MD5，失败返回 None"""
+def _content_fingerprint(filepath: str) -> str | None:
+    """
+    计算字幕内容指纹（纯文本行，去掉序号和时间轴）
+    相同翻译不同格式也能识别为重复
+    """
     try:
-        h = hashlib.md5()
-        with open(filepath, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
-                h.update(chunk)
-        return h.hexdigest()
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            text = f.read()
     except OSError:
+        try:
+            with open(filepath, "r", encoding="gbk", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            return None
+
+    # 提取纯文本行：跳过 SRT 序号、时间轴、空行、ASS 标签
+    lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.isdigit():
+            continue
+        if "-->" in line and ":" in line:
+            continue
+        # 跳过 ASS/SSA 格式标记行
+        if line.startswith("[") and line.endswith("]"):
+            continue
+        if line.startswith("Dialogue:") or line.startswith("Format:"):
+            continue
+        lines.append(line)
+
+    if not lines:
         return None
+
+    h = hashlib.md5()
+    h.update("\n".join(lines).encode("utf-8"))
+    return h.hexdigest()
 
 
 def _parse_indices(index_str: str) -> list[int]:
