@@ -286,6 +286,7 @@ def cmd_review(args: argparse.Namespace) -> None:
         mark_path=args.mark_path,
         unmark_path=args.unmark_path,
         mark_fail=args.mark_fail,
+        mark_fail_path=args.mark_fail_path,
     )
 
 
@@ -506,6 +507,10 @@ def main() -> None:
     review_parser.add_argument(
         "--mark-fail", type=str, default=None,
         help="Mark matching movies as review FAILED (all subs unusable)",
+    )
+    review_parser.add_argument(
+        "--mark-fail-path", type=str, default=None,
+        help="Mark specific movie dir as review FAILED (relative/absolute)",
     )
 
     # ===== scan 命令 =====

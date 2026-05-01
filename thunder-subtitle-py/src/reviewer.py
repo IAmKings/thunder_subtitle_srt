@@ -48,11 +48,20 @@ def review_directory(
     mark_path: str | None = kwargs.get("mark_path")
     unmark_path: str | None = kwargs.get("unmark_path")
     mark_fail: str | None = kwargs.get("mark_fail")
-    mark_status = "fail" if mark_fail else "ok"
+    mark_fail_path: str | None = kwargs.get("mark_fail_path")
 
-    if mark or unmark or mark_all or mark_path or unmark_path or mark_fail:
+    if mark or unmark or mark_all or mark_path or unmark_path or mark_fail or mark_fail_path:
+        mark_status = "fail" if (mark_fail or mark_fail_path) else "ok"
         if mark_fail:
             mark, mark_status = mark_fail, "fail"
+        # 精确路径操作 - fail 路径
+        if mark_fail_path:
+            full = os.path.join(base_dir, mark_fail_path) if not os.path.isabs(mark_fail_path) else mark_fail_path
+            if os.path.isdir(full):
+                _batch_mark([full], True, status="fail")
+            else:
+                print(f"\033[31m  ✗ Directory not found: {mark_fail_path}\033[0m\n")
+            return None
         # 精确路径操作（相对 base_dir）
         if mark_path:
             full = os.path.join(base_dir, mark_path) if not os.path.isabs(mark_path) else mark_path
