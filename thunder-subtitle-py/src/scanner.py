@@ -187,13 +187,13 @@ def process_scanned_movies(
         movie_name = os.path.basename(movie_path)
         label = f"{actor_name}/{movie_name}"
 
-        # 进度条
+        # 进度条（先显示再处理，flush 确保 API 等待期间可见）
         total = len(movie_dirs)
         pct = i * 100 // total
         bar_w = 25
         filled = bar_w * pct // 100
         bar = "\u2588" * filled + "\u2591" * (bar_w - filled)
-        print(f"  \033[33m[{bar}]\033[0m {pct}% ({i}/{total}) \033[1m{label}\033[0m")
+        print(f"  \033[33m[{bar}]\033[0m {pct}% ({i}/{total}) \033[1m{label}\033[0m", flush=True)
 
         result = _process_one_movie(
             movie_path, movie_name, dry_run, client, config, has_queried, min_age_days
