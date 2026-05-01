@@ -289,7 +289,7 @@ def _process_one_movie(
 
 def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False, min_age_days: int = 0) -> str | None:
     """检查是否应跳过该电影，返回跳过原因或 None"""
-    # dry-run 时先检查人工审查状态（不管跳过原因都要提示）
+    # dry-run 时先检查状态（不管跳过原因都要提示）
     if dry_run:
         has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
         if has_sub:
@@ -300,6 +300,8 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
                 print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
             else:
                 print(f"\033[32m    ✓ Reviewed\033[0m")
+        else:
+            print(f"\033[90m    ◇ No subtitles — will download\033[0m")
 
     if nfo.has_chinese_subtitle:
         return "NFO has Chinese subtitle tag"
