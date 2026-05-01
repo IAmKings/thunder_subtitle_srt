@@ -180,13 +180,20 @@ def process_scanned_movies(
     client = SubtitleApiClient()
     results: list[ScanResult] = []
     has_queried = False
+    print()  # 与 "Found N movies" 行分隔
 
     for i, movie_path in enumerate(movie_dirs, 1):
         actor_name = os.path.basename(os.path.dirname(movie_path))
         movie_name = os.path.basename(movie_path)
         label = f"{actor_name}/{movie_name}"
 
-        print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m")
+        # 进度条
+        total = len(movie_dirs)
+        pct = i * 100 // total
+        bar_w = 25
+        filled = bar_w * pct // 100
+        bar = "\u2588" * filled + "\u2591" * (bar_w - filled)
+        print(f"  \033[33m[{bar}]\033[0m {pct}% ({i}/{total}) \033[1m{label}\033[0m")
 
         result = _process_one_movie(
             movie_path, movie_name, dry_run, client, config, has_queried, min_age_days
