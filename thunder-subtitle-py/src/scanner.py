@@ -289,6 +289,12 @@ def _process_one_movie(
 
 def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False, min_age_days: int = 0) -> str | None:
     """检查是否应跳过该电影，返回跳过原因或 None"""
+    # dry-run 时先检查人工审查状态（不管跳过原因都要提示）
+    if dry_run:
+        has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
+        if has_sub and not os.path.isfile(os.path.join(movie_path, ".reviewed")):
+            print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
+
     if nfo.has_chinese_subtitle:
         return "NFO has Chinese subtitle tag"
 
@@ -304,13 +310,8 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
 
     existing = _existing_subtitle_file(movie_path, movie_name)
     if existing:
-        if dry_run:
-            if not _has_zh_prefix(existing):
-                print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
-            # 检查是否已人工审查
-            reviewed_file = os.path.join(movie_path, ".reviewed")
-            if not os.path.isfile(reviewed_file):
-                print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
+        if dry_run and not _has_zh_prefix(existing):
+            print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
         return f"{existing} already exists"
 
     return None
