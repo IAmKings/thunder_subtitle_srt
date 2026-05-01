@@ -292,12 +292,14 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     # dry-run 时先检查人工审查状态（不管跳过原因都要提示）
     if dry_run:
         has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
-        reviewed_file = os.path.join(movie_path, ".reviewed")
         if has_sub:
-            if os.path.isfile(reviewed_file):
-                print(f"\033[32m    ✓ Reviewed\033[0m")
-            else:
+            reviewed_file = os.path.join(movie_path, ".reviewed")
+            if not os.path.isfile(reviewed_file):
                 print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
+            elif _is_review_fail(reviewed_file):
+                print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
+            else:
+                print(f"\033[32m    ✓ Reviewed\033[0m")
 
     if nfo.has_chinese_subtitle:
         return "NFO has Chinese subtitle tag"
@@ -324,6 +326,15 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
 def _has_zh_prefix(filename: str) -> bool:
     """检查文件名是否包含 .zh. 标识"""
     return ".zh." in filename
+
+
+def _is_review_fail(reviewed_file: str) -> bool:
+    """检查 .reviewed 文件是否标记为审查不及格"""
+    try:
+        with open(reviewed_file, "r", encoding="utf-8") as f:
+            return f.read().strip().lower() == "fail"
+    except OSError:
+        return False
 
 
 def _search_and_download(

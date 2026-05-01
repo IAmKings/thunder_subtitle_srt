@@ -25,7 +25,7 @@ thunder-subtitle-srt/
 - [x] Jellyfin 扫描器（自动扫描、多关键词过滤、双字幕下载）
 - [x] 多关键词过滤（`--filter` 可重复，命中任一即处理）
 - [x] 配置文件持久化（`~/.thunder-subtitle.json`，支持 `config` 命令管理）
-- [x] 字幕审查（`review` 命令，深度检测+百分制评分+人工审查标记）
+- [x] 字幕审查（深度检测+百分制评分+人工审查通过/不及格标记）
 - [x] 下载文件名规则：`{搜索名}{.zh}.{ext}`，中文字幕自动加 `.zh` 标识
 
 ## 快速开始
@@ -105,6 +105,7 @@ python3 cli.py dump "流浪地球" -o /path/to/movie -d 2h --chinese-first
 # 标记人工审查
 python3 cli.py review /path/to/media --mark "星球大战"
 python3 cli.py review /path/to/media --mark-path "A/流浪地球"
+python3 cli.py review /path/to/media --mark-fail "星球大战"  # dump全部不及格
 python3 cli.py review /path/to/media --mark-all
 
 # 查看/修改配置
@@ -161,6 +162,7 @@ pnpm dev
 | `--mark-all` | 批量标记全部电影为已审查 |
 | `--mark-path` | 精确标记目录（相对/绝对路径） |
 | `--unmark-path` | 精确取消标记（相对/绝对路径） |
+| `--mark-fail` | 标记匹配电影为审查不及格 |
 
 审查项：编码、文件大小、SRT时间轴解析（序号/重叠/空内容/行长度/时长）、中文占比。输出百分制评分。
 

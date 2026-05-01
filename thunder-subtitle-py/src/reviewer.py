@@ -47,13 +47,17 @@ def review_directory(
     # ---- 标记操作 ----
     mark_path: str | None = kwargs.get("mark_path")
     unmark_path: str | None = kwargs.get("unmark_path")
+    mark_fail: str | None = kwargs.get("mark_fail")
+    mark_status = "fail" if mark_fail else "ok"
 
-    if mark or unmark or mark_all or mark_path or unmark_path:
+    if mark or unmark or mark_all or mark_path or unmark_path or mark_fail:
+        if mark_fail:
+            mark, mark_status = mark_fail, "fail"
         # 精确路径操作（相对 base_dir）
         if mark_path:
             full = os.path.join(base_dir, mark_path) if not os.path.isabs(mark_path) else mark_path
             if os.path.isdir(full):
-                _batch_mark([full], True)
+                _batch_mark([full], True, status=mark_status)
             else:
                 print(f"\033[31m  ✗ Directory not found: {mark_path}\033[0m\n")
             return None
@@ -68,10 +72,11 @@ def review_directory(
         # 关键词模糊匹配
         movie_dirs = scan_movie_dirs(base_dir)
         if mark_all:
-            _batch_mark(movie_dirs, True)
-        elif mark:
-            filtered = [d for d in movie_dirs if mark.lower() in os.path.basename(d).lower()]
-            _batch_mark(filtered, True, mark)
+            _batch_mark(movie_dirs, True, status=mark_status)
+        elif mark or mark_fail:
+            kw = mark or mark_fail or ""
+            filtered = [d for d in movie_dirs if kw.lower() in os.path.basename(d).lower()]
+            _batch_mark(filtered, True, kw, status=mark_status)
         elif unmark:
             filtered = [d for d in movie_dirs if unmark.lower() in os.path.basename(d).lower()]
             _batch_mark(filtered, False, unmark)
@@ -114,14 +119,16 @@ def review_directory(
             continue
 
         # 检查人工审查标记
-        reviewed, reviewed_date = _is_reviewed(movie_path)
-        if reviewed:
-            print(f"\033[90m    Reviewed: {reviewed_date}\033[0m")
+        review_status, review_date = _is_reviewed(movie_path)
+        if review_status == "fail":
+            print(f"\033[31m    ✗ Review FAILED ({review_date})\033[0m")
+        elif review_status == "ok":
+            print(f"\033[90m    Reviewed: {review_date}\033[0m")
 
         for filepath, filename in sub_files:
             item = _review_one_file(filepath, filename, movie_path, movie_name)
-            item.reviewed = reviewed
-            item.reviewed_date = reviewed_date
+            item.reviewed = review_status is not None
+            item.reviewed_date = review_date
             items.append(item)
             _print_review_item(item)
 
@@ -140,22 +147,39 @@ def review_directory(
 REVIEWED_FILE = ".reviewed"
 
 
-def _is_reviewed(movie_path: str) -> tuple[bool, str]:
-    """检查电影是否已人工审查，返回 (是否审查, 日期字符串)"""
+def _is_reviewed(movie_path: str) -> tuple[str | None, str]:
+    """
+    检查电影审查状态，返回 (状态, 日期字符串)
+    状态: None=未审查, "ok"=审查通过, "fail"=审查不及格
+    """
     rf = os.path.join(movie_path, REVIEWED_FILE)
-    if os.path.isfile(rf):
-        try:
-            mtime = os.path.getmtime(rf)
-            dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
-            return True, dt
-        except OSError:
-            return True, ""
-    return False, ""
+    if not os.path.isfile(rf):
+        return None, ""
+
+    try:
+        mtime = os.path.getmtime(rf)
+        dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+    except OSError:
+        dt = ""
+
+    # 读取状态：空文件或 "ok" = 通过，"fail" = 不及格
+    try:
+        with open(rf, "r", encoding="utf-8") as f:
+            content = f.read().strip().lower()
+    except OSError:
+        content = ""
+    status = "fail" if content == "fail" else "ok"
+    return status, dt
 
 
-def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "") -> None:
-    """批量标记/取消标记"""
-    action = "Marked" if mark else "Unmarked"
+def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: str = "ok") -> None:
+    """批量标记/取消标记，status: ok=通过, fail=不及格"""
+    action_map = {
+        (True, "ok"): "Marked",
+        (True, "fail"): "Marked as FAIL",
+        (False, ""): "Unmarked",
+    }
+    action = action_map.get((mark, status), "Updated")
     kw_tag = f" matching \"{keyword}\"" if keyword else "s"
     print(f"\033[1m\n  {action} {len(movie_dirs)} movie{kw_tag}\033[0m\n")
     for d in movie_dirs:
@@ -163,9 +187,12 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "") -> None:
         name = os.path.basename(d)
         if mark:
             try:
-                with open(rf, "a"):
-                    pass
-                print(f"  \033[32m✓\033[0m {name}")
+                content = "fail" if status == "fail" else ""
+                with open(rf, "w", encoding="utf-8") as f:
+                    if content:
+                        f.write(content)
+                tag = "\033[31m✗ FAIL\033[0m" if status == "fail" else "\033[32m✓\033[0m"
+                print(f"  {tag} {name}")
             except OSError as e:
                 print(f"  \033[31m✗\033[0m {name} — {e}")
         else:
