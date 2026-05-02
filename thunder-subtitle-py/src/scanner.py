@@ -31,6 +31,7 @@ class ScanResult:
     status: str  # "skipped" | "downloaded" | "no_match" | "error"
     reason: str = ""
     filename: str = ""
+    dry_state: str = ""  # dry-run 状态: need_download/need_review/reviewed_ok/reviewed_fail/skipped
 
 
 # ---- 目录扫描 ----
@@ -263,10 +264,10 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", "movie.nfo not found")
 
     # ---- 跳过检查 ----
-    skip_reason = _check_skip(movie_path, movie_name, nfo, dry_run, min_age_days)
+    skip_reason, dry_state = _check_skip(movie_path, movie_name, nfo, dry_run, min_age_days)
     if skip_reason:
         _print_status("✓", skip_reason)
-        return ScanResult(movie_path, movie_name, "skipped", skip_reason)
+        return ScanResult(movie_path, movie_name, "skipped", skip_reason, dry_state=dry_state)
 
     duration_str = seconds_to_duration_str(nfo.duration_seconds)
     if not duration_str:
@@ -277,7 +278,7 @@ def _process_one_movie(
 
     if dry_run:
         print(f"\033[90m    [DRY RUN] Would search: \"{movie_name}\" -d {duration_str}\033[0m")
-        return ScanResult(movie_path, movie_name, "skipped", "dry-run")
+        return ScanResult(movie_path, movie_name, "skipped", "dry-run", dry_state=dry_state)
 
     # ---- 搜索 + 下载 ----
     try:
@@ -287,24 +288,33 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", str(e))
 
 
-def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False, min_age_days: int = 0) -> str | None:
-    """检查是否应跳过该电影，返回跳过原因或 None"""
+def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False, min_age_days: int = 0) -> tuple[str | None, str]:
+    """
+    检查是否应跳过该电影，返回 (跳过原因或None, dry_run_state)
+    dry_state: need_download / need_review / reviewed_ok / reviewed_fail / skipped / ""
+    """
+    dry_state = ""
+
     # dry-run 时先检查状态（不管跳过原因都要提示）
     if dry_run:
         has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
         if has_sub:
             reviewed_file = os.path.join(movie_path, ".reviewed")
             if not os.path.isfile(reviewed_file):
+                dry_state = "need_review"
                 print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
             elif _is_review_fail(reviewed_file):
+                dry_state = "reviewed_fail"
                 print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
             else:
+                dry_state = "reviewed_ok"
                 print(f"\033[32m    ✓ Reviewed\033[0m")
         else:
+            dry_state = "need_download"
             print(f"\033[90m    ◇ No subtitles — will download\033[0m")
 
     if nfo.has_chinese_subtitle:
-        return "NFO has Chinese subtitle tag"
+        return ("NFO has Chinese subtitle tag", dry_state)
 
     # 发布日期检查：新片不满 min_age_days 天跳过
     if min_age_days > 0 and nfo.release_date:
@@ -312,7 +322,7 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
             rd = datetime.strptime(nfo.release_date[:10], "%Y-%m-%d")  # noqa: DTZ007 (only API timezone)
             age = (datetime.now() - rd).days
             if age < min_age_days:
-                return f"Released {age}d ago (< {min_age_days}d), skip"
+                return (f"Released {age}d ago (< {min_age_days}d), skip", "skipped")
         except (ValueError, IndexError):
             pass
 
@@ -320,9 +330,9 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     if existing:
         if dry_run and not _has_zh_prefix(existing):
             print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
-        return f"{existing} already exists"
+        return (f"{existing} already exists", dry_state)
 
-    return None
+    return (None, "need_download" if dry_run else "")
 
 
 def _has_zh_prefix(filename: str) -> bool:
@@ -472,6 +482,32 @@ def _print_status(marker: str, msg: str, green: bool = False) -> None:
 
 def _print_scan_summary(results: list[ScanResult]) -> None:
     """打印扫描汇总"""
+    # dry-run 模式：按状态分类统计
+    dry_states = [r.dry_state for r in results if r.dry_state]
+    if dry_states:
+        counts = {
+            "need_download": dry_states.count("need_download"),
+            "need_review": dry_states.count("need_review"),
+            "reviewed_ok": dry_states.count("reviewed_ok"),
+            "reviewed_fail": dry_states.count("reviewed_fail"),
+            "skipped": dry_states.count("skipped"),
+        }
+        print()
+        print(f"\033[1m  Scan Summary:\033[0m")
+        if counts["need_download"] > 0:
+            print(f"\033[90m    ◇ Need download: {counts['need_download']}\033[0m")
+        if counts["need_review"] > 0:
+            print(f"\033[33m    ⚠ Need review: {counts['need_review']}\033[0m")
+        if counts["reviewed_ok"] > 0:
+            print(f"\033[32m    ✓ Reviewed: {counts['reviewed_ok']}\033[0m")
+        if counts["reviewed_fail"] > 0:
+            print(f"\033[31m    ✗ Failed: {counts['reviewed_fail']}\033[0m")
+        if counts["skipped"] > 0:
+            print(f"\033[90m    - Other skip: {counts['skipped']}\033[0m")
+        print()
+        return
+
+    # 正常下载模式：按结果状态统计
     counts = {"downloaded": 0, "skipped": 0, "no_match": 0, "error": 0}
     for r in results:
         if r.status in counts:
