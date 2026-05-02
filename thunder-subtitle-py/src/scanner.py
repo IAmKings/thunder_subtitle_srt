@@ -2,6 +2,7 @@
 Jellyfin 目录扫描器 - 扫描演员/电影目录，自动搜索并下载字幕
 """
 
+import hashlib
 import os
 import re
 import time
@@ -148,6 +149,7 @@ def process_scanned_movies(
     resume: bool = False,
     log: bool = False,
     min_age_days: int = 0,
+    dump_mode: bool = False,
 ) -> list[ScanResult]:
     """扫描并处理所有电影目录"""
     if config is None:
@@ -190,7 +192,7 @@ def process_scanned_movies(
         print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m", flush=True)
 
         result = _process_one_movie(
-            movie_path, movie_name, dry_run, client, config, has_queried, min_age_days
+            movie_path, movie_name, dry_run, client, config, has_queried, min_age_days, dump_mode
         )
         results.append(result)
 
@@ -249,6 +251,7 @@ def _process_one_movie(
     config: Config,
     has_queried: bool,
     min_age_days: int = 0,
+    dump_mode: bool = False,
 ) -> ScanResult:
     """处理单部电影：解析 NFO → 跳过检查 → 搜索 → 下载"""
 
@@ -282,7 +285,7 @@ def _process_one_movie(
 
     # ---- 搜索 + 下载 ----
     try:
-        return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried)
+        return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried, dump_mode)
     except Exception as e:
         print(f"\033[31m    ✗ Error: {e}\033[0m")
         return ScanResult(movie_path, movie_name, "error", str(e))
@@ -356,8 +359,9 @@ def _search_and_download(
     client: SubtitleApiClient,
     config: Config,
     needs_delay: bool = False,
+    dump_mode: bool = False,
 ) -> ScanResult:
-    """搜索字幕并下载（主力 + 备选）"""
+    """搜索字幕并下载（主力+备选 或 dump全量）"""
     if needs_delay and config.rate_limit > 0:
         time.sleep(config.rate_limit)
 
@@ -376,6 +380,10 @@ def _search_and_download(
     if not subtitles:
         _print_status("✗", "No subtitles found")
         return ScanResult(movie_path, movie_name, "no_match", "No subtitles within duration")
+
+    # ---- dump 模式：全量下载 + 内容去重 ----
+    if dump_mode:
+        return _dump_all_subtitles(movie_path, movie_name, subtitles)
 
     # 按 API 原始顺序排（第一条 = 最新上传）
     orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
@@ -431,6 +439,62 @@ def _search_and_download(
 
     _print_status("✗", "All downloads failed")
     return ScanResult(movie_path, movie_name, "error", "All downloads failed")
+
+
+def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> ScanResult:
+    """全量下载字幕，编号命名 + 内容去重"""
+    downloaded = 0
+    dupes = 0
+    seen_hashes: dict[str, str] = {}  # fingerprint → filename
+
+    for i, sub in enumerate(subtitles, 1):
+        filename = f"{i}.{sub.ext}"
+        print(f"\033[90m    [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
+
+        dl = download_subtitle(sub, movie_path, custom_filename=filename)
+        if dl.success:
+            fp = _content_fingerprint(os.path.join(movie_path, filename))
+            if fp and fp in seen_hashes:
+                os.remove(os.path.join(movie_path, filename))
+                print(f"\033[90m    ↳ Duplicate of {seen_hashes[fp]}, removed\033[0m")
+                dupes += 1
+            else:
+                if fp:
+                    seen_hashes[fp] = filename
+                downloaded += 1
+
+    dup_msg = f" ({dupes} dupes)" if dupes > 0 else ""
+    _print_status("✓", f"Dumped {downloaded}/{len(subtitles)}{dup_msg}", green=True)
+    return ScanResult(movie_path, movie_name, "downloaded", filename=f"dumped {downloaded} files")
+
+
+def _content_fingerprint(filepath: str) -> str | None:
+    """字幕内容指纹：纯文本行，去序号和时间轴"""
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return None
+
+    lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.isdigit():
+            continue
+        if "-->" in line and ":" in line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            continue
+        if line.startswith("Dialogue:") or line.startswith("Format:"):
+            continue
+        lines.append(line)
+
+    if not lines:
+        return None
+
+    h = hashlib.md5()
+    h.update("\n".join(lines).encode("utf-8"))
+    return h.hexdigest()
 
 
 def _save_progress(progress_file: str, movie_path: str) -> None:

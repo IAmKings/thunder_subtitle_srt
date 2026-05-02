@@ -166,6 +166,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
         resume=args.resume,
         log=args.log,
         min_age_days=args.min_age,
+        dump_mode=args.dump,
     )
 
 
@@ -553,6 +554,13 @@ def main() -> None:
         type=int,
         default=0,
         help="Only process movies released N+ days ago (default 0 = immediate)",
+    )
+    scan_parser.add_argument(
+        "--dump",
+        action="store_true",
+        default=False,
+        dest="dump",
+        help="Brute-force: download ALL subtitles per movie (1.srt, 2.srt...)",
     )
 
     args = parser.parse_args()
