@@ -115,6 +115,11 @@ python3 cli.py review /path/to/media --mark-all
 python3 cli.py config
 python3 cli.py config --set rate_limit 5
 python3 cli.py config --set preferred_groups KitaujiSub,DMG
+python3 cli.py config --set media_paths /media/movies,/media/anime
+
+# 配置后无需每次传目录
+python3 cli.py scan --dry-run
+python3 cli.py review
 ```
 
 ### WebApp
@@ -193,7 +198,9 @@ pnpm dev
 | `--set KEY VALUE` | 设置配置项 |
 | `--reset` | 恢复默认配置 |
 
-配置项：`output_dir`、`timeout`、`rate_limit`、`retry_count`、`retry_delay`、`preferred_groups`。文件：`~/.thunder-subtitle.json`
+配置项：`output_dir`、`timeout`、`rate_limit`、`retry_count`、`retry_delay`、`preferred_groups`、`media_paths`。文件：`~/.thunder-subtitle.json`
+
+`media_paths`：逗号分隔的媒体库路径。配置后 `scan`/`review` 命令可不传目录参数，自动按序处理多个仓库。
 
 ### 文件名规则
 

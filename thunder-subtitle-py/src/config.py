@@ -19,6 +19,7 @@ class Config:
     retry_count: int = 3          # 下载失败重试次数
     retry_delay: int = 2          # 重试间隔（秒）
     preferred_groups: str = ""    # 偏好字幕组（逗号分隔，如 KitaujiSub,DMG）
+    media_paths: str = ""         # 默认媒体库路径（逗号分隔，缺省时自动使用）
 
     @property
     def preferred_groups_list(self) -> list[str]:
@@ -26,6 +27,13 @@ class Config:
         if not self.preferred_groups.strip():
             return []
         return [g.strip() for g in self.preferred_groups.split(",") if g.strip()]
+
+    @property
+    def media_paths_list(self) -> list[str]:
+        """返回媒体库路径列表，过滤不存在的路径"""
+        if not self.media_paths.strip():
+            return []
+        return [p.strip() for p in self.media_paths.split(",") if p.strip() and os.path.isdir(p.strip())]
 
     @classmethod
     def load(cls) -> "Config":

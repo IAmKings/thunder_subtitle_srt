@@ -155,19 +155,36 @@ def cmd_download(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def _resolve_dirs(args_dir: str | None, config: Config, cmd_name: str) -> list[str]:
+    """解析目录：优先参数，其次配置 media_paths"""
+    if args_dir:
+        return [args_dir]
+    paths = config.media_paths_list
+    if not paths:
+        print(f"\033[31m\n  ✗ No directory specified and media_paths not configured.\033[0m")
+        print(f"\033[90m  Set with: thunder-subtitle config --set media_paths /path1,/path2\033[0m\n")
+        sys.exit(1)
+    print(f"\033[90m  Using media_paths from config ({len(paths)} repo(s))\033[0m")
+    return paths
+
+
 def cmd_scan(args: argparse.Namespace) -> None:
     """执行 Jellyfin 扫描命令"""
     config = Config.load()
-    process_scanned_movies(
-        args.directory,
-        dry_run=args.dry_run,
-        name_filters=args.filters,
-        config=config,
-        resume=args.resume,
-        log=args.log,
-        min_age_days=args.min_age,
-        dump_mode=args.dump,
-    )
+    dirs = _resolve_dirs(args.directory, config, "scan")
+    for d in dirs:
+        if len(dirs) > 1:
+            print(f"\n\033[1;36m━━━ {d} ━━━\033[0m")
+        process_scanned_movies(
+            d,
+            dry_run=args.dry_run,
+            name_filters=args.filters,
+            config=config,
+            resume=args.resume,
+            log=args.log,
+            min_age_days=args.min_age,
+            dump_mode=args.dump,
+        )
 
 
 def cmd_config(args: argparse.Namespace) -> None:
@@ -277,18 +294,28 @@ def cmd_dump(args: argparse.Namespace) -> None:
 
 def cmd_review(args: argparse.Namespace) -> None:
     """执行字幕审查或标记操作"""
-    review_directory(
-        args.directory,
-        name_filters=args.filters,
-        log=args.log,
-        mark=args.mark,
-        unmark=args.unmark,
-        mark_all=args.mark_all,
-        mark_path=args.mark_path,
-        unmark_path=args.unmark_path,
-        mark_fail=args.mark_fail,
-        mark_fail_path=args.mark_fail_path,
-    )
+    config = Config.load()
+    has_mark = any([args.mark, args.unmark, args.mark_all,
+                    args.mark_path, args.unmark_path,
+                    args.mark_fail, args.mark_fail_path])
+    if has_mark:
+        # 标记操作：仅处理传入目录或配置第一个路径
+        d = args.directory or (config.media_paths_list[0] if config.media_paths_list else "")
+        if not d:
+            print(f"\033[31m\n  ✗ No directory specified.\033[0m\n")
+            return
+        review_directory(d, name_filters=args.filters, log=False,
+                         mark=args.mark, unmark=args.unmark, mark_all=args.mark_all,
+                         mark_path=args.mark_path, unmark_path=args.unmark_path,
+                         mark_fail=args.mark_fail, mark_fail_path=args.mark_fail_path)
+        return
+
+    # 审查模式：支持多仓库
+    dirs = _resolve_dirs(args.directory, config, "review")
+    for d in dirs:
+        if len(dirs) > 1:
+            print(f"\n\033[1;36m━━━ {d} ━━━\033[0m")
+        review_directory(d, name_filters=args.filters, log=args.log)
 
 
 def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> None:
@@ -476,7 +503,8 @@ def main() -> None:
     review_parser = subparsers.add_parser(
         "review", help="Review downloaded subtitle files for quality issues"
     )
-    review_parser.add_argument("directory", help="Base directory to review (演员/电影 structure)")
+    review_parser.add_argument("directory", nargs="?", default=None,
+                                help="Base directory to review (uses media_paths if omitted)")
     review_parser.add_argument(
         "--filter", type=str, action="append", default=None, dest="filters",
         help="Only review movies matching this keyword (can repeat)",
@@ -520,8 +548,8 @@ def main() -> None:
         help="Scan Jellyfin movie directories and auto-download subtitles",
     )
     scan_parser.add_argument(
-        "directory",
-        help="Base directory to scan (演员/电影 structure)",
+        "directory", nargs="?", default=None,
+        help="Base directory to scan (演员/电影 structure, uses media_paths if omitted)",
     )
     scan_parser.add_argument(
         "--dry-run",
