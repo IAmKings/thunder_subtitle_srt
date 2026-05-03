@@ -131,11 +131,26 @@ def _has_preferred_group(subtitle, groups: list[str]) -> bool:
 
 
 def _existing_subtitle_file(movie_path: str, movie_name: str) -> str | None:
-    """检查目录中是否已有字幕文件，返回找到的文件名"""
+    """检查目录中是否已有字幕文件（含标准命名和dump数字命名）"""
+    # 标准命名：{movie_name}{.zh}.{ext}
     for ext in ("zh.srt", "srt", "zh.ass", "ass", "zh.ssa", "ssa", "zh.sub", "sub", "zh.vtt", "vtt"):
         path = os.path.join(movie_path, f"{movie_name}.{ext}")
         if os.path.isfile(path):
             return f"{movie_name}.{ext}"
+    # dump 数字命名：1.srt, 2.ass, ...
+    return _find_dump_subtitle(movie_path)
+
+
+def _find_dump_subtitle(movie_path: str) -> str | None:
+    """检查目录中是否有 dump 模式的数字命名字幕文件"""
+    sub_exts = {".srt", ".ass", ".ssa", ".sub", ".vtt"}
+    try:
+        for fname in os.listdir(movie_path):
+            base, ext = os.path.splitext(fname)
+            if ext.lower() in sub_exts and base.isdigit():
+                return fname
+    except OSError:
+        pass
     return None
 
 
