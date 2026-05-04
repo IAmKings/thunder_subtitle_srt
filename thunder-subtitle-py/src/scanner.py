@@ -313,17 +313,20 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     """
     dry_state = ""
 
-    # dry-run 时先检查状态（不管跳过原因都要提示）
+    # 审查失败硬跳过（最高优先级，不需要下载）
+    reviewed_file = os.path.join(movie_path, ".reviewed")
+    if _is_review_fail(reviewed_file):
+        if dry_run:
+            print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
+        return ("Review FAILED — find subtitles elsewhere", "reviewed_fail" if dry_run else "reviewed_fail")
+
+    # dry-run 时检查状态提示
     if dry_run:
         has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
         if has_sub:
-            reviewed_file = os.path.join(movie_path, ".reviewed")
             if not os.path.isfile(reviewed_file):
                 dry_state = "need_review"
                 print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
-            elif _is_review_fail(reviewed_file):
-                dry_state = "reviewed_fail"
-                print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
             else:
                 dry_state = "reviewed_ok"
                 print(f"\033[32m    ✓ Reviewed\033[0m")
