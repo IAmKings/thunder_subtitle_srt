@@ -185,6 +185,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
             min_age_days=args.min_age,
             dump_mode=args.dump,
             force=args.force,
+            reset_fail=args.reset_fail,
         )
 
 
@@ -595,7 +596,13 @@ def main() -> None:
         "--force",
         action="store_true",
         default=False,
-        help="Force re-download even for mark-fail movies",
+        help="Force re-download even for mark-fail movies (keeps fail state)",
+    )
+    scan_parser.add_argument(
+        "--reset-fail",
+        action="store_true",
+        default=False,
+        help="Clear mark-fail status, reset to need-review",
     )
 
     args = parser.parse_args()

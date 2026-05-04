@@ -161,7 +161,8 @@ pnpm dev
 | `--log` | 保存扫描日志到目录下 |
 | `--min-age` | 仅处理发布 N 天后的电影（默认 0，无日期也作 0） |
 | `--dump` | 暴力模式：每电影下载全部字幕 + 内容去重 |
-| `--force` | 强制刷新 mark-fail 电影（覆盖审查失败跳过） |
+| `--force` | 强制刷新 mark-fail 电影（保留 fail 状态） |
+| `--reset-fail` | 清除 mark-fail 状态，回到待审查 |
 
 ### `review` 命令（仅 Python 版）
 
