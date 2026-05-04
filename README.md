@@ -91,6 +91,9 @@ python3 cli.py scan /path/to/media --log
 # 暴力dump模式：全部字幕下载到电影目录（人工筛选）
 python3 cli.py scan /path/to/media --dump
 
+# 强制刷新 mark-fail 电影
+python3 cli.py scan /path/to/media --dump --force
+
 # 仅处理发布 30 天后的电影（新片字幕质量差）
 python3 cli.py scan /path/to/media --min-age 30
 
@@ -158,6 +161,7 @@ pnpm dev
 | `--log` | 保存扫描日志到目录下 |
 | `--min-age` | 仅处理发布 N 天后的电影（默认 0，无日期也作 0） |
 | `--dump` | 暴力模式：每电影下载全部字幕 + 内容去重 |
+| `--force` | 强制刷新 mark-fail 电影（覆盖审查失败跳过） |
 
 ### `review` 命令（仅 Python 版）
 

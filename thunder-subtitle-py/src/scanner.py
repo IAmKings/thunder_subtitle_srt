@@ -165,8 +165,9 @@ def process_scanned_movies(
     log: bool = False,
     min_age_days: int = 0,
     dump_mode: bool = False,
+    force: bool = False,
 ) -> list[ScanResult]:
-    """扫描并处理所有电影目录"""
+    """扫描并处理所有电影目录（force=True 时覆盖 mark-fail 跳过）"""
     if config is None:
         config = Config.load()
 
@@ -207,7 +208,7 @@ def process_scanned_movies(
         print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m", flush=True)
 
         result = _process_one_movie(
-            movie_path, movie_name, dry_run, client, config, has_queried, min_age_days, dump_mode
+            movie_path, movie_name, dry_run, client, config, has_queried, min_age_days, dump_mode, force
         )
         results.append(result)
 
@@ -267,6 +268,7 @@ def _process_one_movie(
     has_queried: bool,
     min_age_days: int = 0,
     dump_mode: bool = False,
+    force: bool = False,
 ) -> ScanResult:
     """处理单部电影：解析 NFO → 跳过检查 → 搜索 → 下载"""
 
@@ -282,7 +284,7 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", "movie.nfo not found")
 
     # ---- 跳过检查 ----
-    skip_reason, dry_state = _check_skip(movie_path, movie_name, nfo, dry_run, min_age_days)
+    skip_reason, dry_state = _check_skip(movie_path, movie_name, nfo, dry_run, min_age_days, force)
     if skip_reason:
         _print_status("✓", skip_reason)
         return ScanResult(movie_path, movie_name, "skipped", skip_reason, dry_state=dry_state)
@@ -306,19 +308,23 @@ def _process_one_movie(
         return ScanResult(movie_path, movie_name, "error", str(e))
 
 
-def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False, min_age_days: int = 0) -> tuple[str | None, str]:
+def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = False, min_age_days: int = 0, force: bool = False) -> tuple[str | None, str]:
     """
     检查是否应跳过该电影，返回 (跳过原因或None, dry_run_state)
     dry_state: need_download / need_review / reviewed_ok / reviewed_fail / skipped / ""
     """
     dry_state = ""
 
-    # 审查失败硬跳过（最高优先级，不需要下载）
+    # 审查失败硬跳过（最高优先级，force 模式可覆盖）
     reviewed_file = os.path.join(movie_path, ".reviewed")
-    if _is_review_fail(reviewed_file):
+    if _is_review_fail(reviewed_file) and not force:
         if dry_run:
             print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
         return ("Review FAILED — find subtitles elsewhere", "reviewed_fail" if dry_run else "reviewed_fail")
+
+    # force 模式覆盖 mark-fail 时给提示
+    if force and _is_review_fail(reviewed_file):
+        print(f"\033[33m    ⚠ Force refresh: overriding mark-fail\033[0m")
 
     # dry-run 时检查状态提示
     if dry_run:
