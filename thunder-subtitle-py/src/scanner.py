@@ -322,9 +322,11 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
             print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
         return ("Review FAILED — find subtitles elsewhere", "reviewed_fail" if dry_run else "reviewed_fail")
 
-    # force 模式覆盖 mark-fail 时给提示
+    # force 模式覆盖 mark-fail：移除 .reviewed 重置状态（非 dry-run）
     if force and _is_review_fail(reviewed_file):
-        print(f"\033[33m    ⚠ Force refresh: overriding mark-fail\033[0m")
+        if not dry_run:
+            os.remove(reviewed_file)
+        print(f"\033[33m    ⚠ Force refresh: mark-fail cleared, will re-download\033[0m")
 
     # dry-run 时检查状态提示
     if dry_run:
