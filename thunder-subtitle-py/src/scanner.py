@@ -336,7 +336,7 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     # 审查失败硬跳过（force 模式可覆盖）
     if is_fail and not force:
         if dry_run:
-            has_new_subs = bool(_existing_subtitle_file(movie_path, movie_name))
+            has_new_subs = bool(_find_dump_subtitle(movie_path))
             if has_new_subs:
                 print(f"\033[33m    ⚠ Review FAILED but new subtitles exist — needs re-review\033[0m")
             else:
