@@ -6,7 +6,6 @@ Thunder Subtitle Python CLI - Entry Point
 """
 
 import argparse
-import hashlib
 import os
 import sys
 
@@ -266,35 +265,57 @@ def cmd_dump(args: argparse.Namespace) -> None:
         os.makedirs(output_dir, exist_ok=True)
         downloaded = 0
         dupes = 0
-        seen_hashes: dict[str, str] = {}  # md5 → filename
+        skipped = 0
+        seen_gcids: set[str] = set()
+
+        # 加载已拒绝的 gcid
+        rejected_file = os.path.join(output_dir, ".rejected")
+        rejected: set[str] = set()
+        if os.path.isfile(rejected_file):
+            try:
+                with open(rejected_file, "r", encoding="utf-8") as f:
+                    rejected = {line.strip() for line in f if line.strip()}
+            except OSError:
+                pass
 
         for i, sub in enumerate(subtitles, 1):
             filename = f"{i}.{sub.ext}"
-            print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
+            gcid = sub.gcid
 
+            # 下载前去重
+            if gcid and gcid in seen_gcids:
+                print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
+                print(f"\033[90m    ↳ Duplicate gcid, skipped\033[0m")
+                dupes += 1
+                continue
+            if gcid and gcid in rejected:
+                print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
+                print(f"\033[90m    ↳ Previously rejected, skipped\033[0m")
+                skipped += 1
+                continue
+
+            print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
             dl = download_subtitle(sub, output_dir, custom_filename=filename)
             if dl.success:
-                filepath = os.path.join(output_dir, filename)
-                file_hash = _content_fingerprint(filepath)
-                if file_hash and file_hash in seen_hashes:
-                    os.remove(filepath)
-                    print(f"\033[90m    ↳ Duplicate of {seen_hashes[file_hash]}, removed\033[0m")
-                    dupes += 1
-                else:
-                    if file_hash:
-                        seen_hashes[file_hash] = filename
-                    downloaded += 1
+                if gcid:
+                    seen_gcids.add(gcid)
+                downloaded += 1
 
-        # 保存指纹到 .dumped（供后续 mark-fail 归档）
-        if seen_hashes:
+        # 保存 gcid 到 .dumped
+        if seen_gcids:
             try:
                 with open(os.path.join(output_dir, ".dumped"), "w", encoding="utf-8") as f:
-                    f.write("\n".join(seen_hashes.keys()) + "\n")
+                    f.write("\n".join(seen_gcids) + "\n")
             except OSError:
                 pass
 
         total = len(subtitles)
-        dup_msg = f" ({dupes} dupes skipped)" if dupes > 0 else ""
+        parts = []
+        if dupes > 0:
+            parts.append(f"{dupes} dupes")
+        if skipped > 0:
+            parts.append(f"{skipped} rejected")
+        dup_msg = f" ({', '.join(parts)})" if parts else ""
         print(f"\n\033[32m  ✓ Downloaded {downloaded}/{total}{dup_msg}\033[0m\n")
 
     except RuntimeError as e:
@@ -351,46 +372,6 @@ def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> 
             f"Batch download complete: {batch['successful']} successful, "
             f"{batch['failed']} failed"
         )
-
-
-def _content_fingerprint(filepath: str) -> str | None:
-    """
-    计算字幕内容指纹（纯文本行，去掉序号和时间轴）
-    相同翻译不同格式也能识别为重复
-    """
-    try:
-        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
-            text = f.read()
-    except OSError:
-        try:
-            with open(filepath, "r", encoding="gbk", errors="replace") as f:
-                text = f.read()
-        except OSError:
-            return None
-
-    # 提取纯文本行：跳过 SRT 序号、时间轴、空行、ASS 标签
-    lines = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.isdigit():
-            continue
-        if "-->" in line and ":" in line:
-            continue
-        # 跳过 ASS/SSA 格式标记行
-        if line.startswith("[") and line.endswith("]"):
-            continue
-        if line.startswith("Dialogue:") or line.startswith("Format:"):
-            continue
-        lines.append(line)
-
-    if not lines:
-        return None
-
-    h = hashlib.md5()
-    h.update("\n".join(lines).encode("utf-8"))
-    return h.hexdigest()
 
 
 def _parse_indices(index_str: str) -> list[int]:
