@@ -217,14 +217,30 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: st
 
 
 def _archive_dumped(movie_path: str) -> None:
-    """mark-fail 时：.dumped → .rejected 归档指纹"""
+    """mark-fail 时：合并 .dumped 到 .rejected（不覆盖旧拒绝记录）"""
     dumped = os.path.join(movie_path, ".dumped")
     rejected = os.path.join(movie_path, ".rejected")
-    if os.path.isfile(dumped):
-        try:
-            os.rename(dumped, rejected)
-        except OSError:
-            pass
+    if not os.path.isfile(dumped):
+        return
+    try:
+        # 读取已有拒绝记录
+        existing: set[str] = set()
+        if os.path.isfile(rejected):
+            with open(rejected, "r", encoding="utf-8") as f:
+                existing = {line.strip() for line in f if line.strip()}
+        # 合并新指纹
+        with open(dumped, "r", encoding="utf-8") as f:
+            for line in f:
+                gcid = line.strip()
+                if gcid:
+                    existing.add(gcid)
+        # 写回
+        with open(rejected, "w", encoding="utf-8") as f:
+            f.write("\n".join(sorted(existing)) + "\n")
+        # 清理 .dumped
+        os.remove(dumped)
+    except OSError:
+        pass
 
 
 def _cleanup_rejected(movie_path: str) -> None:
