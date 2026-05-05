@@ -285,6 +285,14 @@ def cmd_dump(args: argparse.Namespace) -> None:
                         seen_hashes[file_hash] = filename
                     downloaded += 1
 
+        # 保存指纹到 .dumped（供后续 mark-fail 归档）
+        if seen_hashes:
+            try:
+                with open(os.path.join(output_dir, ".dumped"), "w", encoding="utf-8") as f:
+                    f.write("\n".join(seen_hashes.keys()) + "\n")
+            except OSError:
+                pass
+
         total = len(subtitles)
         dup_msg = f" ({dupes} dupes skipped)" if dupes > 0 else ""
         print(f"\n\033[32m  ✓ Downloaded {downloaded}/{total}{dup_msg}\033[0m\n")
