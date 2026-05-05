@@ -106,7 +106,11 @@ python3 cli.py review /path/to/media
 python3 cli.py review /path/to/media --filter "星球大战" --log
 
 # 全量下载（评分低时人工筛选）
+# 全量下载（手动指定电影名）
 python3 cli.py dump "流浪地球" -o /path/to/movie -d 2h --chinese-first
+
+# 全量下载（自动从目录读取电影名+时长）
+python3 cli.py dump --dir /media/A/流浪地球
 
 # 标记人工审查
 python3 cli.py review /path/to/media --mark "星球大战"
@@ -191,6 +195,7 @@ pnpm dev
 | `--output` | `-o` | 输出目录（默认当前目录） |
 | `--max-duration` | `-d` | 最大视频时长筛选 |
 | `--chinese-only` | `-c` | 仅中文字幕 |
+| `--dir` | 直接指定电影目录（自动读电影名+时长） |
 | `--chinese-first` | `-f` | 中文优先排序 |
 
 下载全部匹配字幕，按 `1.srt`、`2.srt`、... 命名，方便人工逐个筛选。

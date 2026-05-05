@@ -14,8 +14,9 @@ from src.config import Config
 from src.ui import display_subtitle_list, display_error, display_success
 from src.download import download_subtitle, download_batch, get_default_download_dir
 from src.utils import parse_duration
-from src.scanner import process_scanned_movies
+from src.scanner import process_scanned_movies, parse_nfo
 from src.reviewer import review_directory
+from src.utils import parse_duration, seconds_to_duration_str
 
 
 def cmd_search(args: argparse.Namespace) -> None:
@@ -220,24 +221,47 @@ def cmd_config(args: argparse.Namespace) -> None:
 def cmd_dump(args: argparse.Namespace) -> None:
     """全量下载字幕：搜索后下载全部匹配结果，按 1.{ext}, 2.{ext} 命名"""
     client = SubtitleApiClient()
-    output_dir = args.output or "."
 
-    # 解析时长
-    max_duration_ms: int | None = None
-    if args.max_duration:
-        try:
-            max_duration_ms = parse_duration(args.max_duration)
-        except ValueError as e:
-            display_error(str(e))
+    # --dir 模式：从目录读取电影名和时长
+    if args.dir:
+        if not os.path.isdir(args.dir):
+            display_error(f"Directory not found: {args.dir}")
             sys.exit(1)
+        movie_name = os.path.basename(args.dir.rstrip("/"))
+        output_dir = args.output if args.output is not None else args.dir
+        # 读取 movie.nfo 获取时长
+        nfo_path = os.path.join(args.dir, "movie.nfo")
+        try:
+            nfo = parse_nfo(nfo_path)
+            max_duration_ms = nfo.duration_seconds * 1000 if nfo.duration_seconds > 0 else None
+            duration_str = seconds_to_duration_str(nfo.duration_seconds)
+        except Exception:
+            max_duration_ms = None
+            duration_str = "unknown"
+    else:
+        if not args.name:
+            display_error("Either movie name or --dir is required")
+            sys.exit(1)
+        movie_name = args.name
+        output_dir = args.output if args.output is not None else "."
+        duration_str = args.max_duration or ""
+        max_duration_ms = None
+        if args.max_duration:
+            try:
+                max_duration_ms = parse_duration(args.max_duration)
+            except ValueError as e:
+                display_error(str(e))
+                sys.exit(1)
 
-    print(f"\033[1m\n  Dumping all subtitles for: \"{args.name}\"\033[0m")
-    if args.max_duration:
-        print(f"\033[90m  Filtering: Max video duration {args.max_duration}\033[0m")
+    print(f"\033[1m\n  Dumping all subtitles for: \"{movie_name}\"\033[0m")
+    if max_duration_ms:
+        print(f"\033[90m  Max video duration: {duration_str} (from NFO)\033[0m")
+    if max_duration_ms and duration_str:
+        print(f"\033[90m  Filtering: Max video duration {duration_str}\033[0m")
     print(f"\033[90m  Output: {os.path.abspath(output_dir)}\033[0m\n")
 
     try:
-        result = client.search_subtitles(args.name)
+        result = client.search_subtitles(movie_name)
         if result.total == 0:
             display_error("No subtitles found.")
             sys.exit(1)
@@ -472,10 +496,14 @@ def main() -> None:
     dump_parser = subparsers.add_parser(
         "dump", help="Download ALL subtitles for a movie, numbered 1.srt, 2.srt, ..."
     )
-    dump_parser.add_argument("name", help="Movie name to search")
+    dump_parser.add_argument("name", nargs="?", default=None, help="Movie name to search")
     dump_parser.add_argument(
-        "-o", "--output", type=str, default=".",
-        help="Output directory (default: current dir)",
+        "--dir", type=str, default=None,
+        help="Movie directory (auto-reads name from basename, duration from movie.nfo)",
+    )
+    dump_parser.add_argument(
+        "-o", "--output", type=str, default=None,
+        help="Output directory (default: current dir, or movie dir if --dir)",
     )
     dump_parser.add_argument(
         "-d", "--max-duration", type=str, default=None,
