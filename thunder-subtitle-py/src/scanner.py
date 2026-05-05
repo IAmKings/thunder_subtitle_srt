@@ -357,7 +357,7 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
             dry_state = "need_download"
             print(f"\033[90m    ◇ No subtitles — will download\033[0m")
 
-    if nfo.has_chinese_subtitle and not force:
+    if nfo.has_chinese_subtitle and not (force and is_fail):
         return ("NFO has Chinese subtitle tag", dry_state)
 
     # 发布日期检查：新片不满 min_age_days 天跳过
@@ -371,7 +371,7 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
             pass
 
     existing = _existing_subtitle_file(movie_path, movie_name)
-    if existing and not force:
+    if existing and not (force and is_fail):
         if dry_run and not _has_zh_prefix(existing):
             print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
         return (f"{existing} already exists", dry_state)
