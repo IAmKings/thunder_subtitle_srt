@@ -302,15 +302,9 @@ def _process_one_movie(
         print(f"\033[90m    [DRY RUN] Would search: \"{movie_name}\" -d {duration_str}\033[0m")
         return ScanResult(movie_path, movie_name, "skipped", "dry-run", dry_state=dry_state)
 
-    # force 刷新 mark-fail：降级为正常模式（2字），不重复 dump 全量
-    actual_dump = dump_mode
-    if dump_mode and force and _is_review_fail(os.path.join(movie_path, ".reviewed")):
-        actual_dump = False
-        print(f"\033[90m    Force mode: mark-fail → normal scan (2 subs), not full dump\033[0m")
-
     # ---- 搜索 + 下载 ----
     try:
-        return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried, actual_dump)
+        return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried, dump_mode)
     except Exception as e:
         print(f"\033[31m    ✗ Error: {e}\033[0m")
         return ScanResult(movie_path, movie_name, "error", str(e))
@@ -363,7 +357,7 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
             dry_state = "need_download"
             print(f"\033[90m    ◇ No subtitles — will download\033[0m")
 
-    if nfo.has_chinese_subtitle:
+    if nfo.has_chinese_subtitle and not force:
         return ("NFO has Chinese subtitle tag", dry_state)
 
     # 发布日期检查：新片不满 min_age_days 天跳过
