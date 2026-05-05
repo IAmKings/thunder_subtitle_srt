@@ -327,14 +327,17 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     reviewed_file = os.path.join(movie_path, ".reviewed")
     is_fail = _is_review_fail(reviewed_file)
 
-    # reset-fail：清除审查失败标记（最优先，在处理前重置）
+    # reset-fail：清除审查失败标记 + 已拒绝指纹（最优先）
     if reset_fail and is_fail:
         if dry_run:
             print(f"\033[33m    ⚠ Would reset mark-fail → need review\033[0m")
         else:
             os.remove(reviewed_file)
+            rejected = os.path.join(movie_path, ".rejected")
+            if os.path.isfile(rejected):
+                os.remove(rejected)
             print(f"\033[32m    ✓ Mark-fail cleared, status reset\033[0m")
-        is_fail = False  # 已重置，后续不再按 fail 处理
+        is_fail = False
 
     # 审查失败硬跳过（force 模式可覆盖）
     if is_fail and not force:
@@ -486,10 +489,13 @@ def _search_and_download(
 
 
 def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> ScanResult:
-    """全量下载字幕，编号命名 + 内容去重"""
+    """全量下载字幕，编号命名 + 内容去重 + 增量刷新支持"""
     downloaded = 0
     dupes = 0
-    seen_hashes: dict[str, str] = {}  # fingerprint → filename
+    skipped = 0
+    seen_hashes: dict[str, str] = {}  # fingerprint → filename (session)
+    rejected: set[str] = _load_rejected(movie_path)  # 历史已拒绝指纹
+    all_fingerprints: list[str] = []  # 本次下载的所有指纹（存 .dumped）
 
     for i, sub in enumerate(subtitles, 1):
         filename = f"{i}.{sub.ext}"
@@ -502,14 +508,55 @@ def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> Sc
                 os.remove(os.path.join(movie_path, filename))
                 print(f"\033[90m    ↳ Duplicate of {seen_hashes[fp]}, removed\033[0m")
                 dupes += 1
+            elif fp and fp in rejected:
+                os.remove(os.path.join(movie_path, filename))
+                print(f"\033[90m    ↳ Previously rejected, skipped\033[0m")
+                skipped += 1
             else:
                 if fp:
                     seen_hashes[fp] = filename
+                    all_fingerprints.append(fp)
                 downloaded += 1
 
-    dup_msg = f" ({dupes} dupes)" if dupes > 0 else ""
+    # 保存指纹到 .dumped（供 mark-fail 时归档）
+    _save_fingerprints(movie_path, ".dumped", all_fingerprints)
+
+    parts = []
+    if dupes > 0:
+        parts.append(f"{dupes} dupes")
+    if skipped > 0:
+        parts.append(f"{skipped} rejected")
+    dup_msg = f" ({', '.join(parts)})" if parts else ""
     _print_status("✓", f"Dumped {downloaded}/{len(subtitles)}{dup_msg}", green=True)
     return ScanResult(movie_path, movie_name, "downloaded", filename=f"dumped {downloaded} files")
+
+
+def _load_rejected(movie_path: str) -> set[str]:
+    """加载已拒绝字幕指纹"""
+    return _load_fingerprints(movie_path, ".rejected")
+
+
+def _load_fingerprints(movie_path: str, filename: str) -> set[str]:
+    """加载指纹文件，每行一个 hash"""
+    path = os.path.join(movie_path, filename)
+    if not os.path.isfile(path):
+        return set()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return {line.strip() for line in f if line.strip()}
+    except OSError:
+        return set()
+
+
+def _save_fingerprints(movie_path: str, filename: str, fps: list[str]) -> None:
+    """保存指纹到文件"""
+    if not fps:
+        return
+    try:
+        with open(os.path.join(movie_path, filename), "w", encoding="utf-8") as f:
+            f.write("\n".join(fps) + "\n")
+    except OSError:
+        pass
 
 
 def _content_fingerprint(filepath: str) -> str | None:

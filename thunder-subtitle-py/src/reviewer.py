@@ -200,6 +200,9 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: st
                 with open(rf, "w", encoding="utf-8") as f:
                     if content:
                         f.write(content)
+                # mark-fail：归档 .dumped → .rejected
+                if status == "fail":
+                    _archive_dumped(d)
                 tag = "\033[31m✗ FAIL\033[0m" if status == "fail" else "\033[32m✓\033[0m"
                 print(f"  {tag} {name}")
             except OSError as e:
@@ -207,8 +210,31 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: st
         else:
             if os.path.isfile(rf):
                 os.remove(rf)
-                print(f"  \033[33m-\033[0m {name}")
+            # 同时清理 .rejected
+            _cleanup_rejected(d)
+            print(f"  \033[33m-\033[0m {name}")
     print()
+
+
+def _archive_dumped(movie_path: str) -> None:
+    """mark-fail 时：.dumped → .rejected 归档指纹"""
+    dumped = os.path.join(movie_path, ".dumped")
+    rejected = os.path.join(movie_path, ".rejected")
+    if os.path.isfile(dumped):
+        try:
+            os.rename(dumped, rejected)
+        except OSError:
+            pass
+
+
+def _cleanup_rejected(movie_path: str) -> None:
+    """unmark 时：清理 .rejected"""
+    rejected = os.path.join(movie_path, ".rejected")
+    if os.path.isfile(rejected):
+        try:
+            os.remove(rejected)
+        except OSError:
+            pass
 
 
 def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str, str]]:

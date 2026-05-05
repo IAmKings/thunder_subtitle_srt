@@ -162,7 +162,7 @@ pnpm dev
 | `--min-age` | 仅处理发布 N 天后的电影（默认 0，无日期也作 0） |
 | `--dump` | 暴力模式：每电影下载全部字幕 + 内容去重 |
 | `--force` | 强制刷新 mark-fail 电影（保留 fail 状态） |
-| `--reset-fail` | 清除 mark-fail 状态，回到待审查 |
+| `--reset-fail` | 清除 mark-fail 状态 + 已拒绝指纹 |
 
 ### `review` 命令（仅 Python 版）
 
@@ -312,6 +312,19 @@ python3 cli.py scan /path/to/media --resume
 --- Summary ---
 Total: 4  OK: 1  Skip: 1  None: 1  Err: 1
 ```
+
+### 增量刷新
+
+dump 全量后 mark-fail，系统自动归档内容指纹到 `.rejected`。后续 `--dump --force` 时跳过已拒绝的字幕：
+
+```bash
+python3 cli.py scan /media --dump              # 全量下载 + 存指纹
+python3 cli.py review /media --mark-fail "电影" # 归档指纹 → .rejected
+# … 一星期后 …
+python3 cli.py scan /media --dump --force       # 跳过已拒绝，仅下载新字幕
+```
+
+`.dumped` / `.rejected` 文件在电影目录下，纯文本，每行一个 MD5 指纹。
 
 ### 下载重试
 
