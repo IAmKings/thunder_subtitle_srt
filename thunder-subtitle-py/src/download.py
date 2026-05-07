@@ -108,6 +108,65 @@ def download_batch(
     return {"successful": successful, "failed": failed, "results": results}
 
 
+from dataclasses import dataclass
+
+
+@dataclass
+class DumpResult:
+    """dump 下载结果"""
+    downloaded: int = 0
+    dupes: int = 0       # 会话内重复
+    skipped: int = 0     # 已拒绝跳过
+    gcids: set = None    # 本次下载的 gcid 集合
+
+    def __post_init__(self):
+        if self.gcids is None:
+            self.gcids = set()
+
+
+def dump_subtitles(
+    subtitles: list[Subtitle],
+    output_dir: str,
+    rejected_gcids: set[str] | None = None,
+) -> DumpResult:
+    """
+    全量下载字幕，gcid 去重 + 增量跳过
+    返回 DumpResult（下载数、重复数、跳过数、新 gcid 集合）
+    """
+    if rejected_gcids is None:
+        rejected_gcids = set()
+
+    result = DumpResult()
+    seen: set[str] = set()
+    total = len(subtitles)
+
+    for i, sub in enumerate(subtitles, 1):
+        filename = f"{i}.{sub.ext}"
+        gcid = sub.gcid
+
+        # 下载前去重
+        if gcid and gcid in seen:
+            print(f"\033[90m    [{i}/{total}]\033[0m {filename} ← {sub.name}")
+            print(f"\033[90m    ↳ Duplicate gcid, skipped\033[0m")
+            result.dupes += 1
+            continue
+        if gcid and gcid in rejected_gcids:
+            print(f"\033[90m    [{i}/{total}]\033[0m {filename} ← {sub.name}")
+            print(f"\033[90m    ↳ Previously rejected, skipped\033[0m")
+            result.skipped += 1
+            continue
+
+        print(f"\033[90m    [{i}/{total}]\033[0m {filename} ← {sub.name}")
+        dl = download_subtitle(sub, output_dir, custom_filename=filename)
+        if dl.success:
+            if gcid:
+                seen.add(gcid)
+                result.gcids.add(gcid)
+            result.downloaded += 1
+
+    return result
+
+
 def _sanitize_filename(name: str) -> str:
     """清理文件名中的非法字符"""
     # 移除或替换文件系统不允许的字符

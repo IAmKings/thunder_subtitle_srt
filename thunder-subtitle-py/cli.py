@@ -12,7 +12,7 @@ import sys
 from src.api import SubtitleApiClient
 from src.config import Config
 from src.ui import display_subtitle_list, display_error, display_success
-from src.download import download_subtitle, download_batch, get_default_download_dir
+from src.download import download_subtitle, download_batch, dump_subtitles, get_default_download_dir
 from src.utils import parse_duration
 from src.scanner import process_scanned_movies, parse_nfo
 from src.reviewer import review_directory
@@ -286,15 +286,9 @@ def cmd_dump(args: argparse.Namespace) -> None:
 
         print(f"\033[32m  Found {len(subtitles)} subtitle(s)\033[0m\n")
 
-        os.makedirs(output_dir, exist_ok=True)
-        downloaded = 0
-        dupes = 0
-        skipped = 0
-        seen_gcids: set[str] = set()
-
-        # 加载已拒绝的 gcid
-        rejected_file = os.path.join(output_dir, ".rejected")
+        # 加载已拒绝 gcid
         rejected: set[str] = set()
+        rejected_file = os.path.join(output_dir, ".rejected")
         if os.path.isfile(rejected_file):
             try:
                 with open(rejected_file, "r", encoding="utf-8") as f:
@@ -302,45 +296,25 @@ def cmd_dump(args: argparse.Namespace) -> None:
             except OSError:
                 pass
 
-        for i, sub in enumerate(subtitles, 1):
-            filename = f"{i}.{sub.ext}"
-            gcid = sub.gcid
-
-            # 下载前去重
-            if gcid and gcid in seen_gcids:
-                print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
-                print(f"\033[90m    ↳ Duplicate gcid, skipped\033[0m")
-                dupes += 1
-                continue
-            if gcid and gcid in rejected:
-                print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
-                print(f"\033[90m    ↳ Previously rejected, skipped\033[0m")
-                skipped += 1
-                continue
-
-            print(f"\033[90m  [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
-            dl = download_subtitle(sub, output_dir, custom_filename=filename)
-            if dl.success:
-                if gcid:
-                    seen_gcids.add(gcid)
-                downloaded += 1
+        os.makedirs(output_dir, exist_ok=True)
+        r = dump_subtitles(subtitles, output_dir, rejected)
 
         # 保存 gcid 到 .dumped
-        if seen_gcids:
+        if r.gcids:
             try:
                 with open(os.path.join(output_dir, ".dumped"), "w", encoding="utf-8") as f:
-                    f.write("\n".join(seen_gcids) + "\n")
+                    f.write("\n".join(r.gcids) + "\n")
             except OSError:
                 pass
 
         total = len(subtitles)
         parts = []
-        if dupes > 0:
-            parts.append(f"{dupes} dupes")
-        if skipped > 0:
-            parts.append(f"{skipped} rejected")
+        if r.dupes > 0:
+            parts.append(f"{r.dupes} dupes")
+        if r.skipped > 0:
+            parts.append(f"{r.skipped} rejected")
         dup_msg = f" ({', '.join(parts)})" if parts else ""
-        print(f"\n\033[32m  ✓ Downloaded {downloaded}/{total}{dup_msg}\033[0m\n")
+        print(f"\n\033[32m  ✓ Downloaded {r.downloaded}/{total}{dup_msg}\033[0m\n")
 
     except RuntimeError as e:
         display_error(str(e))

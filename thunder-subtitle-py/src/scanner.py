@@ -12,7 +12,7 @@ from datetime import datetime
 
 from .api import SubtitleApiClient
 from .config import Config
-from .download import download_subtitle
+from .download import download_subtitle, dump_subtitles
 from .utils import seconds_to_duration_str
 
 
@@ -488,48 +488,20 @@ def _search_and_download(
 
 def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> ScanResult:
     """全量下载字幕，gcid 去重 + 增量跳过"""
-    downloaded = 0
-    dupes = 0
-    skipped = 0
-    seen_gcids: set[str] = set()  # 本次会话去重
-    rejected: set[str] = _load_gcids(movie_path, ".rejected")
-    all_gcids: list[str] = []  # 存 .dumped
-
-    for i, sub in enumerate(subtitles, 1):
-        filename = f"{i}.{sub.ext}"
-
-        # 下载前去重
-        gcid = sub.gcid
-        if gcid and gcid in seen_gcids:
-            print(f"\033[90m    [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
-            print(f"\033[90m    ↳ Duplicate gcid, skipped\033[0m")
-            dupes += 1
-            continue
-        if gcid and gcid in rejected:
-            print(f"\033[90m    [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
-            print(f"\033[90m    ↳ Previously rejected, skipped\033[0m")
-            skipped += 1
-            continue
-
-        print(f"\033[90m    [{i}/{len(subtitles)}]\033[0m {filename} ← {sub.name}")
-        dl = download_subtitle(sub, movie_path, custom_filename=filename)
-        if dl.success:
-            if gcid:
-                seen_gcids.add(gcid)
-                all_gcids.append(gcid)
-            downloaded += 1
+    rejected = _load_gcids(movie_path, ".rejected")
+    r = dump_subtitles(subtitles, movie_path, rejected)
 
     # 保存 gcid 到 .dumped（供 mark-fail 时归档）
-    _save_gcids(movie_path, ".dumped", all_gcids)
+    _save_gcids(movie_path, ".dumped", list(r.gcids))
 
     parts = []
-    if dupes > 0:
-        parts.append(f"{dupes} dupes")
-    if skipped > 0:
-        parts.append(f"{skipped} rejected")
+    if r.dupes > 0:
+        parts.append(f"{r.dupes} dupes")
+    if r.skipped > 0:
+        parts.append(f"{r.skipped} rejected")
     dup_msg = f" ({', '.join(parts)})" if parts else ""
-    _print_status("✓", f"Dumped {downloaded}/{len(subtitles)}{dup_msg}", green=True)
-    return ScanResult(movie_path, movie_name, "downloaded", filename=f"dumped {downloaded} files")
+    _print_status("✓", f"Dumped {r.downloaded}/{len(subtitles)}{dup_msg}", green=True)
+    return ScanResult(movie_path, movie_name, "downloaded", filename=f"dumped {r.downloaded} files")
 
 
 def _load_gcids(movie_path: str, filename: str) -> set[str]:
