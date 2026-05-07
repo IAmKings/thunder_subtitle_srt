@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from .scanner import scan_movie_dirs
+from .types import ReviewState, ReviewQuality
 
 MIN_FILE_SIZE = 200  # 最小文件大小（字节）
 MIN_CN_RATIO = 0.05  # .zh 文件最低中文占比
@@ -22,7 +23,7 @@ class ReviewItem:
     movie_name: str
     filename: str
     score: int = 100
-    status: str = "ok"       # "ok" | "warn" | "fail"
+    status: str = ReviewQuality.ok       # ReviewQuality.ok | ReviewQuality.warn | ReviewQuality.fail
     checks: list[str] = field(default_factory=list)
     deductions: list[str] = field(default_factory=list)  # 扣分明细
     size_bytes: int = 0
@@ -51,14 +52,14 @@ def review_directory(
     mark_fail_path: str | None = kwargs.get("mark_fail_path")
 
     if mark or unmark or mark_all or mark_path or unmark_path or mark_fail or mark_fail_path:
-        mark_status = "fail" if (mark_fail or mark_fail_path) else "ok"
+        mark_status = ReviewState.fail if (mark_fail or mark_fail_path) else ReviewState.ok
         if mark_fail:
-            mark, mark_status = mark_fail, "fail"
+            mark, mark_status = mark_fail, ReviewState.fail
         # 精确路径操作 - fail 路径
         if mark_fail_path:
             full = os.path.join(base_dir, mark_fail_path) if not os.path.isabs(mark_fail_path) else mark_fail_path
             if os.path.isdir(full):
-                _batch_mark([full], True, status="fail")
+                _batch_mark([full], True, status=ReviewState.fail)
             else:
                 print(f"\033[31m  ✗ Directory not found: {mark_fail_path}\033[0m\n")
             return None
@@ -129,9 +130,9 @@ def review_directory(
 
         # 检查人工审查标记
         review_status, review_date = _is_reviewed(movie_path)
-        if review_status == "fail":
+        if review_status == ReviewState.fail:
             print(f"\033[31m    ✗ Review FAILED ({review_date})\033[0m")
-        elif review_status == "ok":
+        elif review_status == ReviewQuality.ok:
             print(f"\033[90m    Reviewed: {review_date}\033[0m")
 
         for filepath, filename in sub_files:
@@ -159,7 +160,7 @@ REVIEWED_FILE = ".reviewed"
 def _is_reviewed(movie_path: str) -> tuple[str | None, str]:
     """
     检查电影审查状态，返回 (状态, 日期字符串)
-    状态: None=未审查, "ok"=审查通过, "fail"=审查不及格
+    状态: None=未审查, ReviewState.ok=审查通过, ReviewState.fail=审查不及格
     """
     rf = os.path.join(movie_path, REVIEWED_FILE)
     if not os.path.isfile(rf):
@@ -171,21 +172,21 @@ def _is_reviewed(movie_path: str) -> tuple[str | None, str]:
     except OSError:
         dt = ""
 
-    # 读取状态：空文件或 "ok" = 通过，"fail" = 不及格
+    # 读取状态：空文件或 ReviewState.ok = 通过，ReviewState.fail = 不及格
     try:
         with open(rf, "r", encoding="utf-8") as f:
             content = f.read().strip().lower()
     except OSError:
         content = ""
-    status = "fail" if content == "fail" else "ok"
+    status = ReviewState.fail if content == "fail" else ReviewState.ok
     return status, dt
 
 
-def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: str = "ok") -> None:
+def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: str = ReviewQuality.ok) -> None:
     """批量标记/取消标记，status: ok=通过, fail=不及格"""
     action_map = {
-        (True, "ok"): "Marked",
-        (True, "fail"): "Marked as FAIL",
+        (True, ReviewQuality.ok): "Marked",
+        (True, ReviewQuality.fail): "Marked as FAIL",
         (False, ""): "Unmarked",
     }
     action = action_map.get((mark, status), "Updated")
@@ -196,14 +197,14 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: st
         name = os.path.basename(d)
         if mark:
             try:
-                content = "fail" if status == "fail" else ""
+                content = "fail" if status == ReviewState.fail else ""
                 with open(rf, "w", encoding="utf-8") as f:
                     if content:
                         f.write(content)
                 # mark-fail：归档 .dumped → .rejected
-                if status == "fail":
+                if status == ReviewState.fail:
                     _archive_dumped(d)
-                tag = "\033[31m✗ FAIL\033[0m" if status == "fail" else "\033[32m✓\033[0m"
+                tag = "\033[31m✗ FAIL\033[0m" if status == ReviewState.fail else "\033[32m✓\033[0m"
                 print(f"  {tag} {name}")
             except OSError as e:
                 print(f"  \033[31m✗\033[0m {name} — {e}")
@@ -286,14 +287,14 @@ def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: 
     if not os.path.isfile(filepath):
         item.deductions.append("file_not_found")
         item.score = 0
-        item.status = "fail"
+        item.status = ReviewQuality.fail
         return item
 
     item.size_bytes = os.path.getsize(filepath)
     if item.size_bytes < MIN_FILE_SIZE:
         item.deductions.append(f"文件过小 ({item.size_bytes}B)")
         item.score = 0
-        item.status = "fail"
+        item.status = ReviewQuality.fail
         return item
 
     try:
@@ -302,7 +303,7 @@ def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: 
     except OSError as e:
         item.deductions.append(f"无法读取: {e}")
         item.score = 0
-        item.status = "fail"
+        item.status = ReviewQuality.fail
         return item
 
     # ---- 编码检测 ----
@@ -351,11 +352,11 @@ def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: 
 
     # 综合判定
     if item.score >= 80:
-        item.status = "ok"
+        item.status = ReviewQuality.ok
     elif item.score >= 50:
-        item.status = "warn"
+        item.status = ReviewQuality.warn
     else:
-        item.status = "fail"
+        item.status = ReviewQuality.fail
 
     return item
 
@@ -499,7 +500,7 @@ def _score_color(score: int) -> str:
 def _print_review_item(item: ReviewItem) -> None:
     """打印单条审查结果"""
     color = _score_color(item.score)
-    markers = {"ok": "\033[32m✓\033[0m", "warn": "\033[33m⚠\033[0m", "fail": "\033[31m✗\033[0m"}
+    markers = {ReviewQuality.ok: "\033[32m✓\033[0m", ReviewQuality.warn: "\033[33m⚠\033[0m", ReviewQuality.fail: "\033[31m✗\033[0m"}
     marker = markers.get(item.status, "?")
 
     extra = []
@@ -519,15 +520,15 @@ def _print_review_item(item: ReviewItem) -> None:
     print(f"  {marker} {item.filename} — {color}{item.score}/100\033[0m ({detail}) {review_tag}")
 
     for d in item.deductions:
-        c = "\033[31m" if item.status == "fail" else "\033[33m"
+        c = "\033[31m" if item.status == ReviewState.fail else "\033[33m"
         print(f"    {c}  - {d}\033[0m")
 
 
 def _print_review_summary(items: list[ReviewItem]) -> None:
     """打印审查汇总"""
-    ok_count = sum(1 for r in items if r.status == "ok")
-    warn_count = sum(1 for r in items if r.status == "warn")
-    fail_count = sum(1 for r in items if r.status == "fail")
+    ok_count = sum(1 for r in items if r.status == ReviewQuality.ok)
+    warn_count = sum(1 for r in items if r.status == ReviewQuality.warn)
+    fail_count = sum(1 for r in items if r.status == ReviewState.fail)
     avg_score = sum(r.score for r in items) // max(len(items), 1)
 
     print()
@@ -546,7 +547,7 @@ def _print_review_summary(items: list[ReviewItem]) -> None:
 def _write_review_log(log_path: str, item: ReviewItem) -> None:
     """写入单条日志"""
     ts = datetime.now().strftime("%H:%M:%S")
-    status_map = {"ok": "OK", "warn": "WARN", "fail": "FAIL"}
+    status_map = {ReviewQuality.ok: "OK", ReviewQuality.warn: "WARN", ReviewQuality.fail: "FAIL"}
     tag = status_map.get(item.status, "??")
     ded = "; ".join(item.deductions) if item.deductions else ""
     try:
@@ -559,9 +560,9 @@ def _write_review_log(log_path: str, item: ReviewItem) -> None:
 
 def _write_review_summary(log_path: str, items: list[ReviewItem]) -> None:
     """写入审查汇总"""
-    ok_count = sum(1 for r in items if r.status == "ok")
-    warn_count = sum(1 for r in items if r.status == "warn")
-    fail_count = sum(1 for r in items if r.status == "fail")
+    ok_count = sum(1 for r in items if r.status == ReviewQuality.ok)
+    warn_count = sum(1 for r in items if r.status == ReviewQuality.warn)
+    fail_count = sum(1 for r in items if r.status == ReviewState.fail)
     avg_score = sum(r.score for r in items) // max(len(items), 1)
     try:
         with open(log_path, "a", encoding="utf-8") as f:
