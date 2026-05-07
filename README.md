@@ -91,6 +91,9 @@ python3 cli.py scan /path/to/media --log
 # 暴力dump模式：全部字幕下载到电影目录（人工筛选）
 python3 cli.py scan /path/to/media --dump
 
+# 并行下载（5 并发，加快速度）
+python3 cli.py scan /path/to/media -p 5
+
 # 强制刷新 mark-fail 电影
 python3 cli.py scan /path/to/media --dump --force
 
@@ -167,6 +170,7 @@ pnpm dev
 | `--dump` | 暴力模式：每电影下载全部字幕 + 内容去重 |
 | `--force` | 强制刷新 mark-fail 电影（保留 fail 状态） |
 | `--reset-fail` | 清除 mark-fail 状态 + 已拒绝指纹 |
+| `-p / --parallel` | 并行 worker 数（默认 1 = 串行） |
 
 ### `review` 命令（仅 Python 版）
 

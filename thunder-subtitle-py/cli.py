@@ -182,6 +182,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
             config=config,
             resume=args.resume,
             log=args.log,
+            parallel=args.parallel,
             min_age_days=args.min_age,
             dump_mode=args.dump,
             force=args.force,
@@ -594,6 +595,11 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Clear mark-fail status, reset to need-review",
+    )
+    scan_parser.add_argument(
+        "-p", "--parallel",
+        type=int, default=1,
+        help="Number of parallel workers (default 1 = serial)",
     )
 
     args = parser.parse_args()
