@@ -9,6 +9,7 @@ from .types import Subtitle, SearchResult
 
 API_BASE_URL = "https://api-shoulei-ssl.xunlei.com/oracle"
 DEFAULT_TIMEOUT = 30
+USER_AGENT = "thunder-subtitle/1.0.0"
 
 
 class SubtitleApiClient:
@@ -17,6 +18,11 @@ class SubtitleApiClient:
     def __init__(self, base_url: str = API_BASE_URL, timeout: int = DEFAULT_TIMEOUT):
         self.base_url = base_url
         self.timeout = timeout
+        self._session = requests.Session()
+        self._session.headers.update({
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+        })
 
     def search_subtitles(self, name: str) -> SearchResult:
         """按关键词搜索字幕"""
@@ -24,11 +30,10 @@ class SubtitleApiClient:
             raise ValueError("Search keyword cannot be empty")
 
         try:
-            response = requests.get(
+            response = self._session.get(
                 f"{self.base_url}/subtitle",
                 params={"name": name.strip()},
                 timeout=self.timeout,
-                headers={"Accept": "application/json"},
             )
             response.raise_for_status()
             data = response.json()

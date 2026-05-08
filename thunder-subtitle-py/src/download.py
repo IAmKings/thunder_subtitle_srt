@@ -4,6 +4,7 @@ Download logic for Thunder Subtitle Python CLI
 
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -51,10 +52,11 @@ def download_subtitle(
             filepath=filepath,
         )
 
+    headers = {"User-Agent": "thunder-subtitle/1.0.0"}
     last_error = ""
     for attempt in range(1, max_retries + 1):
         try:
-            response = requests.get(subtitle.url, stream=True, timeout=60)
+            response = requests.get(subtitle.url, stream=True, timeout=60, headers=headers)
             response.raise_for_status()
 
             total_size = int(response.headers.get("content-length", 0))
@@ -77,8 +79,9 @@ def download_subtitle(
                 os.unlink(filepath)
 
             if attempt < max_retries:
-                print(f"{YELLOW}    ⚠ Retry {attempt}/{max_retries} after {retry_delay}s: {last_error}{RESET}")
-                time.sleep(retry_delay)
+                delay = retry_delay * (2 ** (attempt - 1))  # 指数退避: 2s, 4s, 8s, ...
+                print(f"{YELLOW}    ⚠ Retry {attempt}/{max_retries} after {delay}s: {last_error}{RESET}")
+                time.sleep(delay)
 
     return DownloadResult(success=False, filename=safe_name, error=last_error)
 
@@ -106,9 +109,6 @@ def download_batch(
             failed += 1
 
     return {"successful": successful, "failed": failed, "results": results}
-
-
-from dataclasses import dataclass
 
 
 @dataclass

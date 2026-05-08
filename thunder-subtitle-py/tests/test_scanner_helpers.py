@@ -3,13 +3,13 @@
 import os
 import tempfile
 
-from src.scanner import (
+from src.scanner._processor import (
     _has_zh_prefix,
     _find_dump_subtitle,
     _is_review_fail,
     _content_fingerprint,
 )
-from src.scanner import parse_nfo
+from src.utils import parse_nfo
 
 
 class TestHasZhPrefix:

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=75.8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thunder-subtitle"
+version = "1.0.0"
+description = "CLI tool for searching and downloading Chinese subtitles via Xunlei API"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+thunder-subtitle = "cli:main"
+
+[tool.setuptools]
+py-modules = ["cli"]
+
+[tool.setuptools.packages.find]
+include = ["src*", "commands*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -3,6 +3,16 @@ Utility functions for Thunder Subtitle Python CLI
 """
 
 import re
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+
+
+@dataclass
+class NfoInfo:
+    """movie.nfo 解析结果"""
+    duration_seconds: int = 0
+    has_chinese_subtitle: bool = False
+    release_date: str = ""  # YYYY-MM-DD
 
 
 def parse_duration(duration_str: str) -> int:
@@ -76,3 +86,45 @@ def seconds_to_duration_str(total_seconds: int) -> str:
         parts.append(f"{seconds}s")
 
     return "".join(parts)
+
+
+# ---- NFO 解析 ----
+
+def parse_nfo(nfo_path: str) -> NfoInfo:
+    """解析 movie.nfo XML 文件，提取时长和中文状态"""
+    tree = ET.parse(nfo_path)
+    root = tree.getroot()
+    info = NfoInfo()
+
+    # durationinseconds：fileinfo > streamdetails > video > durationinseconds
+    video = _find_elem(root, (".//fileinfo", "streamdetails", "video"))
+    if video is not None:
+        dur_elem = video.find("durationinseconds")
+        if dur_elem is not None and dur_elem.text:
+            try:
+                info.duration_seconds = int(dur_elem.text.strip())
+            except (ValueError, TypeError):
+                info.duration_seconds = 0
+
+    # releasedate（年-月-日格式）
+    rd = root.find("releasedate")
+    if rd is not None and rd.text:
+        info.release_date = rd.text.strip()
+
+    # 检查是否已有中文字幕标记
+    for elem in root.iter():
+        if elem.text and "中文字幕" in elem.text:
+            info.has_chinese_subtitle = True
+            break
+
+    return info
+
+
+def _find_elem(parent, tags: tuple[str, ...]):
+    """按层级路径查找 XML 元素"""
+    node = parent
+    for tag in tags:
+        if node is None:
+            return None
+        node = node.find(tag)
+    return node
