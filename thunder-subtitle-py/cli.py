@@ -15,11 +15,21 @@ from commands.review import cmd_review
 from commands.scan import cmd_scan
 
 
+def _get_version() -> str:
+    """从已安装包的 metadata 读取版本号"""
+    from importlib.metadata import PackageNotFoundError, version
+    try:
+        return version("thunder-subtitle")
+    except PackageNotFoundError:
+        return "dev"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="thunder-subtitle",
         description="CLI tool for searching and downloading Chinese subtitles via Xunlei API",
     )
+    parser.add_argument("--version", action="version", version=f"thunder-subtitle {_get_version()}")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # ===== search 命令 =====

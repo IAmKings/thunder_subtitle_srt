@@ -11,6 +11,14 @@ from cli import main
 from commands.search import _parse_indices
 
 
+class TestVersion:
+    def test_version_flag(self):
+        with patch.object(sys, "argv", ["thunder-subtitle", "--version"]):
+            with pytest.raises(SystemExit) as exc:
+                main()
+            assert exc.value.code == 0
+
+
 class TestParseIndices:
     def test_single(self):
         assert _parse_indices("1") == [1]

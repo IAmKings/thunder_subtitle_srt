@@ -60,7 +60,9 @@ def cmd_search(args) -> None:
                 raise CLIExit()
 
         # 显示筛选统计
-        print(f"{GREEN}\n  Found {result.total} subtitle(s){RESET}")
+        total = result.total
+        limit_tag = f"{DIM} (API returns up to {total}){RESET}" if total >= 100 else ""
+        print(f"{GREEN}\n  Found {len(subtitles)} subtitle(s){RESET}{limit_tag}")
         filter_parts = []
         if args.chinese_only:
             filter_parts.append(f"Chinese-only: {len(subtitles)}")

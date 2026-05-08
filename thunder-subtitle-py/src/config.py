@@ -9,7 +9,10 @@ from pathlib import Path
 
 from .ui import BOLD, RESET, YELLOW
 
-CONFIG_PATH = os.path.join(str(Path.home()), ".thunder-subtitle.json")
+CONFIG_PATH: str = os.environ.get(
+    "THUNDER_SUBTITLE_CONFIG",
+    os.path.join(str(Path.home()), ".thunder-subtitle.json"),
+)
 
 
 @dataclass
