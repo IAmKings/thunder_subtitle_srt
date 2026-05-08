@@ -16,6 +16,7 @@ from .api import SubtitleApiClient
 from .config import Config
 from .download import download_subtitle, dump_subtitles
 from .types import ScanStatus, DryState
+from .ui import BOLD, BOLD_CYAN, DIM, GREEN, RED, RESET, YELLOW
 from .utils import seconds_to_duration_str
 
 
@@ -195,10 +196,10 @@ def process_scanned_movies(
         skipped_count = sum(1 for d in movie_dirs if d in completed_paths)
         movie_dirs = [d for d in movie_dirs if d not in completed_paths]
         if skipped_count > 0:
-            print(f"\033[90m  Resuming: {skipped_count} already done, {len(movie_dirs)} remaining\033[0m")
+            print(f"{DIM}  Resuming: {skipped_count} already done, {len(movie_dirs)} remaining{RESET}")
 
     if not movie_dirs:
-        print(f"\033[90m  All movies already processed, nothing to do.\033[0m\n")
+        print(f"{DIM}  All movies already processed, nothing to do.{RESET}\n")
         return []
 
     client = SubtitleApiClient()
@@ -208,7 +209,7 @@ def process_scanned_movies(
                                 min_age_days, dump_mode, force, reset_fail,
                                 parallel, resume, progress_file, log_path)
     except KeyboardInterrupt:
-        print(f"\n\033[33m  ⚠ Interrupted. Progress saved.\033[0m\n")
+        print(f"\n{YELLOW}  ⚠ Interrupted. Progress saved.{RESET}\n")
         return []
 
     return results
@@ -237,7 +238,7 @@ def _do_scan_loop(
         movie_name = os.path.basename(movie_path)
         label = f"{actor_name}/{movie_name}"
 
-        print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m", flush=True)
+        print(f"{YELLOW}  [{i}/{len(movie_dirs)}]{RESET} {BOLD}{label}{RESET}", flush=True)
 
         result = _process_one_movie(
             movie_path, movie_name, dry_run, client, config, has_queried, min_age_days, dump_mode, force, reset_fail
@@ -264,7 +265,7 @@ def _do_scan_loop(
     # 日志：写入汇总
     if log_path:
         _write_log_summary(log_path, results)
-        print(f"\033[90m  Log saved: {log_path}\033[0m\n")
+        print(f"{DIM}  Log saved: {log_path}{RESET}\n")
 
     return results
 
@@ -273,9 +274,9 @@ def _apply_filters(movie_dirs: list[str], name_filters: list[str] | None) -> lis
     """按电影名过滤"""
     if not name_filters:
         if movie_dirs:
-            print(f"\033[1m\n  Found {len(movie_dirs)} movie(s) to process\033[0m\n")
+            print(f"{BOLD}\n  Found {len(movie_dirs)} movie(s) to process{RESET}\n")
         else:
-            print(f"\033[90m  No movie directories with movie.nfo found.\033[0m\n")
+            print(f"{DIM}  No movie directories with movie.nfo found.{RESET}\n")
         return movie_dirs
 
     filtered = [
@@ -284,10 +285,10 @@ def _apply_filters(movie_dirs: list[str], name_filters: list[str] | None) -> lis
     ]
     if filtered:
         kw = ", ".join(name_filters)
-        print(f"\033[1m\n  Found {len(filtered)} movie(s) matching [{kw}]\033[0m\n")
+        print(f"{BOLD}\n  Found {len(filtered)} movie(s) matching [{kw}]{RESET}\n")
     else:
         kw = ", ".join(name_filters)
-        print(f"\033[90m  No movies matching [{kw}] found.\033[0m\n")
+        print(f"{DIM}  No movies matching [{kw}] found.{RESET}\n")
     return filtered
 
 
@@ -327,17 +328,17 @@ def _process_one_movie(
         _print_status("✗", "No duration info in NFO")
         return ScanResult(movie_path, movie_name, ScanStatus.error, "Missing duration in movie.nfo")
 
-    print(f"\033[90m    Duration: {duration_str}\033[0m")
+    print(f"{DIM}    Duration: {duration_str}{RESET}")
 
     if dry_run:
-        print(f"\033[90m    [DRY RUN] Would search: \"{movie_name}\" -d {duration_str}\033[0m")
+        print(f"{DIM}    [DRY RUN] Would search: \"{movie_name}\" -d {duration_str}{RESET}")
         return ScanResult(movie_path, movie_name, ScanStatus.skipped, "dry-run", dry_state=dry_state)
 
     # ---- 搜索 + 下载 ----
     try:
         return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried, dump_mode)
     except Exception as e:
-        print(f"\033[31m    ✗ Error: {e}\033[0m")
+        print(f"{RED}    ✗ Error: {e}{RESET}")
         return ScanResult(movie_path, movie_name, ScanStatus.error, str(e))
 
 
@@ -355,13 +356,13 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     # reset-fail：清除审查失败标记 + 已拒绝指纹（最优先）
     if reset_fail and is_fail:
         if dry_run:
-            print(f"\033[33m    ⚠ Would reset mark-fail → need review\033[0m")
+            print(f"{YELLOW}    ⚠ Would reset mark-fail → need review{RESET}")
         else:
             os.remove(reviewed_file)
             rejected = os.path.join(movie_path, ".rejected")
             if os.path.isfile(rejected):
                 os.remove(rejected)
-            print(f"\033[32m    ✓ Mark-fail cleared, status reset\033[0m")
+            print(f"{GREEN}    ✓ Mark-fail cleared, status reset{RESET}")
         is_fail = False
 
     # 审查失败硬跳过（force 模式可覆盖）
@@ -369,14 +370,14 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
         if dry_run:
             has_new_subs = bool(_find_dump_subtitle(movie_path))
             if has_new_subs:
-                print(f"\033[33m    ⚠ Review FAILED but new subtitles exist — needs re-review\033[0m")
+                print(f"{YELLOW}    ⚠ Review FAILED but new subtitles exist — needs re-review{RESET}")
             else:
-                print(f"\033[31m    ✗ Review FAILED — find subtitles elsewhere\033[0m")
+                print(f"{RED}    ✗ Review FAILED — find subtitles elsewhere{RESET}")
         return ("Review FAILED — find subtitles elsewhere", DryState.reviewed_fail if dry_run else DryState.reviewed_fail)
 
     # force 模式覆盖 mark-fail：下载但不重置状态
     if force and is_fail:
-        print(f"\033[33m    ⚠ Force refresh: bypassing mark-fail (state kept)\033[0m")
+        print(f"{YELLOW}    ⚠ Force refresh: bypassing mark-fail (state kept){RESET}")
 
     # dry-run 时检查状态提示
     if dry_run:
@@ -384,13 +385,13 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
         if has_sub:
             if not os.path.isfile(reviewed_file):
                 dry_state = DryState.need_review
-                print(f"\033[33m    ⚠ Not yet reviewed — run: thunder-subtitle review\033[0m")
+                print(f"{YELLOW}    ⚠ Not yet reviewed — run: thunder-subtitle review{RESET}")
             else:
                 dry_state = DryState.reviewed_ok
-                print(f"\033[32m    ✓ Reviewed\033[0m")
+                print(f"{GREEN}    ✓ Reviewed{RESET}")
         else:
             dry_state = DryState.need_download
-            print(f"\033[90m    ◇ No subtitles — will download\033[0m")
+            print(f"{DIM}    ◇ No subtitles — will download{RESET}")
 
     if nfo.has_chinese_subtitle and not (force and is_fail):
         return ("NFO has Chinese subtitle tag", dry_state)
@@ -408,7 +409,7 @@ def _check_skip(movie_path: str, movie_name: str, nfo: NfoInfo, dry_run: bool = 
     existing = _existing_subtitle_file(movie_path, movie_name)
     if existing and not (force and is_fail):
         if dry_run and not _has_zh_prefix(existing):
-            print(f"\033[33m    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle\033[0m")
+            print(f"{YELLOW}    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle{RESET}")
         return (f"{existing} already exists", dry_state)
 
     return (None, DryState.need_download if dry_run else "")
@@ -436,7 +437,7 @@ def _process_parallel(
         name = os.path.basename(movie_path)
         with lock:
             done += 1
-            print(f"\033[33m  [{done}/{total}]\033[0m \033[1m{actor}/{name}\033[0m", flush=True)
+            print(f"{YELLOW}  [{done}/{total}]{RESET} {BOLD}{actor}/{name}{RESET}", flush=True)
         return _process_one_movie(movie_path, name, dry_run, client, config,
                                   False, min_age_days, dump_mode, force, reset_fail)
 
@@ -470,7 +471,7 @@ def _process_parallel(
         os.remove(progress_file)
     if log_path:
         _write_log_summary(log_path, results)
-        print(f"\033[90m  Log saved: {log_path}\033[0m\n")
+        print(f"{DIM}  Log saved: {log_path}{RESET}\n")
 
     return results
 
@@ -542,7 +543,7 @@ def _search_and_download(
     if preferred:
         parts.append(f"Pref: {pref_count}")
     parts.append(f"Chinese: {cn_count}")
-    print(f"\033[90m    {', '.join(parts)}, Primary: {primary.name}\033[0m")
+    print(f"{DIM}    {', '.join(parts)}, Primary: {primary.name}{RESET}")
 
     # 组装下载列表
     to_download: list[tuple] = []
@@ -556,14 +557,14 @@ def _search_and_download(
     downloaded_files = []
     for sub, fname in to_download:
         tag = " [alt]" if "-alt" in fname else " [primary]"
-        print(f"\033[90m    Downloading{tag}: {sub.name} → {fname}\033[0m")
+        print(f"{DIM}    Downloading{tag}: {sub.name} → {fname}{RESET}")
         dl = download_subtitle(sub, movie_path, custom_filename=fname,
                                max_retries=config.retry_count,
                                retry_delay=config.retry_delay)
         if dl.success:
             downloaded_files.append(dl.filename)
         else:
-            print(f"\033[31m    ✗ Download failed: {dl.error}\033[0m")
+            print(f"{RED}    ✗ Download failed: {dl.error}{RESET}")
 
     if downloaded_files:
         _print_status("✓", f"Downloaded: {', '.join(downloaded_files)}", green=True)
@@ -678,8 +679,8 @@ def _write_log_summary(log_path: str, results: list[ScanResult]) -> None:
 
 def _print_status(marker: str, msg: str, green: bool = False) -> None:
     """统一状态输出"""
-    color = "\033[32m" if green else "\033[90m"
-    print(f"{color}    {marker} {msg}\033[0m")
+    color = "{GREEN}" if green else "{DIM}"
+    print(f"{color}    {marker} {msg}{RESET}")
 
 
 def _print_scan_summary(results: list[ScanResult]) -> None:
@@ -695,17 +696,17 @@ def _print_scan_summary(results: list[ScanResult]) -> None:
             ScanStatus.skipped: dry_states.count(ScanStatus.skipped),
         }
         print()
-        print(f"\033[1m  Scan Summary:\033[0m")
+        print(f"{BOLD}  Scan Summary:{RESET}")
         if counts[DryState.need_download] > 0:
-            print(f"\033[90m    ◇ Need download: {counts['need_download']}\033[0m")
+            print(f"{DIM}    ◇ Need download: {counts['need_download']}{RESET}")
         if counts[DryState.need_review] > 0:
-            print(f"\033[33m    ⚠ Need review: {counts['need_review']}\033[0m")
+            print(f"{YELLOW}    ⚠ Need review: {counts['need_review']}{RESET}")
         if counts[DryState.reviewed_ok] > 0:
-            print(f"\033[32m    ✓ Reviewed: {counts['reviewed_ok']}\033[0m")
+            print(f"{GREEN}    ✓ Reviewed: {counts['reviewed_ok']}{RESET}")
         if counts[DryState.reviewed_fail] > 0:
-            print(f"\033[31m    ✗ Failed: {counts['reviewed_fail']}\033[0m")
+            print(f"{RED}    ✗ Failed: {counts['reviewed_fail']}{RESET}")
         if counts[ScanStatus.skipped] > 0:
-            print(f"\033[90m    - Other skip: {counts['skipped']}\033[0m")
+            print(f"{DIM}    - Other skip: {counts['skipped']}{RESET}")
         print()
         return
 
@@ -716,13 +717,13 @@ def _print_scan_summary(results: list[ScanResult]) -> None:
             counts[r.status] += 1
 
     print()
-    print(f"\033[1m  Scan Summary:\033[0m")
+    print(f"{BOLD}  Scan Summary:{RESET}")
     if counts[ScanStatus.downloaded] > 0:
-        print(f"\033[32m    ✓ Downloaded: {counts['downloaded']}\033[0m")
+        print(f"{GREEN}    ✓ Downloaded: {counts['downloaded']}{RESET}")
     if counts[ScanStatus.skipped] > 0:
-        print(f"\033[90m    - Skipped: {counts['skipped']}\033[0m")
+        print(f"{DIM}    - Skipped: {counts['skipped']}{RESET}")
     if counts["no_match"] > 0:
-        print(f"\033[33m    - No match: {counts['no_match']}\033[0m")
+        print(f"{YELLOW}    - No match: {counts['no_match']}{RESET}")
     if counts["error"] > 0:
-        print(f"\033[31m    ✗ Errors: {counts['error']}\033[0m")
+        print(f"{RED}    ✗ Errors: {counts['error']}{RESET}")
     print()

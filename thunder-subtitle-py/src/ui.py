@@ -10,11 +10,15 @@ from .utils import format_duration
 # ANSI color codes
 RESET = "\033[0m"
 BOLD = "\033[1m"
+BOLD_CYAN = "\033[1;36m"
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
-GRAY = "\033[90m"
+DIM = "\033[90m"
 CYAN = "\033[36m"
+
+# Alias for backward compatibility
+GRAY = DIM
 
 
 def display_subtitle_list(subtitles: list[Subtitle]) -> None:

@@ -11,7 +11,7 @@ import sys
 
 from src.api import SubtitleApiClient
 from src.config import Config
-from src.ui import display_subtitle_list, display_error, display_success
+from src.ui import BOLD, BOLD_CYAN, DIM, GREEN, RED, RESET, YELLOW, display_subtitle_list, display_error, display_success
 from src.download import download_subtitle, download_batch, dump_subtitles, get_default_download_dir
 from src.utils import parse_duration
 from src.scanner import process_scanned_movies, parse_nfo
@@ -34,13 +34,13 @@ def cmd_search(args: argparse.Namespace) -> None:
             sys.exit(1)
 
     # 显示筛选信息
-    print(f"\033[1m\n  Searching for: \"{args.name}\"\033[0m", flush=True)
+    print(f"{BOLD}\n  Searching for: \"{args.name}\"{RESET}", flush=True)
     if args.chinese_only:
-        print(f"\033[90m  Filtering: Chinese subtitles only\033[0m", flush=True)
+        print(f"{DIM}  Filtering: Chinese subtitles only{RESET}", flush=True)
     if args.max_duration:
-        print(f"\033[90m  Filtering: Max video duration {args.max_duration}\033[0m", flush=True)
+        print(f"{DIM}  Filtering: Max video duration {args.max_duration}{RESET}", flush=True)
     if args.chinese_first and not args.chinese_only:
-        print(f"\033[90m  Priority: Chinese subtitles first\033[0m", flush=True)
+        print(f"{DIM}  Priority: Chinese subtitles first{RESET}", flush=True)
     print(flush=True)
 
     try:
@@ -72,7 +72,7 @@ def cmd_search(args: argparse.Namespace) -> None:
                 sys.exit(1)
 
         # 显示筛选统计
-        print(f"\033[32m\n  Found {result.total} subtitle(s)\033[0m")
+        print(f"{GREEN}\n  Found {result.total} subtitle(s){RESET}")
         filter_parts = []
         if args.chinese_only:
             filter_parts.append(f"Chinese-only: {len(subtitles)}")
@@ -81,7 +81,7 @@ def cmd_search(args: argparse.Namespace) -> None:
         if args.chinese_first and not args.chinese_only:
             filter_parts.append("Chinese-first")
         if filter_parts:
-            print(f"\033[32m  Filtered ({', '.join(filter_parts)})\033[0m")
+            print(f"{GREEN}  Filtered ({', '.join(filter_parts)}){RESET}")
 
         # 中文字幕优先排序：中文排前面，非中文排后面
         if args.chinese_first and not args.chinese_only:
@@ -116,8 +116,8 @@ def cmd_search(args: argparse.Namespace) -> None:
         else:
             # 不下载，仅显示
             print(
-                f"\033[90m  Use --index N or --all to download. "
-                f"Use --help for more options.\033[0m\n"
+                f"{DIM}  Use --index N or --all to download. "
+                f"Use --help for more options.{RESET}\n"
             )
 
     except RuntimeError as e:
@@ -161,10 +161,10 @@ def _resolve_dirs(args_dir: str | None, config: Config, cmd_name: str) -> list[s
         return [args_dir]
     paths = config.media_paths_list
     if not paths:
-        print(f"\033[31m\n  ✗ No directory specified and media_paths not configured.\033[0m")
-        print(f"\033[90m  Set with: thunder-subtitle config --set media_paths /path1,/path2\033[0m\n")
+        print(f"{RED}\n  ✗ No directory specified and media_paths not configured.{RESET}")
+        print(f"{DIM}  Set with: thunder-subtitle config --set media_paths /path1,/path2{RESET}\n")
         sys.exit(1)
-    print(f"\033[90m  Using media_paths from config ({len(paths)} repo(s))\033[0m")
+    print(f"{DIM}  Using media_paths from config ({len(paths)} repo(s)){RESET}")
     return paths
 
 
@@ -174,7 +174,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
     dirs = _resolve_dirs(args.directory, config, "scan")
     for d in dirs:
         if len(dirs) > 1:
-            print(f"\n\033[1;36m━━━ {d} ━━━\033[0m")
+            print(f"\n{BOLD_CYAN}━━━ {d} ━━━{RESET}")
         process_scanned_movies(
             d,
             dry_run=args.dry_run,
@@ -197,15 +197,15 @@ def cmd_config(args: argparse.Namespace) -> None:
     if args.reset:
         config = Config()
         config.save()
-        print(f"\033[32m\n  ✓ Config reset to defaults\033[0m\n")
+        print(f"{GREEN}\n  ✓ Config reset to defaults{RESET}\n")
         return
 
     if args.set_pair:
         key, value = args.set_pair[0], args.set_pair[1]
         if not hasattr(config, key):
             valid = ", ".join(Config.__dataclass_fields__.keys())
-            print(f"\033[31m\n  ✗ Unknown key: {key}\033[0m")
-            print(f"\033[90m  Valid keys: {valid}\033[0m\n")
+            print(f"{RED}\n  ✗ Unknown key: {key}{RESET}")
+            print(f"{DIM}  Valid keys: {valid}{RESET}\n")
             return
         current = getattr(config, key)
         if isinstance(current, int):
@@ -213,7 +213,7 @@ def cmd_config(args: argparse.Namespace) -> None:
         else:
             setattr(config, key, value)
         config.save()
-        print(f"\033[32m\n  ✓ {key} = {getattr(config, key)}\033[0m\n")
+        print(f"{GREEN}\n  ✓ {key} = {getattr(config, key)}{RESET}\n")
         return
 
     config.show()
@@ -254,12 +254,12 @@ def cmd_dump(args: argparse.Namespace) -> None:
                 display_error(str(e))
                 sys.exit(1)
 
-    print(f"\033[1m\n  Dumping all subtitles for: \"{movie_name}\"\033[0m")
+    print(f"{BOLD}\n  Dumping all subtitles for: \"{movie_name}\"{RESET}")
     if max_duration_ms:
-        print(f"\033[90m  Max video duration: {duration_str} (from NFO)\033[0m")
+        print(f"{DIM}  Max video duration: {duration_str} (from NFO){RESET}")
     if max_duration_ms and duration_str:
-        print(f"\033[90m  Filtering: Max video duration {duration_str}\033[0m")
-    print(f"\033[90m  Output: {os.path.abspath(output_dir)}\033[0m\n")
+        print(f"{DIM}  Filtering: Max video duration {duration_str}{RESET}")
+    print(f"{DIM}  Output: {os.path.abspath(output_dir)}{RESET}\n")
 
     try:
         result = client.search_subtitles(movie_name)
@@ -285,7 +285,7 @@ def cmd_dump(args: argparse.Namespace) -> None:
             display_error("No subtitles match the filters.")
             sys.exit(1)
 
-        print(f"\033[32m  Found {len(subtitles)} subtitle(s)\033[0m\n")
+        print(f"{GREEN}  Found {len(subtitles)} subtitle(s){RESET}\n")
 
         # 加载已拒绝 gcid
         rejected: set[str] = set()
@@ -313,7 +313,7 @@ def cmd_dump(args: argparse.Namespace) -> None:
         if r.skipped > 0:
             parts.append(f"{r.skipped} rejected")
         dup_msg = f" ({', '.join(parts)})" if parts else ""
-        print(f"\n\033[32m  ✓ Downloaded {r.downloaded}/{total}{dup_msg}\033[0m\n")
+        print(f"\n{GREEN}  ✓ Downloaded {r.downloaded}/{total}{dup_msg}{RESET}\n")
 
     except RuntimeError as e:
         display_error(str(e))
@@ -330,7 +330,7 @@ def cmd_review(args: argparse.Namespace) -> None:
         # 标记操作：仅处理传入目录或配置第一个路径
         d = args.directory or (config.media_paths_list[0] if config.media_paths_list else "")
         if not d:
-            print(f"\033[31m\n  ✗ No directory specified.\033[0m\n")
+            print(f"{RED}\n  ✗ No directory specified.{RESET}\n")
             return
         review_directory(d, name_filters=args.filters, log=False,
                          mark=args.mark, unmark=args.unmark, mark_all=args.mark_all,
@@ -342,7 +342,7 @@ def cmd_review(args: argparse.Namespace) -> None:
     dirs = _resolve_dirs(args.directory, config, "review")
     for d in dirs:
         if len(dirs) > 1:
-            print(f"\n\033[1;36m━━━ {d} ━━━\033[0m")
+            print(f"\n{BOLD_CYAN}━━━ {d} ━━━{RESET}")
         review_directory(d, name_filters=args.filters, log=args.log)
 
 

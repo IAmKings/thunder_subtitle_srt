@@ -10,7 +10,7 @@ from typing import Optional
 import requests
 
 from .types import Subtitle, DownloadResult
-from .ui import display_download_progress, display_download_complete
+from .ui import DIM, RESET, YELLOW, display_download_progress, display_download_complete
 
 
 def get_default_download_dir() -> str:
@@ -77,7 +77,7 @@ def download_subtitle(
                 os.unlink(filepath)
 
             if attempt < max_retries:
-                print(f"\033[33m    ⚠ Retry {attempt}/{max_retries} after {retry_delay}s: {last_error}\033[0m")
+                print(f"{YELLOW}    ⚠ Retry {attempt}/{max_retries} after {retry_delay}s: {last_error}{RESET}")
                 time.sleep(retry_delay)
 
     return DownloadResult(success=False, filename=safe_name, error=last_error)
@@ -147,17 +147,17 @@ def dump_subtitles(
 
         # 下载前去重
         if gcid and gcid in seen:
-            print(f"\033[90m    [{i}/{total}]\033[0m {filename} ← {sub.name}")
-            print(f"\033[90m    ↳ Duplicate gcid, skipped\033[0m")
+            print(f"{DIM}    [{i}/{total}]{RESET} {filename} ← {sub.name}")
+            print(f"{DIM}    ↳ Duplicate gcid, skipped{RESET}")
             result.dupes += 1
             continue
         if gcid and gcid in rejected_gcids:
-            print(f"\033[90m    [{i}/{total}]\033[0m {filename} ← {sub.name}")
-            print(f"\033[90m    ↳ Previously rejected, skipped\033[0m")
+            print(f"{DIM}    [{i}/{total}]{RESET} {filename} ← {sub.name}")
+            print(f"{DIM}    ↳ Previously rejected, skipped{RESET}")
             result.skipped += 1
             continue
 
-        print(f"\033[90m    [{i}/{total}]\033[0m {filename} ← {sub.name}")
+        print(f"{DIM}    [{i}/{total}]{RESET} {filename} ← {sub.name}")
         dl = download_subtitle(sub, output_dir, custom_filename=filename)
         if dl.success:
             if gcid:

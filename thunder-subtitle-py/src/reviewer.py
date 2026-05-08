@@ -9,6 +9,7 @@ from datetime import datetime
 
 from .scanner import scan_movie_dirs
 from .types import ReviewState, ReviewQuality
+from .ui import BOLD, CYAN, DIM, GREEN, RED, RESET, YELLOW
 
 MIN_FILE_SIZE = 200  # 最小文件大小（字节）
 MIN_CN_RATIO = 0.05  # .zh 文件最低中文占比
@@ -61,7 +62,7 @@ def review_directory(
             if os.path.isdir(full):
                 _batch_mark([full], True, status=ReviewState.fail)
             else:
-                print(f"\033[31m  ✗ Directory not found: {mark_fail_path}\033[0m\n")
+                print(f"{RED}  ✗ Directory not found: {mark_fail_path}{RESET}\n")
             return None
         # 精确路径操作（相对 base_dir）
         if mark_path:
@@ -69,14 +70,14 @@ def review_directory(
             if os.path.isdir(full):
                 _batch_mark([full], True, status=mark_status)
             else:
-                print(f"\033[31m  ✗ Directory not found: {mark_path}\033[0m\n")
+                print(f"{RED}  ✗ Directory not found: {mark_path}{RESET}\n")
             return None
         if unmark_path:
             full = os.path.join(base_dir, unmark_path) if not os.path.isabs(unmark_path) else unmark_path
             if os.path.isdir(full):
                 _batch_mark([full], False)
             else:
-                print(f"\033[31m  ✗ Directory not found: {unmark_path}\033[0m\n")
+                print(f"{RED}  ✗ Directory not found: {unmark_path}{RESET}\n")
             return None
 
         # 关键词模糊匹配
@@ -103,13 +104,13 @@ def review_directory(
     if not movie_dirs:
         kw = ", ".join(name_filters) if name_filters else ""
         tag = f" matching [{kw}]" if kw else ""
-        print(f"\033[90m  No movie directories{tag} found.\033[0m\n")
+        print(f"{DIM}  No movie directories{tag} found.{RESET}\n")
         return []
 
     if name_filters:
-        print(f"\033[1m\n  Reviewing {len(movie_dirs)} movie(s) matching [{', '.join(name_filters)}]\033[0m\n")
+        print(f"{BOLD}\n  Reviewing {len(movie_dirs)} movie(s) matching [{', '.join(name_filters)}]{RESET}\n")
     else:
-        print(f"\033[1m\n  Reviewing {len(movie_dirs)} movie(s)\033[0m\n")
+        print(f"{BOLD}\n  Reviewing {len(movie_dirs)} movie(s){RESET}\n")
 
     log_path = ""
     if log:
@@ -121,19 +122,19 @@ def review_directory(
         movie_name = os.path.basename(movie_path)
         actor_name = os.path.basename(os.path.dirname(movie_path))
         label = f"{actor_name}/{movie_name}"
-        print(f"\033[33m  [{i}/{len(movie_dirs)}]\033[0m \033[1m{label}\033[0m")
+        print(f"{YELLOW}  [{i}/{len(movie_dirs)}]{RESET} {BOLD}{label}{RESET}")
 
         sub_files = _find_all_subtitle_files(movie_path, movie_name)
         if not sub_files:
-            print(f"\033[90m    (no subtitle files found)\033[0m")
+            print(f"{DIM}    (no subtitle files found){RESET}")
             continue
 
         # 检查人工审查标记
         review_status, review_date = _is_reviewed(movie_path)
         if review_status == ReviewState.fail:
-            print(f"\033[31m    ✗ Review FAILED ({review_date})\033[0m")
+            print(f"{RED}    ✗ Review FAILED ({review_date}){RESET}")
         elif review_status == ReviewQuality.ok:
-            print(f"\033[90m    Reviewed: {review_date}\033[0m")
+            print(f"{DIM}    Reviewed: {review_date}{RESET}")
 
         for filepath, filename in sub_files:
             item = _review_one_file(filepath, filename, movie_path, movie_name)
@@ -149,7 +150,7 @@ def review_directory(
 
     if log_path:
         _write_review_summary(log_path, items)
-        print(f"\033[90m  Report saved: {log_path}\033[0m\n")
+        print(f"{DIM}  Report saved: {log_path}{RESET}\n")
 
     return items
 
@@ -191,7 +192,7 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: st
     }
     action = action_map.get((mark, status), "Updated")
     kw_tag = f" matching \"{keyword}\"" if keyword else "s"
-    print(f"\033[1m\n  {action} {len(movie_dirs)} movie{kw_tag}\033[0m\n")
+    print(f"{BOLD}\n  {action} {len(movie_dirs)} movie{kw_tag}{RESET}\n")
     for d in movie_dirs:
         rf = os.path.join(d, REVIEWED_FILE)
         name = os.path.basename(d)
@@ -204,16 +205,16 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: st
                 # mark-fail：归档 .dumped → .rejected
                 if status == ReviewState.fail:
                     _archive_dumped(d)
-                tag = "\033[31m✗ FAIL\033[0m" if status == ReviewState.fail else "\033[32m✓\033[0m"
+                tag = "{RED}✗ FAIL{RESET}" if status == ReviewState.fail else "{GREEN}✓{RESET}"
                 print(f"  {tag} {name}")
             except OSError as e:
-                print(f"  \033[31m✗\033[0m {name} — {e}")
+                print(f"  {RED}✗{RESET} {name} — {e}")
         else:
             if os.path.isfile(rf):
                 os.remove(rf)
             # 同时清理 .rejected
             _cleanup_rejected(d)
-            print(f"  \033[33m-\033[0m {name}")
+            print(f"  {YELLOW}-{RESET} {name}")
     print()
 
 
@@ -491,16 +492,16 @@ def _calc_cn_ratio(text: str) -> float:
 
 def _score_color(score: int) -> str:
     if score >= 80:
-        return "\033[32m"
+        return "{GREEN}"
     elif score >= 50:
-        return "\033[33m"
-    return "\033[31m"
+        return "{YELLOW}"
+    return "{RED}"
 
 
 def _print_review_item(item: ReviewItem) -> None:
     """打印单条审查结果"""
     color = _score_color(item.score)
-    markers = {ReviewQuality.ok: "\033[32m✓\033[0m", ReviewQuality.warn: "\033[33m⚠\033[0m", ReviewQuality.fail: "\033[31m✗\033[0m"}
+    markers = {ReviewQuality.ok: "{GREEN}✓{RESET}", ReviewQuality.warn: "{YELLOW}⚠{RESET}", ReviewQuality.fail: "{RED}✗{RESET}"}
     marker = markers.get(item.status, "?")
 
     extra = []
@@ -516,12 +517,12 @@ def _print_review_item(item: ReviewItem) -> None:
         extra.append(f"中文{item.cn_ratio:.0%}")
 
     detail = ", ".join(extra)
-    review_tag = f"\033[32m✓ Reviewed {item.reviewed_date}\033[0m" if item.reviewed else "\033[90m◇ Not reviewed\033[0m"
-    print(f"  {marker} {item.filename} — {color}{item.score}/100\033[0m ({detail}) {review_tag}")
+    review_tag = f"{GREEN}✓ Reviewed {item.reviewed_date}{RESET}" if item.reviewed else "{DIM}◇ Not reviewed{RESET}"
+    print(f"  {marker} {item.filename} — {color}{item.score}/100{RESET} ({detail}) {review_tag}")
 
     for d in item.deductions:
-        c = "\033[31m" if item.status == ReviewState.fail else "\033[33m"
-        print(f"    {c}  - {d}\033[0m")
+        c = "{RED}" if item.status == ReviewState.fail else "{YELLOW}"
+        print(f"    {c}  - {d}{RESET}")
 
 
 def _print_review_summary(items: list[ReviewItem]) -> None:
@@ -532,13 +533,13 @@ def _print_review_summary(items: list[ReviewItem]) -> None:
     avg_score = sum(r.score for r in items) // max(len(items), 1)
 
     print()
-    print(f"\033[1m  Review Summary\033[0m (\033[36mavg {avg_score}/100\033[0m):")
+    print(f"{BOLD}  Review Summary{RESET} ({CYAN}avg {avg_score}/100{RESET}):")
     if ok_count > 0:
-        print(f"\033[32m    ✓ OK: {ok_count}\033[0m")
+        print(f"{GREEN}    ✓ OK: {ok_count}{RESET}")
     if warn_count > 0:
-        print(f"\033[33m    ⚠ WARN: {warn_count}\033[0m")
+        print(f"{YELLOW}    ⚠ WARN: {warn_count}{RESET}")
     if fail_count > 0:
-        print(f"\033[31m    ✗ FAIL: {fail_count}\033[0m")
+        print(f"{RED}    ✗ FAIL: {fail_count}{RESET}")
     print()
 
 
