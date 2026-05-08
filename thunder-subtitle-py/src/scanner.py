@@ -203,6 +203,24 @@ def process_scanned_movies(
 
     client = SubtitleApiClient()
 
+    try:
+        results = _do_scan_loop(movie_dirs, dry_run, client, config,
+                                min_age_days, dump_mode, force, reset_fail,
+                                parallel, resume, progress_file, log_path)
+    except KeyboardInterrupt:
+        print(f"\n\033[33m  ⚠ Interrupted. Progress saved.\033[0m\n")
+        return []
+
+    return results
+
+
+def _do_scan_loop(
+    movie_dirs, dry_run, client, config,
+    min_age_days, dump_mode, force, reset_fail,
+    parallel, resume, progress_file, log_path,
+) -> list:
+    """执行扫描循环（串行或并行）"""
+
     if parallel > 1 and not dry_run:
         results = _process_parallel(movie_dirs, dry_run, client, config,
                                     min_age_days, dump_mode, force, reset_fail,
@@ -425,19 +443,24 @@ def _process_parallel(
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {executor.submit(process_one, i, d): (i, d)
                    for i, d in enumerate(movie_dirs, 1)}
-        for future in as_completed(futures):
-            _, movie_path = futures[future]
-            try:
-                r = future.result()
-            except Exception as e:
-                r = ScanResult(movie_path, os.path.basename(movie_path),
-                               ScanStatus.error, str(e))
-            results.append(r)
-            # 进度记录
-            if resume and r.status != ScanStatus.error:
-                _save_progress(progress_file, movie_path)
-            if log_path:
-                _write_log(log_path, movie_path, r)
+        try:
+            for future in as_completed(futures):
+                _, movie_path = futures[future]
+                try:
+                    r = future.result()
+                except Exception as e:
+                    r = ScanResult(movie_path, os.path.basename(movie_path),
+                                   ScanStatus.error, str(e))
+                results.append(r)
+                if resume and r.status != ScanStatus.error:
+                    _save_progress(progress_file, movie_path)
+                if log_path:
+                    _write_log(log_path, movie_path, r)
+        except KeyboardInterrupt:
+            for f in futures:
+                f.cancel()
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
 
     # 按原始顺序排序结果
     order = {d: i for i, d in enumerate(movie_dirs)}
