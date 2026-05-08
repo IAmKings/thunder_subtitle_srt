@@ -8,6 +8,7 @@ from ..config import Config
 from ..api import SubtitleApiClient
 from ..types import ScanStatus
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, BOLD_CYAN
+from ..utils import matches
 
 from ._processor import ScanResult, _process_one_movie
 from ._io import _save_progress, _write_log, _write_log_summary, _print_scan_summary
@@ -137,7 +138,7 @@ def _apply_filters(movie_dirs: list[str], name_filters: list[str] | None) -> lis
 
     filtered = [
         d for d in movie_dirs
-        if any(f.lower() in os.path.basename(d).lower() for f in name_filters)
+        if any(matches(f, os.path.basename(d)) for f in name_filters)
     ]
     if filtered:
         kw = ", ".join(name_filters)

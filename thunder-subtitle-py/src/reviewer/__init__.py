@@ -4,6 +4,7 @@ import os
 
 from ..scanner import scan_movie_dirs
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, CYAN
+from ..utils import matches
 
 from ._marker import _batch_mark, _is_reviewed
 from ._review import _find_all_subtitle_files, _review_one_file, ReviewItem
@@ -64,10 +65,10 @@ def review_directory(
             _batch_mark(movie_dirs, True, status=mark_status)
         elif mark or mark_fail:
             kw = mark or mark_fail or ""
-            filtered = [d for d in movie_dirs if kw.lower() in os.path.basename(d).lower()]
+            filtered = [d for d in movie_dirs if matches(kw, os.path.basename(d))]
             _batch_mark(filtered, True, kw, status=mark_status)
         elif unmark:
-            filtered = [d for d in movie_dirs if unmark.lower() in os.path.basename(d).lower()]
+            filtered = [d for d in movie_dirs if matches(unmark, os.path.basename(d))]
             _batch_mark(filtered, False, unmark)
         return None
 
@@ -76,7 +77,7 @@ def review_directory(
     if name_filters:
         movie_dirs = [
             d for d in movie_dirs
-            if any(f.lower() in os.path.basename(d).lower() for f in name_filters)
+            if any(matches(f, os.path.basename(d)) for f in name_filters)
         ]
 
     if not movie_dirs:

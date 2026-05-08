@@ -3,12 +3,8 @@
 import os
 import tempfile
 
-from src.scanner._processor import (
-    _has_zh_prefix,
-    _find_dump_subtitle,
-    _is_review_fail,
-    _content_fingerprint,
-)
+from src.scanner._processor import _content_fingerprint
+from src.scanner._skip import _has_zh_prefix, _find_dump_subtitle, _is_review_fail
 from src.utils import parse_nfo
 
 

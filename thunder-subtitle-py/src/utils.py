@@ -120,6 +120,11 @@ def parse_nfo(nfo_path: str) -> NfoInfo:
     return info
 
 
+def matches(needle: str, haystack: str) -> bool:
+    """不区分大小写的子串匹配"""
+    return needle.lower() in haystack.lower()
+
+
 def _find_elem(parent, tags: tuple[str, ...]):
     """按层级路径查找 XML 元素"""
     node = parent
