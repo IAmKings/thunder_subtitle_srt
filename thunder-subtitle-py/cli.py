@@ -298,15 +298,13 @@ def cmd_dump(args: argparse.Namespace) -> None:
                 pass
 
         os.makedirs(output_dir, exist_ok=True)
-        r = dump_subtitles(subtitles, output_dir, rejected)
-
-        # 保存 gcid 到 .dumped
-        if r.gcids:
-            try:
-                with open(os.path.join(output_dir, ".dumped"), "w", encoding="utf-8") as f:
-                    f.write("\n".join(r.gcids) + "\n")
-            except OSError:
-                pass
+        dumped_path = os.path.join(output_dir, ".dumped")
+        # 清空旧 .dumped
+        try:
+            open(dumped_path, "w").close()
+        except OSError:
+            pass
+        r = dump_subtitles(subtitles, output_dir, rejected, dumped_path=dumped_path)
 
         total = len(subtitles)
         parts = []

@@ -576,10 +576,13 @@ def _search_and_download(
 def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> ScanResult:
     """全量下载字幕，gcid 去重 + 增量跳过"""
     rejected = _load_gcids(movie_path, ".rejected")
-    r = dump_subtitles(subtitles, movie_path, rejected)
-
-    # 保存 gcid 到 .dumped（供 mark-fail 时归档）
-    _save_gcids(movie_path, ".dumped", list(r.gcids))
+    dumped_path = os.path.join(movie_path, ".dumped")
+    # 清空旧的 .dumped（避免上次残留）
+    try:
+        open(dumped_path, "w").close()
+    except OSError:
+        pass
+    r = dump_subtitles(subtitles, movie_path, rejected, dumped_path=dumped_path)
 
     parts = []
     if r.dupes > 0:
@@ -601,17 +604,6 @@ def _load_gcids(movie_path: str, filename: str) -> set[str]:
             return {line.strip() for line in f if line.strip()}
     except OSError:
         return set()
-
-
-def _save_gcids(movie_path: str, filename: str, gcids: list[str]) -> None:
-    """保存 gcid 到文件"""
-    if not gcids:
-        return
-    try:
-        with open(os.path.join(movie_path, filename), "w", encoding="utf-8") as f:
-            f.write("\n".join(gcids) + "\n")
-    except OSError:
-        pass
 
 
 def _content_fingerprint(filepath: str) -> str | None:

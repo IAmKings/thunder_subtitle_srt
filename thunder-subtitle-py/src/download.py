@@ -128,10 +128,11 @@ def dump_subtitles(
     subtitles: list[Subtitle],
     output_dir: str,
     rejected_gcids: set[str] | None = None,
+    dumped_path: str | None = None,
 ) -> DumpResult:
     """
     全量下载字幕，gcid 去重 + 增量跳过
-    返回 DumpResult（下载数、重复数、跳过数、新 gcid 集合）
+    dumped_path: 指定 .dumped 文件路径，逐条追加（崩溃保护）
     """
     if rejected_gcids is None:
         rejected_gcids = set()
@@ -162,6 +163,13 @@ def dump_subtitles(
             if gcid:
                 seen.add(gcid)
                 result.gcids.add(gcid)
+                # 逐条追加到 .dumped（崩溃保护）
+                if dumped_path:
+                    try:
+                        with open(dumped_path, "a", encoding="utf-8") as f:
+                            f.write(gcid + "\n")
+                    except OSError:
+                        pass
             result.downloaded += 1
 
     return result
