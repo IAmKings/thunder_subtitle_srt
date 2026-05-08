@@ -1,10 +1,11 @@
 """dump 命令：全量下载字幕"""
 
 import os
-import sys
+import xml.etree.ElementTree as ET
 
 from src.api import SubtitleApiClient
 from src.config import Config
+from src.exceptions import CLIExit
 from src.ui import BOLD, DIM, GREEN, RED, RESET, display_error
 from src.download import dump_subtitles, get_default_download_dir
 from src.utils import parse_duration, parse_nfo, seconds_to_duration_str
@@ -18,7 +19,7 @@ def cmd_dump(args) -> None:
     if args.dir:
         if not os.path.isdir(args.dir):
             display_error(f"Directory not found: {args.dir}")
-            sys.exit(1)
+            raise CLIExit()
         movie_name = os.path.basename(args.dir.rstrip("/"))
         output_dir = args.output if args.output is not None else args.dir
         # 读取 movie.nfo 获取时长
@@ -27,13 +28,13 @@ def cmd_dump(args) -> None:
             nfo = parse_nfo(nfo_path)
             max_duration_ms = nfo.duration_seconds * 1000 if nfo.duration_seconds > 0 else None
             duration_str = seconds_to_duration_str(nfo.duration_seconds)
-        except Exception:
+        except (ET.ParseError, OSError):
             max_duration_ms = None
             duration_str = "unknown"
     else:
         if not args.name:
             display_error("Either movie name or --dir is required")
-            sys.exit(1)
+            raise CLIExit()
         movie_name = args.name
         output_dir = args.output if args.output is not None else "."
         duration_str = args.max_duration or ""
@@ -43,7 +44,7 @@ def cmd_dump(args) -> None:
                 max_duration_ms = parse_duration(args.max_duration)
             except ValueError as e:
                 display_error(str(e))
-                sys.exit(1)
+                raise CLIExit()
 
     print(f"{BOLD}\n  Dumping all subtitles for: \"{movie_name}\"{RESET}")
     if max_duration_ms:
@@ -56,7 +57,7 @@ def cmd_dump(args) -> None:
         result = client.search_subtitles(movie_name)
         if result.total == 0:
             display_error("No subtitles found.")
-            sys.exit(1)
+            raise CLIExit()
 
         subtitles = result.subtitles
 
@@ -74,7 +75,7 @@ def cmd_dump(args) -> None:
 
         if not subtitles:
             display_error("No subtitles match the filters.")
-            sys.exit(1)
+            raise CLIExit()
 
         print(f"{GREEN}  Found {len(subtitles)} subtitle(s){RESET}\n")
 
@@ -108,4 +109,4 @@ def cmd_dump(args) -> None:
 
     except RuntimeError as e:
         display_error(str(e))
-        sys.exit(1)
+        raise CLIExit()

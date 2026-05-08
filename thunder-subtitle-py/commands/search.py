@@ -1,8 +1,7 @@
 """search 命令：搜索字幕"""
 
-import sys
-
 from src.api import SubtitleApiClient
+from src.exceptions import CLIExit
 from src.ui import BOLD, DIM, GREEN, RESET, display_subtitle_list, display_error, display_success
 from src.download import download_subtitle, download_batch, get_default_download_dir
 from src.utils import parse_duration
@@ -20,7 +19,7 @@ def cmd_search(args) -> None:
             max_duration_ms = parse_duration(args.max_duration)
         except ValueError as e:
             display_error(str(e))
-            sys.exit(1)
+            raise CLIExit()
 
     # 显示筛选信息
     print(f"{BOLD}\n  Searching for: \"{args.name}\"{RESET}", flush=True)
@@ -38,7 +37,7 @@ def cmd_search(args) -> None:
 
         if result.total == 0:
             display_error("No subtitles found for the given search term.")
-            sys.exit(1)
+            raise CLIExit()
 
         # 应用中文筛选
         subtitles = result.subtitles
@@ -48,7 +47,7 @@ def cmd_search(args) -> None:
                 display_error(
                     "No Chinese subtitles found for the given search term."
                 )
-                sys.exit(1)
+                raise CLIExit()
 
         # 应用时长筛选
         if max_duration_ms is not None:
@@ -58,7 +57,7 @@ def cmd_search(args) -> None:
                     f"No subtitles found with video duration within "
                     f"{args.max_duration} ({max_duration_ms}ms)."
                 )
-                sys.exit(1)
+                raise CLIExit()
 
         # 显示筛选统计
         print(f"{GREEN}\n  Found {result.total} subtitle(s){RESET}")
@@ -100,7 +99,7 @@ def cmd_search(args) -> None:
                     selected.append(subtitles[i - 1])
                 else:
                     display_error(f"Invalid index: {i} (valid range: 1-{len(subtitles)})")
-                    sys.exit(1)
+                    raise CLIExit()
             _do_download(selected, output_dir, args.name, client)
         else:
             # 不下载，仅显示
@@ -111,7 +110,7 @@ def cmd_search(args) -> None:
 
     except RuntimeError as e:
         display_error(str(e))
-        sys.exit(1)
+        raise CLIExit()
 
 
 def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> None:
@@ -129,7 +128,7 @@ def _do_download(subtitles: list, output_dir: str, search_name: str, client) -> 
             display_success(f"Downloaded: {result.filename}")
         else:
             display_error(f"Download failed: {result.error}")
-            sys.exit(1)
+            raise CLIExit()
     else:
         filenames = [build_filename(sub) for sub in subtitles]
         batch = download_batch(subtitles, output_dir, filenames=filenames)

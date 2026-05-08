@@ -22,6 +22,19 @@ class TestApiClientInit:
         assert client.base_url == "http://test.local"
         assert client.timeout == 10
 
+    def test_close(self):
+        client = SubtitleApiClient()
+        with patch.object(client._session, "close") as mock_close:
+            client.close()
+            mock_close.assert_called_once()
+
+    def test_context_manager(self):
+        with patch("src.api.requests.Session") as mock_session_cls:
+            mock_session = mock_session_cls.return_value
+            with SubtitleApiClient() as client:
+                assert client is not None
+            mock_session.close.assert_called_once()
+
 
 class TestSearchSubtitles:
     def test_successful_search(self):
@@ -230,7 +243,7 @@ class TestParseSubtitle:
         assert sub.mt == 1
 
     def test_missing_keys_get_defaults(self):
-        raw = {}
+        raw: dict[str, object] = {}
         sub = SubtitleApiClient._parse_subtitle(raw)
         assert sub.gcid == ""
         assert sub.url == ""
@@ -241,9 +254,9 @@ class TestParseSubtitle:
 
 # ---- helpers ----
 
-def _make_sub(**kwargs) -> Subtitle:
+def _make_sub(**kwargs: object) -> Subtitle:
     """快捷构造 Subtitle 对象"""
-    defaults = {
+    defaults: dict[str, object] = {
         "gcid": "",
         "cid": "",
         "url": "",
@@ -258,4 +271,4 @@ def _make_sub(**kwargs) -> Subtitle:
         "mt": 0,
     }
     defaults.update(kwargs)
-    return Subtitle(**defaults)
+    return Subtitle(**defaults)  # type: ignore[arg-type]

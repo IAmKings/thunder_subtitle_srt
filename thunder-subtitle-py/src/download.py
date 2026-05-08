@@ -70,6 +70,14 @@ def download_subtitle(
                         if total_size > 0:
                             display_download_progress(safe_name, downloaded, total_size)
 
+            # 下载完整性校验：实际大小必须 >= 声明的 content-length
+            actual_size = os.path.getsize(filepath)
+            if total_size > 0 and actual_size < total_size:
+                os.unlink(filepath)
+                raise requests.RequestException(
+                    f"Incomplete download: {actual_size}/{total_size} bytes"
+                )
+
             display_download_complete(safe_name, filepath)
             return DownloadResult(success=True, filename=safe_name, filepath=filepath)
 
@@ -117,7 +125,7 @@ class DumpResult:
     downloaded: int = 0
     dupes: int = 0       # 会话内重复
     skipped: int = 0     # 已拒绝跳过
-    gcids: set = None    # 本次下载的 gcid 集合
+    gcids: set | None = None  # 本次下载的 gcid 集合
 
     def __post_init__(self):
         if self.gcids is None:
@@ -162,7 +170,8 @@ def dump_subtitles(
         if dl.success:
             if gcid:
                 seen.add(gcid)
-                result.gcids.add(gcid)
+                if result.gcids is not None:
+                    result.gcids.add(gcid)
                 # 逐条追加到 .dumped（崩溃保护）
                 if dumped_path:
                     try:

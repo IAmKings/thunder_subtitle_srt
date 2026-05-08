@@ -1,8 +1,7 @@
 """review 命令：字幕审查"""
 
-import sys
-
 from src.config import Config
+from src.exceptions import CLIExit
 from src.reviewer import review_directory
 from src.ui import BOLD_CYAN, RED, RESET
 
@@ -40,5 +39,5 @@ def _resolve_review_dirs(args_dir: str | None, config: Config) -> list[str]:
     paths = config.media_paths_list
     if not paths:
         print(f"{RED}\n  ✗ No directory specified and media_paths not configured.{RESET}\n")
-        sys.exit(1)
+        raise CLIExit()
     return paths

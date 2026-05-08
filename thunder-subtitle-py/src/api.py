@@ -24,6 +24,16 @@ class SubtitleApiClient:
             "Accept": "application/json",
         })
 
+    def close(self) -> None:
+        """关闭 HTTP 会话，释放连接资源"""
+        self._session.close()
+
+    def __enter__(self) -> "SubtitleApiClient":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
     def search_subtitles(self, name: str) -> SearchResult:
         """按关键词搜索字幕"""
         if not name or not name.strip():

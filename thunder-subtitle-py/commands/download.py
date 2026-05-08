@@ -1,7 +1,6 @@
 """download 命令：通过 URL 下载字幕"""
 
-import sys
-
+from src.exceptions import CLIExit
 from src.types import Subtitle
 from src.ui import display_error, display_success
 from src.download import download_subtitle, get_default_download_dir
@@ -32,4 +31,4 @@ def cmd_download(args) -> None:
         display_success(f"Downloaded: {result.filename}")
     else:
         display_error(f"Download failed: {result.error}")
-        sys.exit(1)
+        raise CLIExit()

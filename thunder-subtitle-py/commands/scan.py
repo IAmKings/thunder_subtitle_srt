@@ -1,8 +1,7 @@
 """scan 命令：Jellyfin 目录扫描"""
 
-import sys
-
 from src.config import Config
+from src.exceptions import CLIExit
 from src.scanner import process_scanned_movies
 from src.ui import BOLD_CYAN, DIM, RED, RESET
 
@@ -37,6 +36,6 @@ def _resolve_dirs(args_dir: str | None, config: Config) -> list[str]:
     if not paths:
         print(f"{RED}\n  ✗ No directory specified and media_paths not configured.{RESET}")
         print(f"{DIM}  Set with: thunder-subtitle config --set media_paths /path1,/path2{RESET}\n")
-        sys.exit(1)
+        raise CLIExit()
     print(f"{DIM}  Using media_paths from config ({len(paths)} repo(s)){RESET}")
     return paths

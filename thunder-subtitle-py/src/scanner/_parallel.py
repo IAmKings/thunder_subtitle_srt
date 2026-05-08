@@ -79,14 +79,14 @@ def _do_scan_loop(
     """执行扫描循环（串行或并行）"""
 
     if parallel > 1 and not dry_run:
-        results = _process_parallel(movie_dirs, dry_run, client, config,
-                                    min_age_days, dump_mode, force, reset_fail,
-                                    parallel, resume, progress_file, log_path)
-        _print_scan_summary(results)
-        return results
+        parallel_results = _process_parallel(movie_dirs, dry_run, client, config,
+                                             min_age_days, dump_mode, force, reset_fail,
+                                             parallel, resume, progress_file, log_path)
+        _print_scan_summary(parallel_results)
+        return parallel_results
 
     # 串行模式
-    results: list[ScanResult] = []
+    results: list = []
     has_queried = False
 
     for i, movie_path in enumerate(movie_dirs, 1):
@@ -177,7 +177,7 @@ def _process_parallel(
                 _, movie_path = futures[future]
                 try:
                     r = future.result()
-                except Exception as e:
+                except (RuntimeError, OSError) as e:
                     r = ScanResult(movie_path, os.path.basename(movie_path),
                                    ScanStatus.error, str(e))
                 results.append(r)

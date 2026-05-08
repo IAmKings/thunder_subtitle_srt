@@ -193,7 +193,7 @@ def _process_one_movie(
     # ---- 搜索 + 下载 ----
     try:
         return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried, dump_mode)
-    except Exception as e:
+    except (RuntimeError, OSError) as e:
         print(f"{RED}    ✗ Error: {e}{RESET}")
         return ScanResult(movie_path, movie_name, ScanStatus.error, str(e))
 

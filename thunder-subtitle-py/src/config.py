@@ -7,6 +7,8 @@ import os
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+from .ui import BOLD, RESET, YELLOW
+
 CONFIG_PATH = os.path.join(str(Path.home()), ".thunder-subtitle.json")
 
 
@@ -58,8 +60,8 @@ class Config:
 
     def show(self) -> None:
         """打印当前配置"""
-        print(f"\033[1m\n  Config ({CONFIG_PATH}):\033[0m\n")
+        print(f"{BOLD}\n  Config ({CONFIG_PATH}):{RESET}\n")
         for key, value in asdict(self).items():
             display = value if value else "(default)"
-            print(f"  \033[33m{key}\033[0m = {display}")
+            print(f"  {YELLOW}{key}{RESET} = {display}")
         print()

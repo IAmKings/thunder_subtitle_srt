@@ -18,7 +18,7 @@ def _score_color(score: int) -> str:
 def _print_review_item(item: ReviewItem) -> None:
     """打印单条审查结果"""
     color = _score_color(item.score)
-    markers = {ReviewQuality.ok: f"{GREEN}✓{RESET}", ReviewQuality.warn: f"{YELLOW}⚠{RESET}", ReviewQuality.fail: f"{RED}✗{RESET}"}
+    markers: dict[str, str] = {ReviewQuality.ok: f"{GREEN}✓{RESET}", ReviewQuality.warn: f"{YELLOW}⚠{RESET}", ReviewQuality.fail: f"{RED}✗{RESET}"}
     marker = markers.get(item.status, "?")
 
     extra = []
@@ -63,7 +63,7 @@ def _print_review_summary(items: list[ReviewItem]) -> None:
 def _write_review_log(log_path: str, item: ReviewItem) -> None:
     """写入单条日志"""
     ts = datetime.now().strftime("%H:%M:%S")
-    status_map = {ReviewQuality.ok: "OK", ReviewQuality.warn: "WARN", ReviewQuality.fail: "FAIL"}
+    status_map: dict[str, str] = {ReviewQuality.ok: "OK", ReviewQuality.warn: "WARN", ReviewQuality.fail: "FAIL"}
     tag = status_map.get(item.status, "??")
     ded = "; ".join(item.deductions) if item.deductions else ""
     try:
