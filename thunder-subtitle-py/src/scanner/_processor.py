@@ -11,8 +11,8 @@ from ..exceptions import ThunderSubtitleError
 from ..api import SubtitleApiClient
 from ..config import Config
 from ..download import download_subtitle, dump_subtitles
-from ..types import ScanStatus, DryState
-from ..ui import DIM, GREEN, RED, RESET, YELLOW
+from ..types import ScanStatus
+from ..ui import DIM, GREEN, RED, RESET
 from ..utils import NfoInfo, clear_file, filter_by_duration, matches, parse_nfo, seconds_to_duration_str
 from ._skip import _check_skip
 
@@ -199,8 +199,13 @@ def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> Sc
     if r.skipped > 0:
         parts.append(f"{r.skipped} rejected")
     dup_msg = f" ({', '.join(parts)})" if parts else ""
-    _print_status("✓", f"Dumped {r.downloaded}/{len(subtitles)}{dup_msg}", green=True)
-    return ScanResult(movie_path, movie_name, ScanStatus.downloaded, filename=f"dumped {r.downloaded} files")
+
+    if r.downloaded > 0:
+        _print_status("✓", f"Dumped {r.downloaded}/{len(subtitles)}{dup_msg}", green=True)
+        return ScanResult(movie_path, movie_name, ScanStatus.downloaded, filename=f"dumped {r.downloaded} files")
+
+    _print_status("✗", "All subtitles rejected or download failed")
+    return ScanResult(movie_path, movie_name, ScanStatus.no_match, "All subtitles rejected or download failed")
 
 
 def _load_gcids(movie_path: str, filename: str) -> set[str]:

@@ -1,7 +1,7 @@
 """Tests for src/download.py"""
 
+import hashlib
 import os
-import tempfile
 from unittest.mock import Mock, patch
 
 from src.download import _sanitize_filename, download_subtitle, dump_subtitles, DumpResult
@@ -212,3 +212,30 @@ class TestDumpSubtitles:
         if os.path.isfile(dumped_path):
             with open(dumped_path, "r") as f:
                 assert f.read() == ""
+
+    def test_skips_rejected_url_when_gcid_empty(self, tmp_path):
+        """gcid 为空时，url hash 命中 rejected → 跳过"""
+        sub = _make_sub(gcid="", url="http://example.com/sub.srt", name="Test")
+        url_hash = hashlib.md5(sub.url.encode()).hexdigest()
+        rejected = {url_hash}
+
+        with patch("src.download.download_subtitle") as mock_dl:
+            result = dump_subtitles([sub], str(tmp_path), rejected_gcids=rejected)
+            mock_dl.assert_not_called()
+            assert result.skipped == 1
+            assert result.downloaded == 0
+
+    def test_deduplicates_same_url_when_gcid_empty(self, tmp_path):
+        """gcid 为空时，相同 url 的字幕 → 只下载第一个"""
+        s1 = _make_sub(gcid="", url="http://example.com/sub.srt", name="First")
+        s2 = _make_sub(gcid="", url="http://example.com/sub.srt", name="Second")
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.filename = "test.srt"
+
+        with patch("src.download.download_subtitle", return_value=mock_result) as mock_dl:
+            result = dump_subtitles([s1, s2], str(tmp_path))
+            assert mock_dl.call_count == 1  # 只下载第一个
+            assert result.dupes == 1
+            assert result.downloaded == 1

@@ -2,6 +2,7 @@
 Download logic for Thunder Subtitle Python CLI
 """
 
+import hashlib
 import logging
 import os
 import time
@@ -144,6 +145,15 @@ class DumpResult:
             self.gcids = set()
 
 
+def _dedup_key(sub: Subtitle) -> str:
+    """生成去重键：gcid 优先，空则用 url 的 md5"""
+    if sub.gcid:
+        return sub.gcid
+    if sub.url:
+        return hashlib.md5(sub.url.encode()).hexdigest()
+    return ""
+
+
 def dump_subtitles(
     subtitles: list[Subtitle],
     output_dir: str,
@@ -163,15 +173,15 @@ def dump_subtitles(
 
     for i, sub in enumerate(subtitles, 1):
         filename = f"{i}.{sub.ext}"
-        gcid = sub.gcid
+        key = _dedup_key(sub)
 
         # 下载前去重
-        if gcid and gcid in seen:
+        if key and key in seen:
             print(f"{DIM}    [{i}/{total}]{RESET} {filename} ← {sub.name}")
-            print(f"{DIM}    ↳ Duplicate gcid, skipped{RESET}")
+            print(f"{DIM}    ↳ Duplicate, skipped{RESET}")
             result.dupes += 1
             continue
-        if gcid and gcid in rejected_gcids:
+        if key and key in rejected_gcids:
             print(f"{DIM}    [{i}/{total}]{RESET} {filename} ← {sub.name}")
             print(f"{DIM}    ↳ Previously rejected, skipped{RESET}")
             result.skipped += 1
@@ -180,17 +190,17 @@ def dump_subtitles(
         print(f"{DIM}    [{i}/{total}]{RESET} {filename} ← {sub.name}")
         dl = download_subtitle(sub, output_dir, custom_filename=filename)
         if dl.success:
-            if gcid:
-                seen.add(gcid)
+            if key:
+                seen.add(key)
                 if result.gcids is not None:
-                    result.gcids.add(gcid)
+                    result.gcids.add(key)
                 # 逐条追加到 .dumped（崩溃保护）
                 if dumped_path:
                     try:
                         with open(dumped_path, "a", encoding="utf-8") as f:
-                            f.write(gcid + "\n")
+                            f.write(key + "\n")
                     except OSError:
-                        logger.warning("无法追加 GCID 到 .dumped: %s", dumped_path)
+                        logger.warning("无法追加去重键到 .dumped: %s", dumped_path)
             result.downloaded += 1
 
     return result
