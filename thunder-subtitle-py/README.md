@@ -39,13 +39,20 @@ thunder-subtitle search "Movie Name" --index 1,3,5
 
 ### 全量下载（dump）
 
+下载所有匹配的中文字幕，自动跳过之前已拒绝的字幕（基于 gcid 记录在 `.rejected` 文件中）。
+
 ```bash
 # 直接搜索下载
 thunder-subtitle dump "Movie Name"
 
 # 从目录读取 movie.nfo 自动获取时长
 thunder-subtitle dump --dir /path/to/movie
+
+# 清空 .rejected 文件以重新下载所有字幕
+rm /path/to/movie/.rejected
 ```
+
+> 注意：已拒绝的字幕（gcid 或 url hash 记录在 `.rejected`）在后续下载中自动跳过。手动删除 `.rejected` 文件可清空拒绝列表。scan 模式下的 `--reset-fail` 会自动清空 `.rejected` 和审查失败标记，实现完全暴力刷新。
 
 ### Jellyfin 目录扫描
 
@@ -72,6 +79,12 @@ thunder-subtitle scan /path/to/jellyfin/media --min-age 7
 
 # 全量下载模式（每部电影下载所有匹配字幕）
 thunder-subtitle scan /path/to/jellyfin/media --dump
+
+# 强制重试标记失败的电影（但跳过已拒绝的字幕）
+thunder-subtitle scan /path/to/jellyfin/media --dump --force
+
+# 暴力刷新：清除标记失败状态和所有拒绝记录，重新下载
+thunder-subtitle scan /path/to/jellyfin/media --dump --force --reset-fail
 ```
 
 ### 字幕审查
@@ -141,7 +154,7 @@ thunder-subtitle download "https://..." "filename.srt"
 
 ```bash
 pip install -e ".[dev]"    # 安装开发依赖
-pytest tests/ -v           # 运行测试（126 用例）
+pytest tests/ -v           # 运行测试（196 用例）
 ruff check .               # 代码检查
 ```
 
