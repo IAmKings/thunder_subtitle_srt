@@ -1,17 +1,22 @@
 """单部电影处理：NFO解析 → 跳过检查 → 搜索 → 下载"""
 
 import hashlib
+import logging
 import os
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
+from ..exceptions import ThunderSubtitleError
 from ..api import SubtitleApiClient
 from ..config import Config
 from ..download import download_subtitle, dump_subtitles
 from ..types import ScanStatus, DryState
 from ..ui import DIM, GREEN, RED, RESET, YELLOW
-from ..utils import NfoInfo, matches, parse_nfo, seconds_to_duration_str
+from ..utils import NfoInfo, clear_file, filter_by_duration, matches, parse_nfo, seconds_to_duration_str
+from ._skip import _check_skip
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -33,9 +38,6 @@ def _has_preferred_group(subtitle, groups: list[str]) -> bool:
     if not groups:
         return False
     return any(matches(g, subtitle.name) for g in groups)
-
-
-from ._skip import _check_skip  # noqa: E402
 
 
 # ---- 处理主循环 ----
@@ -78,10 +80,41 @@ def _process_one_movie(
     # ---- 搜索 + 下载 ----
     try:
         return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried, dump_mode)
-    except (RuntimeError, OSError) as e:
+    except (ThunderSubtitleError, OSError) as e:
         print(f"{RED}    ✗ Error: {e}{RESET}")
         return ScanResult(movie_path, movie_name, ScanStatus.error, str(e))
 
+
+# ---- 字幕筛选 ----
+
+def _select_primary_alt(
+    subtitles: list, result, client: SubtitleApiClient, preferred_groups: list[str],
+) -> tuple:
+    """
+    从筛选后的字幕中选择主力(API第一条) + 备选(算法最佳)
+    返回 (primary, alt) 两个 Subtitle 对象
+    """
+    # 按 API 原始顺序排（第一条 = 最新上传）
+    orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
+    by_api = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
+    primary = by_api[0]  # 主力：API 第一条
+
+    # 按优先级排（偏好字幕组 > 中文 > duration）
+    subtitles.sort(key=lambda s: (
+        0 if _has_preferred_group(s, preferred_groups) else 1,
+        0 if client.is_chinese_subtitle(s) else 1,
+        -s.duration,
+    ))
+    alt = subtitles[0]  # 备选：算法最佳
+
+    # 去重：如果算法最佳和 API 第一条相同，取 API 第二条
+    if alt is primary and len(by_api) > 1:
+        alt = by_api[1]
+
+    return primary, alt
+
+
+# ---- 搜索 + 下载 ----
 
 def _search_and_download(
     movie_path: str, movie_name: str, nfo: NfoInfo, client: SubtitleApiClient,
@@ -99,9 +132,7 @@ def _search_and_download(
 
     # 按时长筛选：有时长的在前，duration=0 的保留在后
     max_duration_ms = nfo.duration_seconds * 1000
-    with_dur = [s for s in result.subtitles if s.duration > 0]
-    without_dur = [s for s in result.subtitles if s.duration == 0]
-    subtitles = client.filter_by_max_duration(with_dur, max_duration_ms) + without_dur
+    subtitles = filter_by_duration(result.subtitles, max_duration_ms, client.filter_by_max_duration)
 
     if not subtitles:
         _print_status("✗", "No subtitles found")
@@ -111,23 +142,9 @@ def _search_and_download(
     if dump_mode:
         return _dump_all_subtitles(movie_path, movie_name, subtitles)
 
-    # 按 API 原始顺序排（第一条 = 最新上传）
-    orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
-    by_api = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
-    primary = by_api[0]  # 主力：API 第一条
-
-    # 按优先级排（偏好字幕组 > 中文 > duration）
+    # ---- 选择主力+备选 ----
     preferred = config.preferred_groups_list
-    subtitles.sort(key=lambda s: (
-        0 if _has_preferred_group(s, preferred) else 1,
-        0 if client.is_chinese_subtitle(s) else 1,
-        -s.duration,
-    ))
-    alt = subtitles[0]  # 备选：算法最佳
-
-    # 去重
-    if alt is primary and len(by_api) > 1:
-        alt = by_api[1]
+    primary, alt = _select_primary_alt(subtitles, result, client, preferred)
 
     # 统计信息
     pref_count = sum(1 for s in subtitles if _has_preferred_group(s, preferred))
@@ -146,14 +163,16 @@ def _search_and_download(
     if alt is not primary:
         to_download.append((alt, f"{movie_name}-alt.zh.{alt.ext}"))
 
-    # 下载
+    # 执行下载
     downloaded_files = []
     for sub, fname in to_download:
         tag = " [alt]" if "-alt" in fname else " [primary]"
         print(f"{DIM}    Downloading{tag}: {sub.name} → {fname}{RESET}")
         dl = download_subtitle(sub, movie_path, custom_filename=fname,
                                max_retries=config.retry_count,
-                               retry_delay=config.retry_delay)
+                               retry_delay=config.retry_delay,
+                               timeout=config.download_timeout,
+                               chunk_size=config.chunk_size)
         if dl.success:
             downloaded_files.append(dl.filename)
         else:
@@ -171,11 +190,7 @@ def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> Sc
     """全量下载字幕，gcid 去重 + 增量跳过"""
     rejected = _load_gcids(movie_path, ".rejected")
     dumped_path = os.path.join(movie_path, ".dumped")
-    # 清空旧的 .dumped（避免上次残留）
-    try:
-        open(dumped_path, "w").close()
-    except OSError:
-        pass
+    clear_file(dumped_path)  # 清空旧的 .dumped（避免上次残留）
     r = dump_subtitles(subtitles, movie_path, rejected, dumped_path=dumped_path)
 
     parts = []
@@ -197,6 +212,7 @@ def _load_gcids(movie_path: str, filename: str) -> set[str]:
         with open(path, "r", encoding="utf-8") as f:
             return {line.strip() for line in f if line.strip()}
     except OSError:
+        logger.warning("无法读取 GCID 文件: %s", path)
         return set()
 
 
@@ -206,6 +222,7 @@ def _content_fingerprint(filepath: str) -> str | None:
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             text = f.read()
     except OSError:
+        logger.warning("无法读取字幕文件进行指纹计算: %s", filepath)
         return None
 
     lines = []

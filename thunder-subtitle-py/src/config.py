@@ -20,6 +20,8 @@ class Config:
     """应用配置"""
     output_dir: str = ""          # 默认下载目录（空=用系统默认）
     timeout: int = 30             # API 超时（秒）
+    download_timeout: int = 60    # 下载超时（秒）
+    chunk_size: int = 8192        # 下载分块大小（字节）
     rate_limit: int = 3           # 扫描模式下查询间隔（秒）
     retry_count: int = 3          # 下载失败重试次数
     retry_delay: int = 2          # 重试间隔（秒）

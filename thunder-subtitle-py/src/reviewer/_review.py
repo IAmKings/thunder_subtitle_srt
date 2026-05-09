@@ -1,10 +1,14 @@
 """字幕文件审查：单文件深度审查"""
 
+import logging
 import os
 from dataclasses import dataclass, field
 
 from ..types import ReviewQuality
 from ._encoding import _detect_encoding, _calc_cn_ratio
+from ._srt import _parse_srt_entries, _check_srt_quality
+
+logger = logging.getLogger(__name__)
 
 MIN_FILE_SIZE = 200  # 最小文件大小（字节）
 MIN_CN_RATIO = 0.05  # .zh 文件最低中文占比
@@ -44,14 +48,12 @@ def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str
             if valid and ext.lower() in sub_exts:
                 result.append((os.path.join(movie_path, fname), fname))
     except OSError:
-        pass
+        logger.warning("无法扫描字幕目录: %s", movie_path)
     return result
 
 
 def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: str) -> ReviewItem:
     """深度审查单个字幕文件，返回带评分的 ReviewItem"""
-    from ._srt import _parse_srt_entries, _check_srt_quality
-
     item = ReviewItem(
         movie_path=movie_path,
         movie_name=movie_name,

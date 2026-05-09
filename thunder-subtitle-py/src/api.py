@@ -2,22 +2,32 @@
 API client for Xunlei Subtitle API
 """
 
+import os
 import re
 import requests
 
+from .exceptions import ApiError, NetworkError
 from .types import Subtitle, SearchResult
+from .utils import CJK_RE
 
 API_BASE_URL = "https://api-shoulei-ssl.xunlei.com/oracle"
-DEFAULT_TIMEOUT = 30
 USER_AGENT = "thunder-subtitle/1.0.0"
+
+
+def _default_timeout() -> int:
+    """默认 API 超时：环境变量 > 默认 30s"""
+    try:
+        return int(os.environ.get("THUNDER_SUBTITLE_API_TIMEOUT", "30"))
+    except ValueError:
+        return 30
 
 
 class SubtitleApiClient:
     """迅雷字幕 API 客户端"""
 
-    def __init__(self, base_url: str = API_BASE_URL, timeout: int = DEFAULT_TIMEOUT):
+    def __init__(self, base_url: str = API_BASE_URL, timeout: int | None = None):
         self.base_url = base_url
-        self.timeout = timeout
+        self.timeout = timeout if timeout is not None else _default_timeout()
         self._session = requests.Session()
         self._session.headers.update({
             "User-Agent": USER_AGENT,
@@ -50,7 +60,7 @@ class SubtitleApiClient:
 
             if data.get("code") != 0:
                 msg = data.get("msg", "unknown")
-                raise RuntimeError(f"API error: code {data.get('code')}, msg: {msg}")
+                raise ApiError(f"API error: code {data.get('code')}, msg: {msg}")
 
             raw_list = data.get("data", [])
             subtitles = [self._parse_subtitle(item) for item in raw_list]
@@ -58,13 +68,13 @@ class SubtitleApiClient:
             return SearchResult(subtitles=subtitles, total=len(subtitles))
 
         except requests.Timeout:
-            raise RuntimeError("Request timeout - please try again")
+            raise NetworkError("Request timeout - please try again")
         except requests.HTTPError as e:
-            raise RuntimeError(
+            raise NetworkError(
                 f"API request failed: {e.response.status_code} {e.response.reason}"
             )
         except requests.RequestException as e:
-            raise RuntimeError(f"Network error: {e}")
+            raise NetworkError(f"Network error: {e}")
 
     def is_chinese_subtitle(self, subtitle: Subtitle) -> bool:
         """判断单个字幕是否为中文"""
@@ -73,7 +83,7 @@ class SubtitleApiClient:
             for lang in subtitle.languages
         )
         has_chinese_name = bool(
-            re.search(r"[\u4e00-\u9fa5]", subtitle.name)
+            CJK_RE.search(subtitle.name)
             or re.search(r"zh|cn|chinese|中文", subtitle.name, re.IGNORECASE)
         )
         is_empty_lang = len(subtitle.languages) == 0 or subtitle.languages[0] == ""

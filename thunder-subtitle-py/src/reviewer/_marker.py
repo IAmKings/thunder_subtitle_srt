@@ -1,10 +1,13 @@
 """标记操作：审查状态标记/取消标记/归档"""
 
+import logging
 import os
 from datetime import datetime
 
 from ..types import ReviewState, ReviewQuality
 from ..ui import BOLD, GREEN, RED, RESET, YELLOW
+
+logger = logging.getLogger(__name__)
 
 REVIEWED_FILE = ".reviewed"
 
@@ -22,6 +25,7 @@ def _is_reviewed(movie_path: str) -> tuple[str | None, str]:
         mtime = os.path.getmtime(rf)
         dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
     except OSError:
+        logger.warning("无法读取文件修改时间: %s", rf)
         dt = ""
 
     # 读取状态：空文件或 ReviewState.ok = 通过，ReviewState.fail = 不及格
@@ -29,6 +33,7 @@ def _is_reviewed(movie_path: str) -> tuple[str | None, str]:
         with open(rf, "r", encoding="utf-8") as f:
             content = f.read().strip().lower()
     except OSError:
+        logger.warning("无法读取审查状态文件: %s", rf)
         content = ""
     status = ReviewState.fail if content == "fail" else ReviewState.ok
     return status, dt
@@ -93,7 +98,7 @@ def _archive_dumped(movie_path: str) -> None:
         # 清理 .dumped
         os.remove(dumped)
     except OSError:
-        pass
+        logger.warning("无法归档 .dumped 文件: %s", dumped)
 
 
 def _cleanup_rejected(movie_path: str) -> None:
@@ -103,4 +108,4 @@ def _cleanup_rejected(movie_path: str) -> None:
         try:
             os.remove(rejected)
         except OSError:
-            pass
+            logger.warning("无法清理 .rejected 文件: %s", rejected)

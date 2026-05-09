@@ -1,10 +1,13 @@
 """审查输出：评分颜色、单条打印、汇总打印、日志写入"""
 
+import logging
 from datetime import datetime
 
 from ..types import ReviewQuality, ReviewState
 from ..ui import BOLD, CYAN, DIM, GREEN, RED, RESET, YELLOW
 from ._review import ReviewItem
+
+logger = logging.getLogger(__name__)
 
 
 def _score_color(score: int) -> str:
@@ -71,7 +74,7 @@ def _write_review_log(log_path: str, item: ReviewItem) -> None:
             f.write(f"[{ts}] [{tag}] {item.movie_name}/{item.filename} "
                     f"Score={item.score}/100 {ded}\n")
     except OSError:
-        pass
+        logger.warning("无法写入审查日志: %s", log_path)
 
 
 def _write_review_summary(log_path: str, items: list[ReviewItem]) -> None:
@@ -86,7 +89,7 @@ def _write_review_summary(log_path: str, items: list[ReviewItem]) -> None:
             f.write(f"Total: {len(items)}  OK: {ok_count}  WARN: {warn_count}  "
                     f"FAIL: {fail_count}  Avg Score: {avg_score}/100\n")
     except OSError:
-        pass
+        logger.warning("无法写入审查汇总: %s", log_path)
 
 
 def _human_size(size: int) -> str:

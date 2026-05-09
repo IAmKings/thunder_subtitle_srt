@@ -2,7 +2,7 @@
 
 from src.config import Config
 from src.exceptions import CLIExit
-from src.reviewer import review_directory
+from src.reviewer import mark_directory, review_directory
 from src.ui import BOLD_CYAN, RED, RESET
 
 
@@ -18,10 +18,9 @@ def cmd_review(args) -> None:
         if not d:
             print(f"{RED}\n  ✗ No directory specified.{RESET}\n")
             return
-        review_directory(d, name_filters=args.filters, log=False,
-                         mark=args.mark, unmark=args.unmark, mark_all=args.mark_all,
-                         mark_path=args.mark_path, unmark_path=args.unmark_path,
-                         mark_fail=args.mark_fail, mark_fail_path=args.mark_fail_path)
+        mark_directory(d, mark=args.mark, unmark=args.unmark, mark_all=args.mark_all,
+                       mark_path=args.mark_path, unmark_path=args.unmark_path,
+                       mark_fail=args.mark_fail, mark_fail_path=args.mark_fail_path)
         return
 
     # 审查模式：支持多仓库

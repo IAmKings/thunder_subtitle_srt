@@ -1,14 +1,17 @@
 """dump 命令：全量下载字幕"""
 
+import logging
 import os
 import xml.etree.ElementTree as ET
 
 from src.api import SubtitleApiClient
 from src.config import Config
-from src.exceptions import CLIExit
+from src.exceptions import CLIExit, ThunderSubtitleError
 from src.ui import BOLD, DIM, GREEN, RED, RESET, display_error
 from src.download import dump_subtitles, get_default_download_dir
-from src.utils import parse_duration, parse_nfo, seconds_to_duration_str
+from src.utils import parse_duration, parse_nfo, seconds_to_duration_str, filter_by_duration, load_gcid_file, clear_file
+
+logger = logging.getLogger(__name__)
 
 
 def cmd_dump(args) -> None:
@@ -69,9 +72,7 @@ def cmd_dump(args) -> None:
 
         # 时长筛选
         if max_duration_ms is not None:
-            with_dur = [s for s in subtitles if s.duration > 0]
-            without_dur = [s for s in subtitles if s.duration == 0]
-            subtitles = client.filter_by_max_duration(with_dur, max_duration_ms) + without_dur
+            subtitles = filter_by_duration(subtitles, max_duration_ms, client.filter_by_max_duration)
 
         if not subtitles:
             display_error("No subtitles match the filters.")
@@ -80,22 +81,11 @@ def cmd_dump(args) -> None:
         print(f"{GREEN}  Found {len(subtitles)} subtitle(s){RESET}\n")
 
         # 加载已拒绝 gcid
-        rejected: set[str] = set()
-        rejected_file = os.path.join(output_dir, ".rejected")
-        if os.path.isfile(rejected_file):
-            try:
-                with open(rejected_file, "r", encoding="utf-8") as f:
-                    rejected = {line.strip() for line in f if line.strip()}
-            except OSError:
-                pass
+        rejected = load_gcid_file(os.path.join(output_dir, ".rejected"))
 
         os.makedirs(output_dir, exist_ok=True)
         dumped_path = os.path.join(output_dir, ".dumped")
-        # 清空旧 .dumped
-        try:
-            open(dumped_path, "w").close()
-        except OSError:
-            pass
+        clear_file(dumped_path)  # 清空旧 .dumped
         r = dump_subtitles(subtitles, output_dir, rejected, dumped_path=dumped_path)
 
         total = len(subtitles)
@@ -107,6 +97,6 @@ def cmd_dump(args) -> None:
         dup_msg = f" ({', '.join(parts)})" if parts else ""
         print(f"\n{GREEN}  ✓ Downloaded {r.downloaded}/{total}{dup_msg}{RESET}\n")
 
-    except RuntimeError as e:
+    except ThunderSubtitleError as e:
         display_error(str(e))
         raise CLIExit()

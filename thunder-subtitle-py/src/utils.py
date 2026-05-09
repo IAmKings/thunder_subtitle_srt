@@ -2,9 +2,18 @@
 Utility functions for Thunder Subtitle Python CLI
 """
 
+import logging
+import os
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
+
+# CJK 统一表意文字范围 (U+4E00 – U+9FFF)
+CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -59,13 +68,18 @@ def format_duration(ms: int) -> str:
     if ms == 0:
         return "Unknown"
 
-    seconds = ms // 1000
-    minutes = seconds // 60
-    remaining_seconds = seconds % 60
+    total_seconds = ms // 1000
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
 
-    if minutes > 0:
-        return f"{minutes}m {remaining_seconds}s"
-    return f"{remaining_seconds}s"
+    parts = []
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0 or hours > 0:
+        parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+    return " ".join(parts)
 
 
 def seconds_to_duration_str(total_seconds: int) -> str:
@@ -133,3 +147,35 @@ def _find_elem(parent, tags: tuple[str, ...]):
             return None
         node = node.find(tag)
     return node
+
+
+# ---- 通用文件/数据工具 ----
+
+
+def filter_by_duration(subtitles: list[Any], max_duration_ms: int, filter_fn: Callable[[list[Any], int], list[Any]]) -> list[Any]:
+    """按时长筛选字幕，同时保留 duration=0（无时长信息）的字幕"""
+    with_dur = [s for s in subtitles if s.duration > 0]
+    without_dur = [s for s in subtitles if s.duration == 0]
+    return filter_fn(with_dur, max_duration_ms) + without_dur
+
+
+def load_gcid_file(filepath: str) -> set[str]:
+    """加载 GCID 文件（每行一个 ID），返回集合"""
+    if not os.path.isfile(filepath):
+        return set()
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return {line.strip() for line in f if line.strip()}
+    except OSError:
+        logger.warning("无法读取 GCID 文件: %s", filepath)
+        return set()
+
+
+def clear_file(filepath: str) -> bool:
+    """清空文件内容（用于重置 .dumped 等），返回是否成功"""
+    try:
+        open(filepath, "w").close()
+        return True
+    except OSError:
+        logger.warning("无法清空文件: %s", filepath)
+        return False

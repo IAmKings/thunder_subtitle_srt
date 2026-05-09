@@ -1,5 +1,6 @@
 """IO辅助：进度保存、日志写入、扫描汇总输出"""
 
+import logging
 import os
 from datetime import datetime
 
@@ -8,6 +9,8 @@ from ..ui import BOLD, CYAN, DIM, GREEN, RED, RESET, YELLOW
 
 from ._processor import ScanResult
 
+logger = logging.getLogger(__name__)
+
 
 def _save_progress(progress_file: str, movie_path: str) -> None:
     """追加一条已处理记录到进度文件"""
@@ -15,7 +18,7 @@ def _save_progress(progress_file: str, movie_path: str) -> None:
         with open(progress_file, "a", encoding="utf-8") as f:
             f.write(movie_path + "\n")
     except OSError:
-        pass  # 写进度文件失败不影响主流程
+        logger.warning("无法写入进度文件: %s", progress_file)
 
 
 def _write_log(log_path: str, movie_path: str, result: ScanResult) -> None:
@@ -28,7 +31,7 @@ def _write_log(log_path: str, movie_path: str, result: ScanResult) -> None:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"[{ts}] [{tag}] {os.path.basename(movie_path)}{extra}\n")
     except OSError:
-        pass
+        logger.warning("无法写入日志文件: %s", log_path)
 
 
 def _write_log_summary(log_path: str, results: list[ScanResult]) -> None:
@@ -45,8 +48,7 @@ def _write_log_summary(log_path: str, results: list[ScanResult]) -> None:
                     f"Skip: {counts['skipped']}  None: {counts['no_match']}  "
                     f"Err: {counts['error']}\n")
     except OSError:
-        pass
-
+        logger.warning("无法写入日志汇总: %s", log_path)
 
 def _print_scan_summary(results: list[ScanResult]) -> None:
     """打印扫描汇总"""

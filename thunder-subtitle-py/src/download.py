@@ -2,6 +2,7 @@
 Download logic for Thunder Subtitle Python CLI
 """
 
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -12,6 +13,12 @@ import requests
 
 from .types import Subtitle, DownloadResult
 from .ui import DIM, RESET, YELLOW, display_download_progress, display_download_complete
+
+logger = logging.getLogger(__name__)
+
+# 默认下载超时（环境变量可覆盖）
+_DEFAULT_DOWNLOAD_TIMEOUT = int(os.environ.get("THUNDER_SUBTITLE_DOWNLOAD_TIMEOUT", "60"))
+_DEFAULT_CHUNK_SIZE = int(os.environ.get("THUNDER_SUBTITLE_CHUNK_SIZE", "8192"))
 
 
 def get_default_download_dir() -> str:
@@ -25,11 +32,16 @@ def download_subtitle(
     custom_filename: Optional[str] = None,
     max_retries: int = 3,
     retry_delay: int = 2,
+    timeout: int | None = None,
+    chunk_size: int | None = None,
 ) -> DownloadResult:
     """
     下载单个字幕文件，失败自动重试
     返回 DownloadResult
     """
+    _timeout = timeout if timeout is not None else _DEFAULT_DOWNLOAD_TIMEOUT
+    _chunk_size = chunk_size if chunk_size is not None else _DEFAULT_CHUNK_SIZE
+
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
 
@@ -56,14 +68,14 @@ def download_subtitle(
     last_error = ""
     for attempt in range(1, max_retries + 1):
         try:
-            response = requests.get(subtitle.url, stream=True, timeout=60, headers=headers)
+            response = requests.get(subtitle.url, stream=True, timeout=_timeout, headers=headers)
             response.raise_for_status()
 
             total_size = int(response.headers.get("content-length", 0))
             downloaded = 0
 
             with open(filepath, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                for chunk in response.iter_content(chunk_size=_chunk_size):
                     if chunk:
                         f.write(chunk)
                         downloaded += len(chunk)
@@ -178,7 +190,7 @@ def dump_subtitles(
                         with open(dumped_path, "a", encoding="utf-8") as f:
                             f.write(gcid + "\n")
                     except OSError:
-                        pass
+                        logger.warning("无法追加 GCID 到 .dumped: %s", dumped_path)
             result.downloaded += 1
 
     return result

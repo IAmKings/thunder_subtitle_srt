@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.api import SubtitleApiClient
+from src.exceptions import ApiError, NetworkError
 from src.types import Subtitle
 
 
@@ -88,7 +89,7 @@ class TestSearchSubtitles:
         mock_response.json.return_value = {"code": 500, "msg": "Internal Error"}
 
         with patch.object(client._session, "get", return_value=mock_response):
-            with pytest.raises(RuntimeError, match="API error"):
+            with pytest.raises(ApiError, match="API error"):
                 client.search_subtitles("Movie")
 
     def test_empty_data_list(self):
@@ -109,7 +110,7 @@ class TestSearchSubtitles:
         ).HTTPError("404 Not Found", response=Mock(status_code=404, reason="Not Found"))
 
         with patch.object(client._session, "get", return_value=mock_response):
-            with pytest.raises(RuntimeError, match="API request failed"):
+            with pytest.raises(NetworkError, match="API request failed"):
                 client.search_subtitles("Movie")
 
     def test_timeout(self):
@@ -117,7 +118,7 @@ class TestSearchSubtitles:
         import requests
 
         with patch.object(client._session, "get", side_effect=requests.Timeout):
-            with pytest.raises(RuntimeError, match="timeout"):
+            with pytest.raises(NetworkError, match="timeout"):
                 client.search_subtitles("Movie")
 
     def test_network_error(self):
@@ -128,7 +129,7 @@ class TestSearchSubtitles:
             client._session, "get",
             side_effect=requests.RequestException("Connection refused"),
         ):
-            with pytest.raises(RuntimeError, match="Network error"):
+            with pytest.raises(NetworkError, match="Network error"):
                 client.search_subtitles("Movie")
 
 

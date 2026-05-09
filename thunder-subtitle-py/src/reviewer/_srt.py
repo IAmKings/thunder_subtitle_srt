@@ -1,8 +1,12 @@
 """SRT 解析与质量检测"""
 
-import re
+from __future__ import annotations
 
-from ._review import ReviewItem
+import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._review import ReviewItem
 
 MIN_SUB_DURATION_MS = 500  # 单条字幕最短推荐时长
 MAX_LINE_LENGTH = 60  # 单行最大推荐字符数

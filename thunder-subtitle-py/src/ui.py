@@ -5,7 +5,7 @@ Terminal output formatting for Thunder Subtitle Python CLI
 import sys
 
 from .types import Subtitle
-from .utils import format_duration
+from .utils import CJK_RE, format_duration
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -26,7 +26,7 @@ def display_subtitle_list(subtitles: list[Subtitle]) -> None:
     print(f"\n{BOLD}  Found subtitles:{RESET}\n")
 
     for idx, sub in enumerate(subtitles, 1):
-        is_chinese = any("\u4e00" <= ch <= "\u9fa5" for ch in sub.name)
+        is_chinese = any(CJK_RE.search(ch) for ch in sub.name)
         tag = f"{GREEN}[CN]{RESET}" if is_chinese else f"{GRAY}[--]{RESET}"
         duration = format_duration(sub.duration)
 

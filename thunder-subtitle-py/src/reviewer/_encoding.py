@@ -1,5 +1,7 @@
 """编码检测与中文占比计算"""
 
+from ..utils import CJK_RE
+
 
 def _detect_encoding(raw: bytes) -> str:
     """检测文本编码"""
@@ -23,8 +25,8 @@ def _calc_cn_ratio(text: str) -> float:
     """计算中文字符占比"""
     if not text:
         return 0.0
-    cn_count = sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
-    meaningful = sum(1 for ch in text if ch.isalnum() or "\u4e00" <= ch <= "\u9fff")
+    cn_count = sum(1 for ch in text if CJK_RE.search(ch))
+    meaningful = sum(1 for ch in text if ch.isalnum() or CJK_RE.search(ch))
     if meaningful == 0:
         return 0.0
     return cn_count / meaningful

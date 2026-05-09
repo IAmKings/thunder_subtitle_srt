@@ -1,7 +1,7 @@
 """search 命令：搜索字幕"""
 
 from src.api import SubtitleApiClient
-from src.exceptions import CLIExit
+from src.exceptions import CLIExit, ThunderSubtitleError
 from src.ui import BOLD, DIM, GREEN, RESET, display_subtitle_list, display_error, display_success
 from src.download import download_subtitle, download_batch, get_default_download_dir
 from src.utils import parse_duration
@@ -110,7 +110,7 @@ def cmd_search(args) -> None:
                 f"Use --help for more options.{RESET}\n"
             )
 
-    except RuntimeError as e:
+    except ThunderSubtitleError as e:
         display_error(str(e))
         raise CLIExit()
 

@@ -4,12 +4,14 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from ..exceptions import ThunderSubtitleError
 from ..config import Config
 from ..api import SubtitleApiClient
 from ..types import ScanStatus
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, BOLD_CYAN
 from ..utils import matches
 
+from ._dir import scan_movie_dirs
 from ._processor import ScanResult, _process_one_movie
 from ._io import _save_progress, _write_log, _write_log_summary, _print_scan_summary
 
@@ -28,8 +30,6 @@ def process_scanned_movies(
     parallel: int = 1,
 ) -> list[ScanResult]:
     """扫描并处理所有电影目录（parallel>1 时并发下载）"""
-    from ._dir import scan_movie_dirs
-
     if config is None:
         config = Config.load()
 
@@ -59,7 +59,7 @@ def process_scanned_movies(
         print(f"{DIM}  All movies already processed, nothing to do.{RESET}\n")
         return []
 
-    client = SubtitleApiClient()
+    client = SubtitleApiClient(timeout=config.timeout)
 
     try:
         results = _do_scan_loop(movie_dirs, dry_run, client, config,
@@ -178,7 +178,7 @@ def _process_parallel(
                 _, movie_path = futures[future]
                 try:
                     r = future.result()
-                except (RuntimeError, OSError) as e:
+                except (ThunderSubtitleError, OSError) as e:
                     r = ScanResult(movie_path, os.path.basename(movie_path),
                                    ScanStatus.error, str(e))
                 results.append(r)
