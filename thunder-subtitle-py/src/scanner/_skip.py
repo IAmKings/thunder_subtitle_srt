@@ -12,10 +12,13 @@ logger = logging.getLogger(__name__)
 # 字幕文件扩展名全集
 _SUB_EXTS = (".srt", ".ass", ".ssa", ".sub", ".vtt")
 
+# 中文字幕标识前缀
+_ZH_PREFIX = ".zh."
+
 
 def _has_zh_prefix(filename: str) -> bool:
     """检查文件名是否包含 .zh. 标识"""
-    return ".zh." in filename
+    return _ZH_PREFIX in filename
 
 
 def _find_dump_subtitle(movie_path: str) -> str | None:

@@ -10,8 +10,9 @@ from ._srt import _parse_srt_entries, _check_srt_quality
 
 logger = logging.getLogger(__name__)
 
-MIN_FILE_SIZE = 200  # 最小文件大小（字节）
-MIN_CN_RATIO = 0.05  # .zh 文件最低中文占比
+MIN_FILE_SIZE = 200     # 最小文件大小（字节）
+MIN_CN_RATIO = 0.05     # .zh 文件最低中文占比
+_ZH_PREFIX = ".zh."     # 中文字幕文件名标识
 
 
 @dataclass
@@ -116,7 +117,7 @@ def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: 
             _check_srt_quality(item, entries)
 
     # ---- 中文内容检查 ----
-    if ".zh." in filename:
+    if _ZH_PREFIX in filename:
         item.cn_ratio = _calc_cn_ratio(text)
         if item.cn_ratio < MIN_CN_RATIO:
             item.score -= 20

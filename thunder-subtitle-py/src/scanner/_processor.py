@@ -14,7 +14,7 @@ from ..download import download_subtitle, dump_subtitles
 from ..types import ScanStatus
 from ..ui import DIM, GREEN, RED, RESET
 from ..utils import NfoInfo, clear_file, filter_by_duration, matches, parse_nfo, seconds_to_duration_str
-from ._skip import _check_skip
+from ._skip import _ZH_PREFIX, _check_skip
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ def _search_and_download(
     to_download.append((primary, f"{movie_name}{pfx}.{primary.ext}"))
 
     if alt is not primary:
-        to_download.append((alt, f"{movie_name}-alt.zh.{alt.ext}"))
+        to_download.append((alt, f"{movie_name}-alt{_ZH_PREFIX}{alt.ext}"))
 
     # 执行下载
     downloaded_files = []
