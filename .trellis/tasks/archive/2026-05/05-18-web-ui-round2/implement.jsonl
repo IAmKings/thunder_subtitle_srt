@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guidelines index — must-read for all page implementations"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component patterns: AppShell, Sidebar, withAuth, dark theme tokens"}
+{"file": ".trellis/spec/frontend/authentication.md", "reason": "JWT auth with FastAPI, AuthProvider, withAuth HOC"}
+{"file": ".trellis/spec/frontend/api-integration.md", "reason": "FastApiClient methods, ProgressWebSocket, error handling"}
+{"file": ".trellis/spec/frontend/css-layout.md", "reason": "Dark theme design tokens, layout patterns for all pages"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "TypeScript types mirroring Pydantic schemas, snake_case convention"}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "useAuth, useTranslations, useHistory hooks"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Pre-commit checklist for code quality"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend guidelines — FastAPI router patterns, service layer, auth middleware"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Cross-stack code quality rules (Python ruff + TypeScript eslint)"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer data flow: FastAPI → JSON → TypeScript, auth boundaries, WebSocket contracts"}
+{"file": "design/media_management_utility/DESIGN.md", "reason": "Design system: colors, typography, spacing, component styles"}

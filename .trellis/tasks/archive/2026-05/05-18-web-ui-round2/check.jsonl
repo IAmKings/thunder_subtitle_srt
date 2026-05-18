@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Pre-commit checklist — lint, typecheck, no any, no console.log"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "TypeScript type mirroring rules — snake_case API keys, no any"}
+{"file": ".trellis/spec/frontend/api-integration.md", "reason": "FastApiClient, ProgressWebSocket, error handling patterns"}
+{"file": ".trellis/spec/frontend/authentication.md", "reason": "JWT auth: withAuth HOC, token storage, 401 handling"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend quality: Pydantic schemas, error handling, auth middleware"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Cross-stack code quality: Python ruff + TypeScript eslint rules"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer review: data format at each boundary, auth context, WebSocket messages"}
