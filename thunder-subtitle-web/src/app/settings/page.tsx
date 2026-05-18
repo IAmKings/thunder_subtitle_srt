@@ -66,12 +66,13 @@ function SettingsPage() {
         setPreferredGroups(cfg.preferred_groups);
         setMediaPaths(cfg.media_paths);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load configuration");
+        setError(err instanceof Error ? err.message : t("failed_load_config"));
       } finally {
         setIsLoading(false);
       }
     }
     loadConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -93,13 +94,13 @@ function SettingsPage() {
         media_paths: mediaPaths,
       });
       setConfig(updated);
-      setSuccess("Configuration saved successfully");
+      setSuccess(t("configuration_saved"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save configuration");
+      setError(err instanceof Error ? err.message : t("failed_save_config"));
     } finally {
       setIsSaving(false);
     }
-  }, [config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths]);
+  }, [config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, t]);
 
   const handleResetDefaults = useCallback(async () => {
     setIsSaving(true);
@@ -118,38 +119,40 @@ function SettingsPage() {
       setRetryDelay(cfg.retry_delay);
       setPreferredGroups(cfg.preferred_groups);
       setMediaPaths(cfg.media_paths);
-      setSuccess("Configuration reset to defaults");
+      setSuccess(t("configuration_reset"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reset configuration");
+      setError(err instanceof Error ? err.message : t("failed_reset_config"));
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [t]);
 
   const handleChangePassword = useCallback(async () => {
     setPasswordError(null);
     setPasswordSuccess(null);
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match");
+      setPasswordError(t("password_mismatch"));
       return;
     }
     if (newPassword.length < 4) {
-      setPasswordError("Password must be at least 4 characters");
+      setPasswordError(t("password_length"));
       return;
     }
 
     setIsChangingPassword(true);
     try {
-      // For MVP: password change is not implemented in the backend
-      // We'd need a dedicated endpoint. For now, show a message.
-      setPasswordSuccess("Password change feature coming soon");
-    } catch {
-      setPasswordError("Failed to change password");
+      await fastApiClient.changePassword(currentPassword, newPassword);
+      setPasswordSuccess(t("password_changed"));
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : t("failed_change_password"));
     } finally {
       setIsChangingPassword(false);
     }
-  }, [newPassword, confirmPassword]);
+  }, [currentPassword, newPassword, confirmPassword, t]);
 
   if (isLoading) {
     return (
@@ -211,7 +214,7 @@ function SettingsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Media Paths
+                {t("media_paths")}
               </label>
               <input
                 type="text"
@@ -223,7 +226,7 @@ function SettingsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                API Timeout (seconds)
+                {t("api_timeout")}
               </label>
               <input
                 type="number"
@@ -239,12 +242,12 @@ function SettingsPage() {
           {/* Advanced settings - collapsible */}
           <details className="mt-6">
             <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-on-surface-variant hover:text-primary">
-              Advanced Settings
+              {t("advanced_settings")}
             </summary>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  Download Timeout (seconds)
+                  {t("download_timeout")}
                 </label>
                 <input
                   type="number"
@@ -257,7 +260,7 @@ function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  Chunk Size (bytes)
+                  {t("chunk_size")}
                 </label>
                 <input
                   type="number"
@@ -269,7 +272,7 @@ function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  Rate Limit (seconds between queries)
+                  {t("rate_limit")}
                 </label>
                 <input
                   type="number"
@@ -282,7 +285,7 @@ function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  Retry Count
+                  {t("retry_count")}
                 </label>
                 <input
                   type="number"
@@ -295,7 +298,7 @@ function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  Retry Delay (seconds)
+                  {t("retry_delay")}
                 </label>
                 <input
                   type="number"
@@ -323,9 +326,9 @@ function SettingsPage() {
                   <div className="h-6 w-6 rounded-sm bg-primary/40" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Xunlei Subtitle API</p>
+                  <p className="text-sm font-bold">{t("xunlei_subtitle_api")}</p>
                   <p className="text-[10px] font-bold uppercase text-on-surface-variant">
-                    Active &bull; Default Source
+                    {t("active_default_source")}
                   </p>
                 </div>
               </div>
@@ -383,7 +386,7 @@ function SettingsPage() {
         <section className="ghost-border rounded-xl bg-surface-container p-6">
           <div className="mb-6 flex items-center gap-2 border-b border-outline-variant/20 pb-2">
             <Key className="text-tertiary" size={20} />
-            <h3 className="text-lg font-bold">Change Password</h3>
+            <h3 className="text-lg font-bold">{t("change_password")}</h3>
           </div>
           {passwordError && (
             <div className="mb-4 rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
@@ -398,7 +401,7 @@ function SettingsPage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Current Password
+                {t("current_password")}
               </label>
               <input
                 type="password"
@@ -409,7 +412,7 @@ function SettingsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                New Password
+                {t("new_password")}
               </label>
               <input
                 type="password"
@@ -420,7 +423,7 @@ function SettingsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Confirm New Password
+                {t("confirm_password")}
               </label>
               <input
                 type="password"
@@ -438,7 +441,7 @@ function SettingsPage() {
               className="rounded-lg border border-outline-variant px-6 py-2 text-sm font-bold transition-colors hover:bg-surface-container-high active:scale-95 disabled:opacity-50"
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
-              {isChangingPassword ? "Changing..." : "Change Password"}
+              {isChangingPassword ? t("changing") : t("change_password")}
             </button>
           </div>
         </section>

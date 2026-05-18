@@ -63,12 +63,13 @@ function ScannerPage() {
         const dirs = await fastApiClient.listMediaDirectories();
         setMediaDirs(dirs);
       } catch {
-        setError("Failed to load media directories");
+        setError(t("failed_load_dirs"));
       } finally {
         setIsLoadingDirs(false);
       }
     }
     loadDirs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Check for running tasks on mount
@@ -149,11 +150,11 @@ function ScannerPage() {
       setActiveTask(task);
       setProgress(0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start scan");
+      setError(err instanceof Error ? err.message : t("failed_start_scan"));
     } finally {
       setIsStartingScan(false);
     }
-  }, [isStartingScan, mediaDirs]);
+  }, [isStartingScan, mediaDirs, t]);
 
   const handleCancelTask = useCallback(async () => {
     if (!activeTask) return;
@@ -161,9 +162,9 @@ function ScannerPage() {
       const task = await fastApiClient.cancelTask(activeTask.id);
       setActiveTask(task);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to cancel task");
+      setError(err instanceof Error ? err.message : t("failed_cancel_task"));
     }
-  }, [activeTask]);
+  }, [activeTask, t]);
 
   const isRunning = activeTask?.status === "running" || activeTask?.status === "pending";
   const totalFiles = mediaDirs.reduce((sum, d) => sum + d.movie_count, 0);
@@ -196,7 +197,7 @@ function ScannerPage() {
                 {t("library_path")}
               </p>
               <h2 className="text-xl font-bold text-on-surface-variant">
-                {isLoadingDirs ? "Loading..." : "No directories configured"}
+                {isLoadingDirs ? t("loading") : t("no_directories")}
               </h2>
             </div>
             <FolderOpen size={24} className="text-on-surface-variant" />
@@ -245,7 +246,7 @@ function ScannerPage() {
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
                 <StopCircle size={16} />
-                Cancel
+                {t("cancel")}
               </button>
             )}
             <button
@@ -256,7 +257,7 @@ function ScannerPage() {
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
               <Play size={16} fill="currentColor" />
-              {isStartingScan ? "Starting..." : isRunning ? t("scanning") : t("scan_now")}
+              {isStartingScan ? t("starting") : isRunning ? t("scanning") : t("scan_now")}
             </button>
           </div>
         </div>
@@ -274,7 +275,7 @@ function ScannerPage() {
                     </span>
                   </>
                 ) : (
-                  <span className="text-on-surface-variant">Starting scan...</span>
+                  <span className="text-on-surface-variant">{t("starting")}</span>
                 )}
               </span>
               <span className="font-bold">
@@ -328,8 +329,8 @@ function ScannerPage() {
                 <tr>
                   <td className="px-6 py-8 text-center text-sm text-on-surface-variant" colSpan={5}>
                     {activeTask?.status === "running"
-                      ? "Scan in progress... Results will appear here."
-                      : 'No scan results yet. Click "Scan Now" to start scanning your media library.'}
+                      ? t("scan_progress")
+                      : t("no_results_scan")}
                   </td>
                 </tr>
               ) : (
@@ -370,7 +371,7 @@ function ScannerPage() {
                         className="text-xs text-primary hover:underline"
                         style={{ WebkitTapHighlightColor: "transparent" }}
                       >
-                        View
+                        {t("view")}
                       </button>
                     </td>
                   </tr>
@@ -380,7 +381,7 @@ function ScannerPage() {
           </table>
         </div>
         <div className="flex items-center justify-between bg-surface-container-low px-6 py-4 text-sm text-on-surface-variant">
-          <span>{findings.length} results</span>
+          <span>{t("x_results").replace("{x}", String(findings.length))}</span>
           <div className="flex gap-2">
             <button type="button" className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high">
               <ChevronLeft size={16} />

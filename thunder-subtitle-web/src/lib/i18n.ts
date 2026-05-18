@@ -147,6 +147,34 @@ const translations: Record<Language, Record<string, string>> = {
     review_list_error: "Failed to load reviews",
     mark_error: "Failed to mark review",
     format_encoding_short: "Format: {format} • Enc: {encoding}",
+
+    // Scanner (additional)
+    failed_load_dirs: "Failed to load media directories",
+    failed_start_scan: "Failed to start scan",
+    failed_cancel_task: "Failed to cancel task",
+    x_results: "{x} results",
+
+    // Verification (additional)
+    loading_reviews: "Loading reviews...",
+    no_pending_subs: "No subtitles pending verification in this directory.",
+    no_media_dirs_settings: "No media directories configured. Add paths in Settings.",
+    run_scan_first: "Run a scan first to populate this list.",
+    no_file_selected: "No file selected",
+    unknown_encoding: "unknown encoding",
+    select_file_panel: "Select a file from the left panel",
+    chinese_content_ratio: "Chinese content ratio:",
+    quality_score: "Quality score:",
+    subtitle_preview_here: "Subtitle content preview will appear here",
+
+    // Settings (additional)
+    failed_load_config: "Failed to load configuration",
+    failed_save_config: "Failed to save configuration",
+    failed_reset_config: "Failed to reset configuration",
+    failed_change_password: "Failed to change password",
+    password_changed: "Password changed successfully",
+    xunlei_subtitle_api: "Xunlei Subtitle API",
+    active_default_source: "Active • Default Source",
+    changing: "Changing...",
   },
   zh: {
     // Nav
@@ -286,6 +314,34 @@ const translations: Record<Language, Record<string, string>> = {
     review_list_error: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u5931\u8d25",
     mark_error: "\u6807\u8bb0\u5ba1\u67e5\u7ed3\u679c\u5931\u8d25",
     format_encoding_short: "\u683c\u5f0f: {format} \u2022 \u7f16\u7801: {encoding}",
+
+    // Scanner (additional)
+    failed_load_dirs: "\u52a0\u8f7d\u5a92\u4f53\u76ee\u5f55\u5931\u8d25",
+    failed_start_scan: "\u542f\u52a8\u626b\u63cf\u5931\u8d25",
+    failed_cancel_task: "\u53d6\u6d88\u4efb\u52a1\u5931\u8d25",
+    x_results: "{x} \u4e2a\u7ed3\u679c",
+
+    // Verification (additional)
+    loading_reviews: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u4e2d...",
+    no_pending_subs: "\u8be5\u76ee\u5f55\u4e0b\u6ca1\u6709\u5f85\u9a8c\u8bc1\u7684\u5b57\u5e55\u3002",
+    no_media_dirs_settings: "\u672a\u914d\u7f6e\u5a92\u4f53\u76ee\u5f55\uff0c\u8bf7\u5728\u8bbe\u7f6e\u4e2d\u6dfb\u52a0\u8def\u5f84\u3002",
+    run_scan_first: "\u8bf7\u5148\u8fd0\u884c\u626b\u63cf\u4ee5\u586b\u5145\u6b64\u5217\u8868\u3002",
+    no_file_selected: "\u672a\u9009\u62e9\u6587\u4ef6",
+    unknown_encoding: "\u672a\u77e5\u7f16\u7801",
+    select_file_panel: "\u4ece\u5de6\u4fa7\u9762\u677f\u9009\u62e9\u6587\u4ef6",
+    chinese_content_ratio: "\u4e2d\u6587\u5185\u5bb9\u6bd4\u4f8b\uff1a",
+    quality_score: "\u8d28\u91cf\u8bc4\u5206\uff1a",
+    subtitle_preview_here: "\u5b57\u5e55\u5185\u5bb9\u9884\u89c8\u5c06\u5728\u6b64\u663e\u793a",
+
+    // Settings (additional)
+    failed_load_config: "\u52a0\u8f7d\u914d\u7f6e\u5931\u8d25",
+    failed_save_config: "\u4fdd\u5b58\u914d\u7f6e\u5931\u8d25",
+    failed_reset_config: "\u91cd\u7f6e\u914d\u7f6e\u5931\u8d25",
+    failed_change_password: "\u4fee\u6539\u5bc6\u7801\u5931\u8d25",
+    password_changed: "\u5bc6\u7801\u4fee\u6539\u6210\u529f",
+    xunlei_subtitle_api: "\u8fc5\u96f7\u5b57\u5e55 API",
+    active_default_source: "\u6d3b\u8dc3 \u2022 \u9ed8\u8ba4\u6765\u6e90",
+    changing: "\u4fee\u6539\u4e2d...",
   },
 };
 

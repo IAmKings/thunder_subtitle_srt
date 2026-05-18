@@ -195,6 +195,13 @@ export class FastApiClient {
     }
   }
 
+  async changePassword(oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    return fastApiFetch<{ success: boolean; message: string }>("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    });
+  }
+
   // ---- Search (via FastAPI) ----
 
   async searchSubtitles(

@@ -69,12 +69,13 @@ function VerificationPage() {
         const reviewItems = (result.items as ReviewItem[]) || [];
         setItems(reviewItems);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load reviews");
+        setError(err instanceof Error ? err.message : t("review_list_error"));
       } finally {
         setIsLoading(false);
       }
     }
     loadReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMark = useCallback(
@@ -97,12 +98,12 @@ function VerificationPage() {
             : null
         );
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to mark review");
+        setError(err instanceof Error ? err.message : t("mark_error"));
       } finally {
         setMarkingPath(null);
       }
     },
-    [selectedItem, baseDir]
+    [selectedItem, baseDir, t]
   );
 
   const okCount = items.filter((i) => i.review_status === "ok").length;
@@ -144,7 +145,7 @@ function VerificationPage() {
         {isLoading && (
           <div className="flex flex-col items-center gap-3 py-12">
             <Loader2 size={24} className="animate-spin text-primary" />
-            <p className="text-sm text-on-surface-variant">Loading reviews...</p>
+            <p className="text-sm text-on-surface-variant">{t("loading_reviews")}</p>
           </div>
         )}
 
@@ -159,10 +160,10 @@ function VerificationPage() {
         {!isLoading && items.length === 0 && (
           <div className="py-12 text-center text-sm text-on-surface-variant">
             {baseDir
-              ? "No subtitles pending verification in this directory."
-              : "No media directories configured. Add paths in Settings."}
+              ? t("no_pending_subs")
+              : t("no_media_dirs_settings")}
             <br />
-            {baseDir && "Run a scan first to populate this list."}
+            {baseDir && t("run_scan_first")}
           </div>
         )}
 
@@ -218,12 +219,12 @@ function VerificationPage() {
             </div>
             <div>
               <p className="text-sm font-bold">
-                {selectedItem ? selectedItem.file_name : "No file selected"}
+                {selectedItem ? selectedItem.file_name : t("no_file_selected")}
               </p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                 {selectedItem
-                  ? `${selectedItem.quality} • ${selectedItem.encoding || "unknown encoding"}`
-                  : "Select a file from the left panel"}
+                   ? `${selectedItem.quality} • ${selectedItem.encoding || t("unknown_encoding")}`
+                   : t("select_file_panel")}
               </p>
             </div>
           </div>
@@ -295,16 +296,16 @@ function VerificationPage() {
                 </p>
                 {selectedItem.chinese_ratio > 0 && (
                   <p className="text-primary">
-                    Chinese content ratio: {Math.round(selectedItem.chinese_ratio * 100)}%
+                    {t("chinese_content_ratio")} {Math.round(selectedItem.chinese_ratio * 100)}%
                   </p>
                 )}
                 <p className="text-on-surface-variant">
-                  Quality score: {selectedItem.quality}
+                  {t("quality_score")} {selectedItem.quality}
                 </p>
               </div>
             ) : (
               <p className="text-on-surface-variant">
-                Subtitle content preview will appear here
+                {t("subtitle_preview_here")}
               </p>
             )}
           </div>

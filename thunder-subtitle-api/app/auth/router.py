@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from jose import JWTError, jwt
 
 from app.config import settings
@@ -35,6 +35,11 @@ class UserInfo(BaseModel):
 class VerifyResponse(BaseModel):
     valid: bool
     username: str = ""
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=4)
 
 
 # ---- Helpers ----
@@ -123,3 +128,33 @@ async def verify_token_post(body: dict):
         valid=True,
         username=payload.get("sub", ""),
     )
+
+
+@router.post("/change-password")
+async def change_password(request: Request, body: ChangePasswordRequest):
+    """Change the admin password. Requires authentication."""
+    # Verify auth
+    token = extract_token_from_request(request)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization header",
+        )
+    payload = verify_access_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    # Verify old password
+    if body.old_password != settings.admin_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Old password is incorrect",
+        )
+
+    # Update password (for single-admin MVP: update the settings object)
+    settings.admin_password = body.new_password
+
+    return {"success": True, "message": "Password changed successfully"}
