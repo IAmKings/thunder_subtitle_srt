@@ -12,9 +12,10 @@ import type {
   SearchResult,
   TaskResponse,
   AppConfig,
+  ReviewItem,
 } from "@/lib/types";
 
-export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig };
+export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem };
 
 const FASTAPI_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const NEXTJS_API_BASE_URL = "/api";
@@ -270,12 +271,12 @@ export class FastApiClient {
   // ---- Reviews ----
 
   async listReviews(baseDir: string, nameFilter?: string): Promise<{
-    items: Array<unknown>;
+    items: ReviewItem[];
     total: number;
   }> {
     const params = new URLSearchParams({ base_dir: baseDir });
     if (nameFilter) params.set("name_filter", nameFilter);
-    return fastApiFetch<{ items: Array<unknown>; total: number }>(`/api/review/list?${params.toString()}`);
+    return fastApiFetch<{ items: ReviewItem[]; total: number }>(`/api/review/list?${params.toString()}`);
   }
 
   async markReview(baseDir: string, path: string, status: "ok" | "fail"): Promise<{

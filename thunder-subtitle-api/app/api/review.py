@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.auth.dependencies import get_current_user
 from app.models.schemas import (
     ReviewListRequest,
     ReviewListResponse,
@@ -25,6 +26,7 @@ async def list_reviews(
     base_dir: str = Query(..., description="Base directory to scan"),
     name_filter: Optional[str] = Query(None, description="Filter by name keyword"),
     service: ReviewService = Depends(get_review_service),
+    _user: str = Depends(get_current_user),
 ):
     """List review items for subtitles in a directory."""
     try:
@@ -38,6 +40,7 @@ async def list_reviews(
 async def mark_review(
     body: ReviewMarkRequest,
     service: ReviewService = Depends(get_review_service),
+    _user: str = Depends(get_current_user),
 ):
     """Mark a subtitle directory as reviewed (ok/fail)."""
     try:

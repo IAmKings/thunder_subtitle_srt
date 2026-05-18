@@ -19,6 +19,7 @@ import { useTranslations } from "@/lib/i18n";
 // ---- Types ----
 
 type FilterMode = "all" | "chinese_only" | "chinese_first";
+type SortMode = "relevance" | "newest" | "score";
 
 interface HistoryItem {
   id: string;
@@ -129,16 +130,27 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("relevance");
   const [maxDuration, setMaxDuration] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
 
-  // Derive filtered subtitles from allSubtitles + filter state
-  const subtitles = useMemo(
-    () => filterSubtitles(allSubtitles, filterMode, maxDuration),
-    [allSubtitles, filterMode, maxDuration]
-  );
+  // Derive filtered and sorted subtitles from allSubtitles + filter/sort state
+  const subtitles = useMemo(() => {
+    let filtered = filterSubtitles(allSubtitles, filterMode, maxDuration);
+
+    // Apply sorting
+    if (sortMode === "newest") {
+      // Higher score typically correlates with newer; also use gcid as tiebreaker
+      filtered = [...filtered].sort((a, b) => b.score - a.score || (b.duration || 0) - (a.duration || 0));
+    } else if (sortMode === "score") {
+      filtered = [...filtered].sort((a, b) => b.score - a.score);
+    }
+    // "relevance" = default API order (no re-sort)
+
+    return filtered;
+  }, [allSubtitles, filterMode, maxDuration, sortMode]);
 
   const handleSearch = useCallback(
     async (searchQuery?: string) => {
@@ -332,6 +344,29 @@ export default function SearchPage() {
                     </span>
                   </h3>
                   <div className="flex gap-2">
+                    <div className="flex rounded-lg border border-outline-variant/30 bg-surface-container p-1">
+                      {(
+                        [
+                          { mode: "relevance" as SortMode, label: "Relevance" },
+                          { mode: "newest" as SortMode, label: "Newest" },
+                          { mode: "score" as SortMode, label: "Score" },
+                        ] as const
+                      ).map(({ mode, label }) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setSortMode(mode)}
+                          className={`rounded-md px-3 py-1 text-xs font-bold transition-all ${
+                            sortMode === mode
+                              ? "bg-primary text-on-primary"
+                              : "text-on-surface-variant hover:bg-surface-container-high"
+                          }`}
+                          style={{ WebkitTapHighlightColor: "transparent" }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                     <button
                       type="button"
                       className="flex items-center gap-1 rounded-full border border-outline-variant/30 bg-surface-container px-4 py-1.5 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-container-highest"

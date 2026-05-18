@@ -1,6 +1,9 @@
 """Scan service — wraps the CLI scanner for directory scanning tasks."""
 
+import asyncio
+import logging
 import os
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
@@ -12,31 +15,310 @@ from app.models.schemas import (
     TaskResponse,
     TaskStatus,
     TaskType,
+    TaskProgressUpdate,
 )
+from app.ws.manager import manager as ws_manager
+
+logger = logging.getLogger(__name__)
 
 
 class ScanService:
     """Service that wraps the CLI scanner for media library operations."""
 
-    # In-memory task storage (placeholder — use a proper store in production)
+    # Class-level task storage (shared across all instances)
     _tasks: dict[str, TaskResponse] = {}
+    _task_handles: dict[str, asyncio.Task] = {}
 
     def create_task(self, request: TaskCreate) -> TaskResponse:
         """Create a new scan/review/dump task."""
         task_id = str(uuid4())
+        now = datetime.now(timezone.utc).isoformat()
         task = TaskResponse(
             id=task_id,
             type=request.type,
             status=TaskStatus.PENDING,
-            progress=0,
+            progress=0.0,
             message="Task created, waiting to start",
             params=request.params,
-            created_at="",
-            updated_at="",
+            created_at=now,
+            updated_at=now,
         )
         self._tasks[task_id] = task
-        # TODO: Enqueue task for background execution via asyncio
         return task
+
+    def get_task(self, task_id: str) -> Optional[TaskResponse]:
+        """Get a task by ID."""
+        return self._tasks.get(task_id)
+
+    def list_tasks(
+        self,
+        status_filter: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[TaskResponse], int]:
+        """List tasks with optional filtering."""
+        tasks = list(self._tasks.values())
+        if status_filter:
+            tasks = [t for t in tasks if t.status.value == status_filter]
+        total = len(tasks)
+        # Sort by created_at descending
+        tasks.sort(key=lambda t: t.created_at, reverse=True)
+        tasks = tasks[offset : offset + limit]
+        return tasks, total
+
+    def cancel_task(self, task_id: str) -> Optional[TaskResponse]:
+        """Cancel a running task."""
+        task = self._tasks.get(task_id)
+        if task is None:
+            return None
+
+        # Cancel the asyncio task if running
+        handle = self._task_handles.get(task_id)
+        if handle and not handle.done():
+            handle.cancel()
+
+        task.status = TaskStatus.CANCELLED
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+        task.message = "Task cancelled by user"
+        return task
+
+    async def start_task(self, task_id: str) -> None:
+        """Start executing a task in the background."""
+        task = self._tasks.get(task_id)
+        if task is None:
+            return
+
+        task.status = TaskStatus.RUNNING
+        task.progress = 0.0
+        task.message = "Task started"
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+
+        try:
+            if task.type == TaskType.SCAN:
+                await self._execute_scan(task)
+            elif task.type == TaskType.REVIEW:
+                await self._execute_review(task)
+            elif task.type == TaskType.DUMP:
+                await self._execute_dump(task)
+            else:
+                task.status = TaskStatus.FAILED
+                task.message = f"Unknown task type: {task.type}"
+        except asyncio.CancelledError:
+            task.status = TaskStatus.CANCELLED
+            task.message = "Task was cancelled"
+        except Exception as e:
+            logger.exception("Task %s failed", task_id)
+            task.status = TaskStatus.FAILED
+            task.message = f"Task failed: {e}"
+        finally:
+            task.updated_at = datetime.now(timezone.utc).isoformat()
+            # Broadcast final state
+            await ws_manager.broadcast(
+                task_id,
+                TaskProgressUpdate(
+                    task_id=task_id,
+                    progress=task.progress,
+                    message=task.message,
+                    status=task.status,
+                ).model_dump(),
+            )
+            # Clean up handle
+            self._task_handles.pop(task_id, None)
+
+    async def _execute_scan(self, task: TaskResponse) -> None:
+        """Execute a scan task using the CLI scanner."""
+        try:
+            from src.scanner import scan_movie_dirs, process_scanned_movies
+            from src.config import Config
+        except ImportError:
+            try:
+                from thunder_subtitle.scanner import scan_movie_dirs, process_scanned_movies  # type: ignore[import-untyped]
+                from thunder_subtitle.config import Config  # type: ignore[import-untyped]
+            except ImportError:
+                raise RuntimeError("Scanner module not available")
+
+        # Determine which path(s) to scan
+        scan_path = task.params.get("path", "")
+        if not scan_path:
+            # Use all configured media paths
+            paths = settings.media_paths_list
+            if not paths:
+                task.status = TaskStatus.FAILED
+                task.message = "No media paths configured"
+                return
+        else:
+            paths = [scan_path]
+
+        config = Config.load()
+        total_dirs = 0
+        processed = 0
+
+        for path in paths:
+            if not os.path.isdir(path):
+                continue
+
+            # Scan directories using sync CLI function in thread
+            movie_dirs = await asyncio.to_thread(scan_movie_dirs, path)
+            total_dirs += len(movie_dirs)
+
+            if not movie_dirs:
+                continue
+
+            # Process each movie directory
+            for i, movie_path in enumerate(movie_dirs):
+                movie_name = os.path.basename(movie_path)
+                progress_pct = ((processed + i + 1) / max(total_dirs, 1)) * 100
+                task.progress = min(progress_pct, 100.0)
+                task.message = f"Scanning: {movie_name}"
+                task.updated_at = datetime.now(timezone.utc).isoformat()
+
+                await ws_manager.broadcast(
+                    task.id,
+                    TaskProgressUpdate(
+                        task_id=task.id,
+                        progress=task.progress,
+                        message=task.message,
+                        status=TaskStatus.RUNNING,
+                    ).model_dump(),
+                )
+
+                # Process one movie (download subtitle)
+                try:
+                    client_cls = None
+                    try:
+                        from src.api import SubtitleApiClient as ClientCls
+                        client_cls = ClientCls
+                    except ImportError:
+                        from thunder_subtitle.api import SubtitleApiClient as ClientCls  # type: ignore[import-untyped]
+
+                    client = client_cls()
+                    try:
+                        await asyncio.to_thread(
+                            process_scanned_movies,
+                            [movie_path],
+                            False,  # dry_run
+                            config,
+                            False,  # needs_delay
+                            False,  # dump_mode
+                        )
+                    finally:
+                        client.close()
+                except Exception as e:
+                    logger.warning("Failed to process %s: %s", movie_name, e)
+
+                # Small delay for rate limiting
+                if config.rate_limit > 0:
+                    await asyncio.sleep(config.rate_limit)
+
+            processed += len(movie_dirs)
+
+        task.status = TaskStatus.COMPLETED
+        task.progress = 100.0
+        task.message = f"Scan completed. Processed {total_dirs} directories."
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+
+    async def _execute_review(self, task: TaskResponse) -> None:
+        """Execute a review task using the CLI reviewer."""
+        try:
+            from src.reviewer import review_directory
+            from src.scanner import scan_movie_dirs
+        except ImportError:
+            try:
+                from thunder_subtitle.reviewer import review_directory  # type: ignore[import-untyped]
+                from thunder_subtitle.scanner import scan_movie_dirs  # type: ignore[import-untyped]
+            except ImportError:
+                raise RuntimeError("Reviewer module not available")
+
+        base_dir = task.params.get("path", "")
+        if not base_dir:
+            paths = settings.media_paths_list
+            base_dir = paths[0] if paths else ""
+
+        if not base_dir or not os.path.isdir(base_dir):
+            task.status = TaskStatus.FAILED
+            task.message = f"Invalid review path: {base_dir}"
+            return
+
+        task.message = f"Reviewing: {base_dir}"
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+
+        await ws_manager.broadcast(
+            task.id,
+            TaskProgressUpdate(
+                task_id=task.id,
+                progress=10.0,
+                message=task.message,
+                status=TaskStatus.RUNNING,
+            ).model_dump(),
+        )
+
+        # Run review in thread (it's sync CLI code)
+        items = await asyncio.to_thread(review_directory, base_dir)
+
+        task.progress = 100.0
+        task.status = TaskStatus.COMPLETED
+        task.message = f"Review completed. Found {len(items)} subtitle files."
+        task.updated_at = datetime.now(timezone.utc).isoformat()
+
+    async def _execute_dump(self, task: TaskResponse) -> None:
+        """Execute a dump task (download all subtitles for a path)."""
+        # Dump is similar to scan but with dump_mode=True
+        try:
+            from src.scanner import scan_movie_dirs, process_scanned_movies
+            from src.config import Config
+        except ImportError:
+            try:
+                from thunder_subtitle.scanner import scan_movie_dirs, process_scanned_movies  # type: ignore[import-untyped]
+                from thunder_subtitle.config import Config  # type: ignore[import-untyped]
+            except ImportError:
+                raise RuntimeError("Scanner module not available")
+
+        scan_path = task.params.get("path", "")
+        paths = [scan_path] if scan_path else settings.media_paths_list
+
+        config = Config.load()
+        total_processed = 0
+
+        for path in paths:
+            if not os.path.isdir(path):
+                continue
+
+            movie_dirs = await asyncio.to_thread(scan_movie_dirs, path)
+
+            for i, movie_path in enumerate(movie_dirs):
+                movie_name = os.path.basename(movie_path)
+                task.progress = min(((total_processed + i + 1) / max(len(movie_dirs), 1)) * 100, 100.0)
+                task.message = f"Dumping: {movie_name}"
+                task.updated_at = datetime.now(timezone.utc).isoformat()
+
+                await ws_manager.broadcast(
+                    task.id,
+                    TaskProgressUpdate(
+                        task_id=task.id,
+                        progress=task.progress,
+                        message=task.message,
+                        status=TaskStatus.RUNNING,
+                    ).model_dump(),
+                )
+
+                try:
+                    await asyncio.to_thread(
+                        process_scanned_movies,
+                        [movie_path],
+                        False,  # dry_run
+                        config,
+                        False,  # needs_delay
+                        True,  # dump_mode
+                    )
+                except Exception as e:
+                    logger.warning("Dump failed for %s: %s", movie_name, e)
+
+            total_processed += len(movie_dirs)
+
+        task.status = TaskStatus.COMPLETED
+        task.progress = 100.0
+        task.message = f"Dump completed. Processed {total_processed} directories."
+        task.updated_at = datetime.now(timezone.utc).isoformat()
 
     def list_media_directories(self) -> list[MediaDirectory]:
         """List configured media directories with file counts."""
@@ -80,3 +362,7 @@ class ScanService:
             has_chinese_subtitle=nfo.has_chinese_subtitle,
             release_date=nfo.release_date,
         )
+
+
+# Singleton instance for task storage
+scan_service = ScanService()

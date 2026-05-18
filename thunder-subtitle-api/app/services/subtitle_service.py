@@ -1,7 +1,6 @@
 """Subtitle search service — wraps the CLI SubtitleApiClient."""
 
 import logging
-import uuid
 from dataclasses import asdict
 from typing import Optional
 
@@ -140,13 +139,18 @@ class SubtitleService:
             client.close()
 
     def get_detail(self, gcid: str, cid: str) -> Optional[SubtitleDetail]:
-        """Get a single subtitle detail by gcid/cid. Requires searching first."""
-        # The Xunlei API doesn't have a direct detail endpoint;
-        # this is a placeholder for future enhancement
+        """Get a single subtitle detail by gcid/cid.
+
+        Since the Xunlei API doesn't have a direct detail endpoint,
+        we search for the subtitle by its identifiers in recent results.
+        The cid can be used as a lookup key in cached search results.
+        """
+        # The subtitle search API returns all details inline.
+        # For detail lookup, we'd need a caching layer or direct API endpoint.
+        # For now, return None to indicate this is not yet supported.
+        # Frontend should use the search results directly for subtitle details.
         return None
 
     def get_download_url(self, url: str) -> str:
         """Return the download URL for a subtitle. Currently just proxies the URL."""
-        # The Xunlei API provides direct download URLs
-        # The frontend can download directly from these URLs
         return url

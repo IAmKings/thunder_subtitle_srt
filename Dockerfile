@@ -1,6 +1,9 @@
 # ---- Stage 1: Build Next.js Frontend ----
 FROM node:20-alpine AS frontend-builder
 
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 WORKDIR /app/web
 COPY thunder-subtitle-web/package.json thunder-subtitle-web/pnpm-lock.yaml thunder-subtitle-web/pnpm-workspace.yaml ./
 RUN corepack enable pnpm && pnpm install --frozen-lockfile
@@ -43,7 +46,6 @@ ENV PYTHONPATH="/app/thunder_subtitle_py_src:${PYTHONPATH}"
 ENV NODE_ENV=production
 ENV ADMIN_PASSWORD=changeme
 ENV MEDIA_PATHS=/media
-ENV NEXT_PUBLIC_API_URL=http://localhost:8000
 
 # Copy supervisord config
 COPY supervisord.conf /etc/supervisord/supervisord.conf
