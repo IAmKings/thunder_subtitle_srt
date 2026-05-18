@@ -1,0 +1,249 @@
+/**
+ * Internationalization (i18n) support for Thunder Subtitle Web UI.
+ * Supports English and Chinese translations.
+ */
+
+import { useCallback } from "react";
+import { useLanguage } from "@/components/ThemeProvider";
+
+type Language = "en" | "zh";
+
+const translations: Record<Language, Record<string, string>> = {
+  en: {
+    // Nav
+    title: "Thunder Subtitle",
+    subtitle: "Subtitle Manager",
+    search: "Search",
+    scanner: "Scanner",
+    verification: "Verification",
+    settings: "Settings",
+    profile: "Profile",
+
+    // Scanner
+    library_path: "Library Path",
+    total_files: "Total Files",
+    items: "items",
+    missing_subs: "Missing Subs",
+    active_jellyfin_scan: "Active Jellyfin Scan",
+    sync_desc: "Syncing metadata and identifying missing subtitle tracks",
+    scan_now: "SCAN NOW",
+    scanning: "Scanning",
+    complete: "Complete",
+    recent_findings: "Recent Findings",
+    all_status: "All Status",
+    media_file: "Media File",
+    type: "Type",
+    resolution: "Resolution",
+    status: "Status",
+    action: "Action",
+    showing_x_of_y: "Showing {x} of {y} files",
+    movie: "Movie",
+    tv_show: "TV Show",
+
+    // Verification
+    pending_verification: "Pending Verification",
+    files: "Files",
+    untagged: "Untagged",
+    ai_flagged: "AI-Flagged",
+    sync_error: "Sync-Error",
+    manual_required: "Manual-Required",
+    match: "MATCH",
+    dur: "DUR",
+    format_encoding: "Format: {format} \u2022 Encoding: {encoding}",
+    correct: "Correct",
+    off_sync: "Off-sync",
+    wrong_lang: "Wrong Language",
+    confirm_verification: "Confirm Verification",
+    play_pause: "Play/Pause",
+    mark_correct: "Mark Correct",
+    confirm: "Confirm",
+
+    // Search
+    find_perfect: "Find the perfect translation",
+    search_desc: "Access millions of subtitles for movies and TV shows in over 50 languages.",
+    search_placeholder: "Search for movies, TV series, or documentaries...",
+    search_btn: "SEARCH",
+    recent_searches: "Recent Searches",
+    clear: "Clear",
+    go_pro: "Go Pro",
+    pro_desc: "Unlimited downloads and ad-free experience.",
+    upgrade: "UPGRADE",
+    top_results: "Top Results",
+    x_matches: "({x} matches)",
+    filter: "Filter",
+    newest: "Newest",
+    download: "DOWNLOAD",
+    load_more: "LOAD MORE RESULTS",
+    lang_52: "52 Languages",
+    lang_desc: "Our community translates content into more than fifty regional languages daily.",
+    instant_sync: "Instant Sync",
+    sync_feature_desc: "One-click download and automatic synchronization with your local media library.",
+    verified_only: "Verified Only",
+    verified_desc: "All uploads are scanned for malicious scripts and formatted for readability.",
+
+    // Auth
+    logged_in_as: "Logged in as",
+    logout: "Sign Out",
+    sign_in: "Sign In",
+    sign_in_desc: "Sign in to manage your subtitles",
+    username: "Username",
+    password: "Password",
+    default_credentials: "Default credentials: admin / changeme",
+    signing_in: "Signing in...",
+    login_failed: "Login failed. Please check your credentials.",
+    search_failed: "Search failed. Please try again.",
+
+    // Settings
+    system_settings: "System Settings",
+    settings_desc: "Configure your media integration and subtitle automation workflows.",
+    general: "General",
+    save_path: "Default Save Path",
+    lang_priority: "Language Priority",
+    jellyfin_integration: "Jellyfin Integration",
+    connected: "Connected",
+    server_url: "Server URL",
+    api_key: "API Key",
+    subtitle_sources: "Subtitle Sources",
+    configure: "Configure",
+    connect: "Connect",
+    automation: "Automation",
+    auto_scan: "Auto-scan Library",
+    auto_scan_desc: "Automatically scan new media for missing subtitles every 6 hours.",
+    auto_download: "Auto-download",
+    auto_download_desc: "Download best-match subtitles without manual approval.",
+    cleanup_orphans: "Cleanup Orphan Subs",
+    cleanup_desc: "Remove subtitle files if the main media file is deleted.",
+    notify_success: "Notify on Success",
+    notify_desc: "Send a push notification when a batch download completes.",
+    reset_defaults: "Reset to Defaults",
+    save_changes: "Save Changes",
+  },
+  zh: {
+    // Nav
+    title: "\u96f7\u9706\u5b57\u5e55",
+    subtitle: "\u5b57\u5e55\u7ba1\u7406\u5668",
+    search: "\u641c\u7d22",
+    scanner: "\u626b\u63cf\u5668",
+    verification: "\u9a8c\u8bc1",
+    settings: "\u8bbe\u7f6e",
+    profile: "\u4e2a\u4eba\u8d44\u6599",
+
+    // Scanner
+    library_path: "\u5e93\u8def\u5f84",
+    total_files: "\u6587\u4ef6\u603b\u6570",
+    items: "\u4e2a\u9879\u76ee",
+    missing_subs: "\u7f3a\u5931\u5b57\u5e55",
+    active_jellyfin_scan: "\u6d3b\u8dc3\u7684 Jellyfin \u626b\u63cf",
+    sync_desc: "\u6b63\u5728\u540c\u6b65\u5143\u6570\u636e\u5e76\u8bc6\u522b\u7f3a\u5931\u7684\u5b57\u5e55\u8f68\u9053",
+    scan_now: "\u7acb\u5373\u626b\u63cf",
+    scanning: "\u626b\u63cf\u4e2d",
+    complete: "\u5b8c\u6210",
+    recent_findings: "\u6700\u8fd1\u53d1\u73b0",
+    all_status: "\u6240\u6709\u72b6\u6001",
+    media_file: "\u5a92\u4f53\u6587\u4ef6",
+    type: "\u7c7b\u578b",
+    resolution: "\u5206\u8fa8\u7387",
+    status: "\u72b6\u6001",
+    action: "\u64cd\u4f5c",
+    showing_x_of_y: "\u663e\u793a {y} \u4e2a\u6587\u4ef6\u4e2d\u7684 {x} \u4e2a",
+    movie: "\u7535\u5f71",
+    tv_show: "\u5267\u96c6",
+
+    // Verification
+    pending_verification: "\u7b49\u5f85\u9a8c\u8bc1",
+    files: "\u4e2a\u6587\u4ef6",
+    untagged: "\u672a\u6807\u8bb0",
+    ai_flagged: "AI \u6807\u8bb0",
+    sync_error: "\u540c\u6b65\u9519\u8bef",
+    manual_required: "\u9700\u8981\u4eba\u5de5",
+    match: "\u5339\u914d\u5ea6",
+    dur: "\u65f6\u957f",
+    format_encoding: "\u683c\u5f0f: {format} \u2022 \u7f16\u7801: {encoding}",
+    correct: "\u6b63\u786e",
+    off_sync: "\u97f3\u753b\u4e0d\u540c\u6b65",
+    wrong_lang: "\u8bed\u8a00\u9519\u8bef",
+    confirm_verification: "\u786e\u8ba4\u9a8c\u8bc1",
+    play_pause: "\u64ad\u653e/\u6682\u505c",
+    mark_correct: "\u6807\u8bb0\u4e3a\u6b63\u786e",
+    confirm: "\u786e\u8ba4",
+
+    // Search
+    find_perfect: "\u5bfb\u627e\u5b8c\u7f8e\u7684\u7ffb\u8bd1",
+    search_desc: "\u8bbf\u95ee\u8d85\u8fc7 50 \u79cd\u8bed\u8a00\u7684\u6570\u767e\u4e07\u4e2a\u7535\u5f71\u548c\u7535\u89c6\u8282\u76ee\u5b57\u5e55\u3002",
+    search_placeholder: "\u641c\u7d22\u7535\u5f71\u3001\u7535\u89c6\u5267\u6216\u7eaa\u5f55\u7247...",
+    search_btn: "\u641c\u7d22",
+    recent_searches: "\u6700\u8fd1\u641c\u7d22",
+    clear: "\u6e05\u9664",
+    go_pro: "\u5347\u7ea7\u4e13\u4e1a\u7248",
+    pro_desc: "\u65e0\u9650\u4e0b\u8f7d\u548c\u65e0\u5e7f\u544a\u4f53\u9a8c\u3002",
+    upgrade: "\u7acb\u5373\u5347\u7ea7",
+    top_results: "\u70ed\u95e8\u7ed3\u679c",
+    x_matches: "({x} \u4e2a\u5339\u914d)",
+    filter: "\u7b5b\u9009",
+    newest: "\u6700\u65b0",
+    download: "\u4e0b\u8f7d",
+    load_more: "\u52a0\u8f7d\u66f4\u591a\u7ed3\u679c",
+    lang_52: "52 \u79cd\u8bed\u8a00",
+    lang_desc: "\u6211\u4eec\u7684\u793e\u533a\u6bcf\u5929\u63d0\u4f9b\u4e94\u5341\u591a\u79cd\u5730\u533a\u8bed\u8a00\u7684\u7ffb\u8bd1\u5185\u5bb9\u3002",
+    instant_sync: "\u5373\u65f6\u540c\u6b65",
+    sync_feature_desc: "\u4e00\u952e\u4e0b\u8f7d\u5e76\u81ea\u52a8\u4e0e\u60a8\u7684\u672c\u5730\u5a92\u4f53\u5e93\u540c\u6b65\u3002",
+    verified_only: "\u4ec5\u9650\u9a8c\u8bc1",
+    verified_desc: "\u6240\u6709\u4e0a\u4f20\u5185\u5bb9\u90fd\u4f1a\u7ecf\u8fc7\u6076\u610f\u811a\u672c\u626b\u63cf\u5e76\u8fdb\u884c\u683c\u5f0f\u5316\u4ee5\u63d0\u9ad8\u53ef\u8bfb\u6027\u3002",
+
+    // Auth
+    logged_in_as: "\u5f53\u524d\u767b\u5f55",
+    logout: "\u9000\u51fa\u767b\u5f55",
+    sign_in: "\u767b\u5f55",
+    sign_in_desc: "\u767b\u5f55\u4ee5\u7ba1\u7406\u60a8\u7684\u5b57\u5e55",
+    username: "\u7528\u6237\u540d",
+    password: "\u5bc6\u7801",
+    default_credentials: "\u9ed8\u8ba4\u8d26\u53f7: admin / changeme",
+    signing_in: "\u767b\u5f55\u4e2d...",
+    login_failed: "\u767b\u5f55\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u60a8\u7684\u51ed\u636e\u3002",
+    search_failed: "\u641c\u7d22\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002",
+
+    // Settings
+    system_settings: "\u7cfb\u7edf\u8bbe\u7f6e",
+    settings_desc: "\u914d\u7f6e\u60a8\u7684\u5a92\u4f53\u96c6\u6210\u548c\u5b57\u5e55\u81ea\u52a8\u5316\u5de5\u4f5c\u6d41\u7a0b\u3002",
+    general: "\u5e38\u89c4",
+    save_path: "\u9ed8\u8ba4\u4fdd\u5b58\u8def\u5f84",
+    lang_priority: "\u8bed\u8a00\u4f18\u5148\u7ea7",
+    jellyfin_integration: "Jellyfin \u96c6\u6210",
+    connected: "\u5df2\u8fde\u63a5",
+    server_url: "\u670d\u52a1\u5668 URL",
+    api_key: "\u5bc6\u94a5 (API Key)",
+    subtitle_sources: "\u5b57\u5e55\u6765\u6e90",
+    configure: "\u914d\u7f6e",
+    connect: "\u8fde\u63a5",
+    automation: "\u81ea\u52a8\u5316",
+    auto_scan: "\u81ea\u52a8\u626b\u63cf\u5e93",
+    auto_scan_desc: "\u6bcf 6 \u5c0f\u65f6\u81ea\u52a8\u626b\u63cf\u65b0\u5a92\u4f53\u662f\u5426\u7f3a\u5931\u5b57\u5e55\u3002",
+    auto_download: "\u81ea\u52a8\u4e0b\u8f7d",
+    auto_download_desc: "\u65e0\u9700\u624b\u52a8\u6279\u51c6\u5373\u53ef\u4e0b\u8f7d\u6700\u4f73\u5339\u914d\u5b57\u5e55\u3002",
+    cleanup_orphans: "\u6e05\u7406\u5b64\u7acb\u5b57\u5e55",
+    cleanup_desc: "\u5982\u679c\u5220\u9664\u4e3b\u5a92\u4f53\u6587\u4ef6\uff0c\u5219\u5220\u9664\u5b57\u5e55\u6587\u4ef6\u3002",
+    notify_success: "\u6210\u529f\u65f6\u901a\u77e5",
+    notify_desc: "\u5f53\u6279\u91cf\u4e0b\u8f7d\u5b8c\u6210\u65f6\u53d1\u9001\u63a8\u9001\u901a\u77e5\u3002",
+    reset_defaults: "\u6062\u590d\u9ed8\u8ba4\u8bbe\u7f6e",
+    save_changes: "\u4fdd\u5b58\u66f4\u6539",
+  },
+};
+
+export type TranslationKey = keyof typeof translations.en;
+
+export function useTranslations() {
+  const { language } = useLanguage();
+
+  const t = useCallback(
+    (key: string): string => {
+      const dict = translations[language as Language] ?? translations.en;
+      return (dict as Record<string, string>)[key] ?? key;
+    },
+    [language]
+  );
+
+  return t;
+}
+
+export { translations };
+export type { Language };

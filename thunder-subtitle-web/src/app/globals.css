@@ -1,26 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---- Design System Tokens ---- */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+
+  /* Colors: Surface hierarchy */
+  --color-surface: #0f1417;
+  --color-surface-dim: #0f1417;
+  --color-surface-bright: #353a3e;
+  --color-surface-container-lowest: #0a0f12;
+  --color-surface-container-low: #171c20;
+  --color-surface-container: #1b2024;
+  --color-surface-container-high: #252b2e;
+  --color-surface-container-highest: #303539;
+
+  /* Colors: On-surface */
+  --color-on-surface: #dee3e8;
+  --color-on-surface-variant: #bdc8d0;
+
+  /* Colors: Primary (Electric Blue) */
+  --color-primary: #7bd0ff;
+  --color-on-primary: #003549;
+  --color-primary-container: #00a4dc;
+  --color-on-primary-container: #00354a;
+
+  /* Colors: Secondary (Purple accent) */
+  --color-secondary: #d1bcff;
+  --color-on-secondary: #3c0090;
+  --color-secondary-container: #562ca9;
+
+  /* Colors: Tertiary (Amber accent) */
+  --color-tertiary: #ffb869;
+  --color-on-tertiary: #482900;
+  --color-tertiary-container: #d78719;
+
+  /* Colors: Error */
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+
+  /* Colors: Outline */
+  --color-outline: #87929a;
+  --color-outline-variant: #3e484f;
+
+  /* Colors: Inverse */
+  --color-inverse-surface: #dee3e8;
+  --color-inverse-on-surface: #2c3135;
+
+  /* Colors: Background */
+  --color-background: #0f1417;
+  --color-on-background: #dee3e8;
+
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ---- Base Styles ---- */
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-container-low;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-outline-variant rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-outline;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---- Utility Classes ---- */
+.ghost-border {
+  border: 1px solid rgba(135, 146, 154, 0.2);
+}
+
+/* Focus ring utility */
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
 }

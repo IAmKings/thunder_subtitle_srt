@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import type { HistoryItem, DownloadHistoryItem, Subtitle } from '@/lib/types';
 
 const SEARCH_HISTORY_KEY = 'thunder-subtitle-search-history';
@@ -31,14 +31,10 @@ function setStoredArray<T>(key: string, items: T[]): void {
 }
 
 export function useSearchHistory() {
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Lazy initialization after mount
-  useEffect(() => {
-    setHistory(getStoredArray<HistoryItem>(SEARCH_HISTORY_KEY));
-    setIsHydrated(true);
-  }, []);
+  // Use lazy initializer to read from localStorage on first render
+  const [history, setHistory] = useState<HistoryItem[]>(() => getStoredArray<HistoryItem>(SEARCH_HISTORY_KEY));
+  // Since we use lazy initializers, we consider the component hydrated immediately
+  const isHydrated = typeof window !== 'undefined';
 
   const addSearch = useCallback((name: string) => {
     if (!isHydrated) return;
@@ -80,14 +76,9 @@ export function useSearchHistory() {
 }
 
 export function useDownloadHistory() {
-  const [history, setHistory] = useState<DownloadHistoryItem[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Lazy initialization after mount
-  useEffect(() => {
-    setHistory(getStoredArray<DownloadHistoryItem>(DOWNLOAD_HISTORY_KEY));
-    setIsHydrated(true);
-  }, []);
+  // Use lazy initializer to read from localStorage on first render
+  const [history, setHistory] = useState<DownloadHistoryItem[]>(() => getStoredArray<DownloadHistoryItem>(DOWNLOAD_HISTORY_KEY));
+  const isHydrated = typeof window !== 'undefined';
 
   const addDownload = useCallback((subtitle: Subtitle) => {
     if (!isHydrated) return;

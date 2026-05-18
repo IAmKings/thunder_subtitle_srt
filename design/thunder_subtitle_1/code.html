@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Thunder Subtitle - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#ffdcbb",
+                    "on-error-container": "#ffdad6",
+                    "secondary-fixed": "#eaddff",
+                    "on-background": "#dee3e8",
+                    "surface-container-lowest": "#0a0f12",
+                    "surface-container-low": "#171c20",
+                    "on-secondary": "#3c0090",
+                    "surface-bright": "#353a3e",
+                    "tertiary-fixed-dim": "#ffb869",
+                    "surface-tint": "#7bd0ff",
+                    "on-tertiary": "#482900",
+                    "on-tertiary-fixed-variant": "#673d00",
+                    "surface-container-high": "#252b2e",
+                    "secondary": "#d1bcff",
+                    "outline": "#87929a",
+                    "primary": "#7bd0ff",
+                    "on-primary-fixed-variant": "#004c69",
+                    "error": "#ffb4ab",
+                    "primary-container": "#00a4dc",
+                    "secondary-container": "#562ca9",
+                    "surface-variant": "#303539",
+                    "background": "#0f1417",
+                    "error-container": "#93000a",
+                    "tertiary-container": "#d78719",
+                    "on-secondary-fixed-variant": "#5429a6",
+                    "surface-container": "#1b2024",
+                    "primary-fixed-dim": "#7bd0ff",
+                    "tertiary": "#ffb869",
+                    "on-surface-variant": "#bdc8d0",
+                    "on-tertiary-fixed": "#2c1700",
+                    "inverse-on-surface": "#2c3135",
+                    "surface": "#0f1417",
+                    "outline-variant": "#3e484f",
+                    "on-tertiary-container": "#4a2a00",
+                    "on-primary-fixed": "#001e2c",
+                    "on-error": "#690005",
+                    "inverse-surface": "#dee3e8",
+                    "on-primary": "#003549",
+                    "secondary-fixed-dim": "#d1bcff",
+                    "surface-container-highest": "#303539",
+                    "on-secondary-container": "#c4abff",
+                    "inverse-primary": "#00668a",
+                    "primary-fixed": "#c3e7ff",
+                    "on-secondary-fixed": "#24005b",
+                    "on-surface": "#dee3e8",
+                    "surface-dim": "#0f1417",
+                    "on-primary-container": "#00354a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "8px",
+                    "xl": "32px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "gutter": "16px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "container-max": "1440px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "code-sm": ["monospace"],
+                    "body-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "title-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "code-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0f1417;
+            color: #dee3e8;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #00A4DC !important;
+        }
+        /* Custom Toggle Switch Style */
+        .toggle-checkbox:checked {
+            right: 0;
+            background-color: #7bd0ff;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #004c69;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background">
+<!-- SideNavBar -->
+<aside class="h-full w-64 fixed left-0 top-0 bg-surface-container-low border-r border-outline-variant/50 flex flex-col py-lg px-md z-50">
+<div class="mb-xl px-sm">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Thunder</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Subtitle Manager</p>
+</div>
+<nav class="flex-1 space-y-base">
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="font-body-md text-body-md">Search</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="screenshot_monitor">screenshot_monitor</span>
+<span class="font-body-md text-body-md">Scanner</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="font-body-md text-body-md">Verification</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg text-primary font-bold border-r-2 border-primary bg-surface-container-high transition-colors active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto pt-lg border-t border-outline-variant/30">
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="font-body-md text-body-md">Profile</span>
+</a>
+</div>
+</aside>
+<!-- Main Canvas Area -->
+<main class="ml-64 min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full h-16 px-xl bg-surface border-b border-outline-variant/50 sticky top-0 z-40">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-black text-on-surface">Thunder Subtitle</span>
+</div>
+<div class="flex items-center gap-lg">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all duration-200" data-icon="notifications">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all duration-200" data-icon="wifi_tethering">wifi_tethering</button>
+</div>
+</header>
+<!-- Content Shell -->
+<div class="p-xl max-w-5xl mx-auto w-full">
+<header class="mb-xl">
+<h2 class="font-headline-lg text-headline-lg text-on-surface">System Settings</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-xs">Configure your media integration and subtitle automation workflows.</p>
+</header>
+<div class="space-y-xl">
+<!-- General Section -->
+<section class="bg-surface-container p-lg rounded-xl border border-outline-variant/30">
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant/20 pb-sm">
+<span class="material-symbols-outlined text-primary" data-icon="tune">tune</span>
+<h3 class="font-title-lg text-title-lg font-bold">General</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">Default Save Path</label>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-md font-body-md text-on-surface" type="text" value="/mnt/media/subtitles"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">Language Priority</label>
+<select class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-md font-body-md text-on-surface">
+<option>English, Spanish, French</option>
+<option>English Only</option>
+<option>All Languages</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Jellyfin Integration -->
+<section class="bg-surface-container p-lg rounded-xl border border-outline-variant/30">
+<div class="flex items-center justify-between mb-lg border-b border-outline-variant/20 pb-sm">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary" data-icon="hub">hub</span>
+<h3 class="font-title-lg text-title-lg font-bold">Jellyfin Integration</h3>
+</div>
+<span class="px-sm py-xs bg-tertiary/15 text-tertiary rounded-full font-label-md text-[10px] font-bold uppercase tracking-wider">Connected</span>
+</div>
+<div class="space-y-lg">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">Server URL</label>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-md font-body-md text-on-surface" placeholder="https://jellyfin.local:8096" type="text"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">API Key</label>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-md font-body-md text-on-surface" type="password" value="••••••••••••••••••••••••"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Subtitle Sources (APIs) -->
+<section class="bg-surface-container p-lg rounded-xl border border-outline-variant/30">
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant/20 pb-sm">
+<span class="material-symbols-outlined text-secondary" data-icon="api">api</span>
+<h3 class="font-title-lg text-title-lg font-bold">Subtitle Sources</h3>
+</div>
+<div class="space-y-md">
+<div class="flex items-center justify-between p-md bg-surface-container-low rounded-lg border border-outline-variant/50">
+<div class="flex items-center gap-md">
+<img class="w-10 h-10 rounded bg-white/10" data-alt="A minimalist tech logo for OpenSubtitles, featuring geometric blue and white shapes on a dark background, evoking professional media services and digital database connectivity in a high-tech editing suite style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBN98x0y-oCMjj4ht4jNjbcRG9QIl2mi5zf9RYfTmAMl0kAquve5WR8Kzru_G_gMABCFxOGu3rQmG4aHQpO6hdhYdPHfQRxQ1k4M0msapWAb-Pp7GiQ-sVUzgM5CvHp8KVXdJJif9QF8tpTTmZZOkgpwZC1X9ofDKF6Usig5XFMRzJZUOqj5YOz6nG40Th5-I3Y2RFC-B7Jn24RwNWsQm9mvqwKtQfsGVR9IghYB4BMbqnGSqJZzXF1NAIKcKSanCh77rcso9-tdbc"/>
+<div>
+<p class="font-body-md font-bold text-on-surface">OpenSubtitles.com</p>
+<p class="font-label-md text-on-surface-variant">Active • VIP Account</p>
+</div>
+</div>
+<button class="px-md py-sm border border-outline-variant text-on-surface rounded-lg font-label-md hover:bg-surface-container-high transition-colors">Configure</button>
+</div>
+<div class="flex items-center justify-between p-md bg-surface-container-low rounded-lg border border-outline-variant/50">
+<div class="flex items-center gap-md">
+<img class="w-10 h-10 rounded bg-white/10" data-alt="A modern corporate icon for Addic7ed subtitle provider, utilizing abstract green and grey patterns on a dark surface, symbolizing global translation services and cinematic metadata management with a clean minimalist aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBieHa8FqgNmHQzEE5WE_yD4mA-Jchday2hiW7oZXq7Rh7oPnWj7xbGfHrCGn2QTWhiIipvGbnUHjlAT1AhzsouXwP-lG7JM-fOdTec53DOaV1amz4B2Tbr2r_QDOD9IlSCkQMk8PJsGaFX895uD2ka3VkWuXPejA2Jz-FVwmZbr6RQNJkMqL-39KA__PHPPsg_IgGoik22LnfzoSSCUOgUoPV9pFPXjmETQDjWpaY2mQ8oMrRBvfiowypukRc6O6We6Gt_9LF44B0"/>
+<div>
+<p class="font-body-md font-bold text-on-surface">Addic7ed</p>
+<p class="font-label-md text-on-surface-variant">Login Required</p>
+</div>
+</div>
+<button class="px-md py-sm bg-primary text-on-primary rounded-lg font-label-md hover:bg-primary/90 transition-colors">Connect</button>
+</div>
+</div>
+</section>
+<!-- Automation Section -->
+<section class="bg-surface-container p-lg rounded-xl border border-outline-variant/30">
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant/20 pb-sm">
+<span class="material-symbols-outlined text-primary" data-icon="auto_mode">auto_mode</span>
+<h3 class="font-title-lg text-title-lg font-bold">Automation</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-xl">
+<!-- Toggle 1 -->
+<div class="flex items-center justify-between">
+<div class="pr-md">
+<p class="font-body-md font-bold text-on-surface">Auto-scan Library</p>
+<p class="font-label-md text-on-surface-variant">Automatically scan new media for missing subtitles every 6 hours.</p>
+</div>
+<div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-outline-variant border-4 border-transparent appearance-none cursor-pointer" id="toggle-scan" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle-scan"></label>
+</div>
+</div>
+<!-- Toggle 2 -->
+<div class="flex items-center justify-between">
+<div class="pr-md">
+<p class="font-body-md font-bold text-on-surface">Auto-download</p>
+<p class="font-label-md text-on-surface-variant">Download best-match subtitles without manual approval.</p>
+</div>
+<div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-outline-variant border-4 border-transparent appearance-none cursor-pointer" id="toggle-dl" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle-dl"></label>
+</div>
+</div>
+<!-- Toggle 3 -->
+<div class="flex items-center justify-between">
+<div class="pr-md">
+<p class="font-body-md font-bold text-on-surface">Cleanup Orphan Subs</p>
+<p class="font-label-md text-on-surface-variant">Remove subtitle files if the main media file is deleted.</p>
+</div>
+<div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-outline-variant border-4 border-transparent appearance-none cursor-pointer" id="toggle-cleanup" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle-cleanup"></label>
+</div>
+</div>
+<!-- Toggle 4 -->
+<div class="flex items-center justify-between">
+<div class="pr-md">
+<p class="font-body-md font-bold text-on-surface">Notify on Success</p>
+<p class="font-label-md text-on-surface-variant">Send a push notification when a batch download completes.</p>
+</div>
+<div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-outline-variant border-4 border-transparent appearance-none cursor-pointer" id="toggle-notify" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle-notify"></label>
+</div>
+</div>
+</div>
+</section>
+<!-- Action Footer -->
+<div class="flex items-center justify-end gap-md pt-lg">
+<button class="px-xl py-md border border-outline text-on-surface rounded-lg font-body-md font-bold hover:bg-surface-container-high transition-all active:scale-95">Reset to Defaults</button>
+<button class="px-xl py-md bg-primary-container text-on-primary-container rounded-lg font-body-md font-bold hover:shadow-[0_0_20px_rgba(0,164,220,0.3)] transition-all active:scale-95">Save Changes</button>
+</div>
+</div>
+</div>
+<footer class="mt-auto py-lg px-xl border-t border-outline-variant/30 text-center">
+<p class="font-label-md text-label-md text-on-surface-variant">Thunder Subtitle v2.4.1 • © 2024 Media Flow Systems</p>
+</footer>
+</main>
+</body></html>

@@ -17,7 +17,6 @@ export function ThunderSubtitleApp() {
 
   const {
     history: searchHistory,
-    isHydrated: isSearchHydrated,
     addSearch,
     removeSearch,
     clearSearchHistory,
@@ -25,7 +24,6 @@ export function ThunderSubtitleApp() {
 
   const {
     history: downloadHistory,
-    isHydrated: isDownloadHydrated,
     addDownload,
     removeDownload,
     clearDownloadHistory,

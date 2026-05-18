@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f1417;
+            color: #dee3e8;
+            margin: 0;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ghost-border {
+            border: 1px solid rgba(51, 51, 51, 0.5);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #171c20;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3e484f;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdcbb",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#eaddff",
+                        "on-background": "#dee3e8",
+                        "surface-container-lowest": "#0a0f12",
+                        "surface-container-low": "#171c20",
+                        "on-secondary": "#3c0090",
+                        "surface-bright": "#353a3e",
+                        "tertiary-fixed-dim": "#ffb869",
+                        "surface-tint": "#7bd0ff",
+                        "on-tertiary": "#482900",
+                        "on-tertiary-fixed-variant": "#673d00",
+                        "surface-container-high": "#252b2e",
+                        "secondary": "#d1bcff",
+                        "outline": "#87929a",
+                        "primary": "#7bd0ff",
+                        "on-primary-fixed-variant": "#004c69",
+                        "error": "#ffb4ab",
+                        "primary-container": "#00a4dc",
+                        "secondary-container": "#562ca9",
+                        "surface-variant": "#303539",
+                        "background": "#0f1417",
+                        "error-container": "#93000a",
+                        "tertiary-container": "#d78719",
+                        "on-secondary-fixed-variant": "#5429a6",
+                        "surface-container": "#1b2024",
+                        "primary-fixed-dim": "#7bd0ff",
+                        "tertiary": "#ffb869",
+                        "on-surface-variant": "#bdc8d0",
+                        "on-tertiary-fixed": "#2c1700",
+                        "inverse-on-surface": "#2c3135",
+                        "surface": "#0f1417",
+                        "outline-variant": "#3e484f",
+                        "on-tertiary-container": "#4a2a00",
+                        "on-primary-fixed": "#001e2c",
+                        "on-error": "#690005",
+                        "inverse-surface": "#dee3e8",
+                        "on-primary": "#003549",
+                        "secondary-fixed-dim": "#d1bcff",
+                        "surface-container-highest": "#303539",
+                        "on-secondary-container": "#c4abff",
+                        "inverse-primary": "#00668a",
+                        "primary-fixed": "#c3e7ff",
+                        "on-secondary-fixed": "#24005b",
+                        "on-surface": "#dee3e8",
+                        "surface-dim": "#0f1417",
+                        "on-primary-container": "#00354a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "container-max": "1440px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "code-sm": ["monospace"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "code-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- SideNavBar (Shared Component) -->
+<aside class="bg-surface-container-low dark:bg-surface-container-low h-full w-64 fixed left-0 top-0 border-r border-outline-variant/50 flex flex-col py-lg px-md z-50">
+<div class="mb-xl px-sm">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Thunder</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Subtitle Manager</p>
+</div>
+<nav class="flex-grow space-y-1">
+<a class="flex items-center gap-md p-md rounded-lg transition-colors text-on-surface-variant font-medium hover:bg-surface-container-high active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="font-body-md text-body-md">Search</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg transition-colors text-primary font-bold border-r-2 border-primary bg-surface-container-high active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="screenshot_monitor">screenshot_monitor</span>
+<span class="font-body-md text-body-md">Scanner</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg transition-colors text-on-surface-variant font-medium hover:bg-surface-container-high active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="font-body-md text-body-md">Verification</span>
+</a>
+<a class="flex items-center gap-md p-md rounded-lg transition-colors text-on-surface-variant font-medium hover:bg-surface-container-high active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-outline-variant/30 pt-md">
+<a class="flex items-center gap-md p-md rounded-lg transition-colors text-on-surface-variant font-medium hover:bg-surface-container-high active:scale-95 duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="font-body-md text-body-md">Profile</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen flex flex-col">
+<!-- TopNavBar (Shared Component) -->
+<header class="bg-surface dark:bg-surface docked full-width top-0 sticky border-b border-outline-variant/50 flex justify-between items-center w-full h-16 px-xl z-40">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-black text-on-surface">Thunder Subtitle</span>
+</div>
+<div class="flex items-center gap-lg">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all duration-200" data-icon="notifications">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all duration-200" data-icon="wifi_tethering">wifi_tethering</button>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="p-xl space-y-xl max-w-container-max mx-auto w-full">
+<!-- Summary Stats Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-lg">
+<div class="bg-surface-container p-lg rounded-xl ghost-border col-span-1 md:col-span-2 flex items-center justify-between">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase mb-xs">Library Path</p>
+<h2 class="font-title-lg text-title-lg font-bold text-on-surface">/mnt/media/jellyfin/movies</h2>
+</div>
+<button class="bg-surface-container-high p-md rounded-lg hover:bg-outline-variant transition-colors">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+</button>
+</div>
+<div class="bg-surface-container p-lg rounded-xl ghost-border">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase mb-xs">Total Files</p>
+<div class="flex items-baseline gap-xs">
+<span class="font-headline-lg text-headline-lg font-bold">1,428</span>
+<span class="text-on-surface-variant font-body-md text-body-md">items</span>
+</div>
+</div>
+<div class="bg-surface-container p-lg rounded-xl ghost-border">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase mb-xs">Missing Subs</p>
+<div class="flex items-baseline gap-xs">
+<span class="font-headline-lg text-headline-lg font-bold text-tertiary">342</span>
+<span class="text-on-surface-variant font-body-md text-body-md">24%</span>
+</div>
+</div>
+</section>
+<!-- Scanner Control Panel -->
+<section class="bg-surface-container-low p-lg rounded-xl ghost-border space-y-lg">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-md">
+<div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="sync" style="font-variation-settings: 'FILL' 0;">sync</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg font-bold">Active Jellyfin Scan</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Syncing metadata and identifying missing subtitle tracks</p>
+</div>
+</div>
+<button class="bg-primary-container text-on-primary-container font-label-md text-label-md px-xl py-md rounded-lg flex items-center gap-sm hover:brightness-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                        SCAN NOW
+                    </button>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between font-label-md text-label-md">
+<span>Scanning: <span class="text-primary">Dune.Part.Two.2024.2160p.mkv</span></span>
+<span>68% Complete</span>
+</div>
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary-container w-[68%] transition-all duration-500 shadow-[0_0_10px_rgba(0,164,220,0.5)]"></div>
+</div>
+</div>
+</section>
+<!-- Media List Table -->
+<section class="bg-surface-container p-0 rounded-xl ghost-border overflow-hidden flex flex-col">
+<div class="px-lg py-md border-b border-outline-variant/50 flex justify-between items-center bg-surface-container-high">
+<h4 class="font-title-lg text-title-lg font-bold">Recent Findings</h4>
+<div class="flex gap-md">
+<div class="bg-surface-container p-xs px-sm rounded-lg flex items-center gap-sm ghost-border">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="filter_list">filter_list</span>
+<span class="font-body-md text-body-md">All Status</span>
+</div>
+</div>
+</div>
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-high/50 border-b border-outline-variant/30">
+<tr>
+<th class="p-lg font-label-md text-label-md text-on-surface-variant">MEDIA FILE</th>
+<th class="p-lg font-label-md text-label-md text-on-surface-variant">TYPE</th>
+<th class="p-lg font-label-md text-label-md text-on-surface-variant">RESOLUTION</th>
+<th class="p-lg font-label-md text-label-md text-on-surface-variant">STATUS</th>
+<th class="p-lg font-label-md text-label-md text-on-surface-variant">ACTION</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/20">
+<!-- Row 1: Matched -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="p-lg">
+<div class="flex items-center gap-md">
+<div class="h-12 w-8 bg-surface-variant rounded-sm overflow-hidden flex-shrink-0">
+<img alt="Movie Poster" class="w-full h-full object-cover" data-alt="A vertical cinematic poster for a sci-fi film featuring a glowing orange desert landscape under a twin sun system. The style is professional and high-fidelity, typical of a modern streaming platform. The image is crisp and utilizes a deep, nocturnal color palette consistent with a dark mode UI design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_Xo-JTzu4DRcKyfchA6gHZTL5GIwUbo3P7qLLpR1ignToMu9Ur6DbdsUqS9iLqRtP58-WqpMeACM5R-t6MfqCDtCsxkTxs5qSLTOx3eKJPoj099SoL40vQtHs6HPNWTwMO8g1_o4JrthyL3aQUeuyWj8-8fXGs-Xa5FUGS7QPZ3AY59mqpvFBCI9EqoVosC8D0lbiaILHr5nf70I7pl1AeE7tqK-ggQSnYYhWpV6Vp8R_-Doha08Q38LUxADYcOQayyW53JF3L20"/>
+</div>
+<div>
+<p class="font-body-lg text-body-lg font-semibold group-hover:text-primary">Dune: Part Two (2024)</p>
+<p class="font-code-sm text-code-sm text-on-surface-variant">dune.pt2.2160p.atmos.mkv</p>
+</div>
+</div>
+</td>
+<td class="p-lg font-body-md text-body-md">Movie</td>
+<td class="p-lg">
+<span class="bg-primary/10 text-primary font-label-md text-label-md px-sm py-xs rounded">4K HDR</span>
+</td>
+<td class="p-lg">
+<div class="flex items-center gap-sm text-[rgba(74,222,128,1)]">
+<span class="material-symbols-outlined text-[20px]" data-icon="check_circle">check_circle</span>
+<span class="font-label-md text-label-md uppercase">Matched</span>
+</div>
+</td>
+<td class="p-lg">
+<button class="text-on-surface-variant hover:text-on-surface material-symbols-outlined" data-icon="more_vert">more_vert</button>
+</td>
+</tr>
+<!-- Row 2: Processing -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="p-lg">
+<div class="flex items-center gap-md">
+<div class="h-12 w-8 bg-surface-variant rounded-sm overflow-hidden flex-shrink-0">
+<img alt="Series Poster" class="w-full h-full object-cover" data-alt="A moody, high-contrast poster for a dramatic television series set in a dark, atmospheric city alley at night. The lighting is low-key with sharp cyan highlights, creating a technical and cinematic feel. The visual style is structured and minimalist, fitting a premium media management dashboard environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAFP5gaQ8TkZibaFlitLCPEImm7cLGwiomwAhPdsELzNOu7lvcpK2uTn3JkvthT-SwfgzkA_H9UO7lY9P2ZyPZ_klaccRfkkVZQ9st4un9IPFcbVeqhHGpeXBTppMWaKPpvlcYXvCqhLvkPh9aIeSQvvBZFGlqCuI_DFgLiRvYHSk3xu_VgqebX_SpvnUTBTbXPMr4eRIzP5lFTx0FdRIbOLw0KfCeYZLBZkX4ymAYctWGflzqV0-SYxxfcupRbmAzYf1q5gJhhds"/>
+</div>
+<div>
+<p class="font-body-lg text-body-lg font-semibold group-hover:text-primary">The Bear - S03E01</p>
+<p class="font-code-sm text-code-sm text-on-surface-variant">the.bear.s03e01.1080p.mkv</p>
+</div>
+</div>
+</td>
+<td class="p-lg font-body-md text-body-md">TV Show</td>
+<td class="p-lg">
+<span class="bg-surface-container-high text-on-surface-variant font-label-md text-label-md px-sm py-xs rounded">1080P</span>
+</td>
+<td class="p-lg">
+<div class="flex items-center gap-sm text-primary">
+<span class="material-symbols-outlined text-[20px] animate-spin" data-icon="progress_activity">progress_activity</span>
+<span class="font-label-md text-label-md uppercase">Processing</span>
+</div>
+</td>
+<td class="p-lg">
+<button class="text-on-surface-variant hover:text-on-surface material-symbols-outlined" data-icon="more_vert">more_vert</button>
+</td>
+</tr>
+<!-- Row 3: Not Matched -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="p-lg">
+<div class="flex items-center gap-md">
+<div class="h-12 w-8 bg-surface-variant rounded-sm overflow-hidden flex-shrink-0">
+<img alt="Documentary Poster" class="w-full h-full object-cover" data-alt="A striking minimalist documentary poster showing an abstract top-down view of deep blue ocean water. The composition is clean and technical, emphasizing precision and cinematic utility. The lighting is soft and natural, providing a calm but professional aesthetic that pops against a dark interface canvas." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwOxgzSI7bu_5KZcayThvzAHnMJAKz0tWG-A5pnliHFDZTqP-jHcPfQpB0euHzZQqO9DBc_IyvkDPStQoYafwpSbLU96neYvnVI-GqNkim962az90V0EBu09Bc1E4AA1j4kPyL5Y-lnJe1anPrs2Zq7z9V0vEt5e-n9Ms6VhsECVR2PzLIKqHf_cYK2oaOyISsZL3g8_7O5D4SPk5EjOdYPZ2E1WYoFhOIu_GBwRXPWr6ZR2RMJgJ3NKGP-_X1otoFEsyS8Im7hP8"/>
+</div>
+<div>
+<p class="font-body-lg text-body-lg font-semibold group-hover:text-primary">Deep Sea Explorers (2023)</p>
+<p class="font-code-sm text-code-sm text-on-surface-variant">deep_sea_explorers_remux.mkv</p>
+</div>
+</div>
+</td>
+<td class="p-lg font-body-md text-body-md">Movie</td>
+<td class="p-lg">
+<span class="bg-surface-container-high text-on-surface-variant font-label-md text-label-md px-sm py-xs rounded">1080P</span>
+</td>
+<td class="p-lg">
+<div class="flex items-center gap-sm text-tertiary">
+<span class="material-symbols-outlined text-[20px]" data-icon="warning">warning</span>
+<span class="font-label-md text-label-md uppercase">Not Matched</span>
+</div>
+</td>
+<td class="p-lg">
+<button class="text-on-surface-variant hover:text-on-surface material-symbols-outlined" data-icon="more_vert">more_vert</button>
+</td>
+</tr>
+<!-- Row 4: Matched -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="p-lg">
+<div class="flex items-center gap-md">
+<div class="h-12 w-8 bg-surface-variant rounded-sm overflow-hidden flex-shrink-0">
+<img alt="Action Poster" class="w-full h-full object-cover" data-alt="A bold, high-energy action movie poster with vibrant blue and neon highlights. The subject is a futuristic cityscape with sleek lines and a technological atmosphere. The visual language is dependable and professional, designed to look like a premium streaming dashboard element with structural integrity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9RiZPa0679dEwtjSSeD-FQ6SdCkQy6LEIy1j1LTrMeFrp3Cp49koRw8ZJyYKEqJrgZzyUHFBEv55JMGvSX_jJPegfuMsDWHIYgaq7wVmjVh39HbwCR_dMCz9zXsuAMWXwBbHR0v2kDzSshu4gYo4AguEIhsmUjxZlHi7NOR9-y7ALOlpP1N1g5zQnnh6tiipNlNPTrmOdXGzQ59vBgEsNLRz9If-aBLeFiFDVll1PAZnADvbfDHF8XdBwQR8bjWST2RJ0PovLuLU"/>
+</div>
+<div>
+<p class="font-body-lg text-body-lg font-semibold group-hover:text-primary">The Creator (2023)</p>
+<p class="font-code-sm text-code-sm text-on-surface-variant">the.creator.2160p.mkv</p>
+</div>
+</div>
+</td>
+<td class="p-lg font-body-md text-body-md">Movie</td>
+<td class="p-lg">
+<span class="bg-primary/10 text-primary font-label-md text-label-md px-sm py-xs rounded">4K HDR</span>
+</td>
+<td class="p-lg">
+<div class="flex items-center gap-sm text-[rgba(74,222,128,1)]">
+<span class="material-symbols-outlined text-[20px]" data-icon="check_circle">check_circle</span>
+<span class="font-label-md text-label-md uppercase">Matched</span>
+</div>
+</td>
+<td class="p-lg">
+<button class="text-on-surface-variant hover:text-on-surface material-symbols-outlined" data-icon="more_vert">more_vert</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-lg py-md border-t border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
+<p class="font-body-md text-body-md text-on-surface-variant">Showing 4 of 1,428 files</p>
+<div class="flex gap-sm">
+<button class="p-sm ghost-border rounded hover:bg-surface-container-high"><span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span></button>
+<button class="p-sm ghost-border rounded hover:bg-surface-container-high"><span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span></button>
+</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

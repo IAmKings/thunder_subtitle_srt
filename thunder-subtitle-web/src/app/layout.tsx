@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "Thunder Subtitle - 字幕搜索下载",
-  description: "搜索和下载中文字幕",
+  title: "Thunder Subtitle - 字幕管理器",
+  description: "搜索、下载、扫描和审查字幕",
 };
 
 export default function RootLayout({
@@ -12,8 +14,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body className="min-h-full">{children}</body>
+    <html lang="zh-CN" className="dark">
+      <body className="flex h-screen overflow-hidden bg-surface text-on-surface">
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
+      </body>
     </html>
   );
 }
