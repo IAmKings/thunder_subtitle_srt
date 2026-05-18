@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guidelines — i18n rules, component patterns, auth"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "withAuth HOC, design tokens, client components"}
+{"file": ".trellis/spec/frontend/api-integration.md", "reason": "FastApiClient methods for change-password API if added"}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "useTranslations hook for i18n fix"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "No hardcoded strings rule — the checklist to verify against"}
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "Backend auth router patterns, Pydantic schemas, service layer"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error response format for change-password endpoint"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer contract for change-password: Pydantic → JSON → TypeScript"}

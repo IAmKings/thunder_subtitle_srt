@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/frontend/quality.md", "reason": "No hardcoded strings, useTranslations requirement"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Type mirroring for any new change-password types"}
+{"file": ".trellis/spec/frontend/api-integration.md", "reason": "FastApiClient pattern verification"}
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "Auth router, dependency injection patterns"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error response format consistency"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Cross-stack code quality rules"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer review: change-password contract"}
