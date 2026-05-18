@@ -1,189 +1,87 @@
 # Directory Structure
 
-This document describes the module organization and folder conventions for the frontend application.
+This document describes the file organization of the `thunder-subtitle-web` frontend application.
 
 ## Overview
 
 ```
-app/                          # Next.js App Router
-├── (marketing)/              # Public marketing pages (i18n)
-│   └── [locale]/             # Locale-based routing
-└── (app)/                    # Protected application routes
-    └── app/                  # Main application routes
-modules/                      # Feature modules
-├── [feature]/                # Feature module
-│   ├── components/           # UI components
-│   ├── hooks/                # Custom hooks
-│   ├── context/              # React Context
-│   ├── lib/                  # Utilities and data transforms
-│   └── types/                # Frontend view model types
-├── shared/                   # Shared components across features
-└── ui/                       # UI component library
-middleware.ts                 # Authentication & routing middleware
+thunder-subtitle-web/
+├── next.config.ts              # Next.js config: standalone output, FastAPI proxy rewrite
+├── package.json                 # Dependencies: next 16, react 19, lucide-react, tailwindcss 4
+├── src/
+│   ├── app/
+│   │   ├── api/subtitle/route.ts   # Next.js API route proxy (legacy search)
+│   │   ├── login/page.tsx          # Login page
+│   │   ├── scanner/page.tsx        # Scanner page — media library scan
+│   │   ├── search/page.tsx         # Search page — subtitle search & download
+│   │   ├── settings/page.tsx       # Settings page — app configuration
+│   │   ├── verification/page.tsx   # Verification page — subtitle quality review
+│   │   ├── globals.css             # Dark theme design tokens + base styles
+│   │   ├── layout.tsx              # Root layout: AuthProvider + AppShell
+│   │   └── page.tsx               # Redirects to /search
+│   ├── components/
+│   │   ├── AppShell.tsx            # Main app shell (sidebar + topbar + content)
+│   │   ├── History.tsx             # Search/download history component
+│   │   ├── SearchBox.tsx           # Search input with submit handler
+│   │   ├── Sidebar.tsx             # Navigation sidebar with auth info
+│   │   ├── SubtitleItem.tsx        # Individual subtitle card
+│   │   ├── SubtitleList.tsx        # Subtitle list with select/download
+│   │   ├── ThunderSubtitleApp.tsx  # Legacy combined app (unused in new pages)
+│   │   ├── ThemeProvider.tsx       # Theme + language context provider
+│   │   └── TopBar.tsx             # Top navigation bar with language toggle
+│   ├── hooks/
+│   │   └── useHistory.ts           # Local storage history hooks (search + download)
+│   └── lib/
+│       ├── api.ts                  # FastApiClient + SubtitleApiClient + ProgressWebSocket
+│       ├── auth.tsx                # AuthProvider, useAuth, withAuth
+│       ├── i18n.ts                 # Internationalization (en/zh translations)
+│       └── types.ts                # TypeScript types mirroring backend Pydantic schemas
 ```
 
-## Module Structure
+## Key Conventions
 
-### Feature Module Pattern
-
-Each feature module should follow this structure:
-
-```
-modules/dashboard/
-├── components/
-│   ├── DashboardHeader.tsx
-│   ├── StatsCard.tsx
-│   ├── ActivityFeed.tsx
-│   └── index.ts              # Barrel export
-├── hooks/
-│   ├── useDashboardStats.ts
-│   ├── useActivityFeed.ts
-│   └── index.ts
-├── context/
-│   ├── DashboardContext.tsx
-│   └── index.ts
-├── lib/
-│   ├── formatters.ts         # Data formatting utilities
-│   ├── transformers.ts       # API response transformers
-│   └── constants.ts          # Feature-specific constants
-├── types/
-│   └── index.ts              # View model types
-└── index.ts                  # Public API of the module
-```
-
-### Component Organization
-
-```
-components/
-├── [ComponentName].tsx       # Main component file
-├── [ComponentName].test.tsx  # Unit tests (if applicable)
-└── index.ts                  # Barrel export
-```
-
-### Hooks Organization
-
-```
-hooks/
-├── useFeatureData.ts         # Data fetching hooks
-├── useFeatureActions.ts      # Mutation hooks
-├── useFeatureState.ts        # Local state hooks
-└── index.ts
-```
-
-## Shared Modules
-
-### `modules/shared/`
-
-Components and utilities shared across multiple features:
-
-```
-shared/
-├── components/
-│   ├── Layout/               # Layout components
-│   ├── Navigation/           # Navigation components
-│   ├── DataTable/            # Reusable data tables
-│   └── Forms/                # Form components
-├── hooks/
-│   ├── useUser.ts            # Current user hook
-│   ├── useOrganization.ts    # Organization context
-│   └── usePermissions.ts     # Permission checks
-└── lib/
-    ├── api.ts                # API client configuration
-    └── utils.ts              # Shared utilities
-```
-
-### `modules/ui/`
-
-Low-level UI components (design system):
-
-```
-ui/
-├── Button/
-├── Input/
-├── Select/
-├── Dialog/
-├── Toast/
-└── ...
-```
-
-## Naming Conventions
-
-### Files
+### File Naming
 
 | Type | Convention | Example |
-|------|------------|---------|
-| Components | PascalCase | `UserProfile.tsx` |
-| Hooks | camelCase with `use` prefix | `useUserProfile.ts` |
-| Context | PascalCase with `Context` suffix | `UserContext.tsx` |
-| Utilities | camelCase | `formatDate.ts` |
-| Constants | camelCase or SCREAMING_SNAKE_CASE | `constants.ts` |
-| Types | PascalCase | `types.ts` or `UserTypes.ts` |
+|------|-----------|---------|
+| Pages | kebab-case directory | `search/page.tsx` |
+| Components | PascalCase | `SearchBox.tsx` |
+| Hooks | camelCase with `use` prefix | `useHistory.ts` |
+| Utilities | camelCase | `api.ts` |
+| Types | camelCase | `types.ts` |
 
-### Exports
+### Import Aliases
 
-Use barrel exports (`index.ts`) for clean imports:
-
-```typescript
-// modules/dashboard/components/index.ts
-export { DashboardHeader } from './DashboardHeader';
-export { StatsCard } from './StatsCard';
-export { ActivityFeed } from './ActivityFeed';
-```
+The project uses `@/` mapped to `src/`:
 
 ```typescript
-// Usage
-import { DashboardHeader, StatsCard } from '@/modules/dashboard/components';
+import { useAuth } from "@/lib/auth";
+import { SearchBox } from "@/components/SearchBox";
+import type { Subtitle } from "@/lib/types";
 ```
 
-## Route-Module Mapping
+### Page Structure
 
-Routes in `app/(app)/` should map to modules in `modules/`:
+Each page loads its own data and uses `withAuth()` HOC for auth protection:
 
-```
-app/(app)/
-├── dashboard/
-│   └── page.tsx          -> modules/dashboard/
-├── users/
-│   ├── page.tsx          -> modules/users/
-│   └── [id]/
-│       └── page.tsx      -> modules/users/ (detail view)
-├── settings/
-│   └── page.tsx          -> modules/settings/
-└── orders/
-    ├── page.tsx          -> modules/orders/
-    └── [id]/
-        └── page.tsx      -> modules/orders/ (detail view)
-```
+```typescript
+// app/search/page.tsx
+import { withAuth } from "@/lib/auth";
 
-## Import Path Aliases
-
-Configure in `tsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "paths": {
-      "@/*": ["./src/*"],
-      "@/modules/*": ["./modules/*"],
-      "@/components/*": ["./components/*"],
-      "@/lib/*": ["./lib/*"]
-    }
-  }
+function SearchPage() {
+  // Page logic
 }
+
+export default withAuth(SearchPage);
 ```
 
-## Best Practices
+### No Module Boundary
 
-1. **Colocation**: Keep related files close together
-2. **Single Responsibility**: Each module should have one clear purpose
-3. **Explicit Dependencies**: Import what you need, avoid implicit globals
-4. **Barrel Exports**: Use `index.ts` for public APIs
-5. **Private by Default**: Only export what needs to be shared
+The project is a single-repo frontend without feature modules. All components are in `components/` and all hooks in `hooks/`. For a project of this scale, flat organization is preferred over nested feature folders.
 
 ## Anti-Patterns to Avoid
 
-- Deeply nested folder structures (max 3-4 levels)
-- Circular dependencies between modules
-- Mixing feature code with shared utilities
-- Importing internal module files directly (use barrel exports)
-- Creating "utils" folders that become dumping grounds
+- Creating `modules/` or `features/` directories (not used in this project)
+- Using barrel exports (`index.ts`) for components (import directly)
+- Adding UI component libraries (Radix, shadcn) — the project uses raw Tailwind + custom design tokens
+- Introducing state management libraries (Redux, Zustand) — use React Context + localStorage

@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guidelines index - Next.js patterns, must-read docs for UI implementation"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Server/Client component patterns, semantic HTML, next/image usage"}
+{"file": ".trellis/spec/frontend/css-layout.md", "reason": "CSS patterns, flexbox, responsive design for the dark-themed UI"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "TypeScript guidelines, type inference patterns for shared types between FastAPI and Next.js"}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "Query and mutation hook patterns for data fetching from FastAPI"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Pre-commit checklist for frontend code quality"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared code quality standards"}
+{"file": "design/media_management_utility/DESIGN.md", "reason": "Design system spec - color tokens, typography, spacing, component styles"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer data flow patterns - critical for FastAPI+Next.js architecture"}

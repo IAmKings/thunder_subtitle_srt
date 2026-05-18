@@ -1,328 +1,104 @@
 # Hook Development Patterns
 
-This document covers React hook patterns for data fetching, mutations, and state management using React Query with oRPC.
+This document covers the custom hooks used in Thunder Subtitle Web.
 
-## Query Hooks
+## Available Hooks
 
-### Basic Query Pattern
+| Hook | Source | Purpose |
+|------|--------|---------|
+| `useAuth()` | `lib/auth.tsx` | Auth state, login, logout |
+| `useTranslations()` | `lib/i18n.ts` | i18n translation function |
+| `useLanguage()` | `components/ThemeProvider.tsx` | Get/set language (en/zh) |
+| `useSearchHistory()` | `hooks/useHistory.ts` | Search history CRUD (localStorage) |
+| `useDownloadHistory()` | `hooks/useHistory.ts` | Download history CRUD (localStorage) |
+
+## useAuth
+
+The primary authentication hook, provided by `AuthProvider`:
 
 ```typescript
-import { useQuery } from '@tanstack/react-query';
-import { orpcClient } from '@/lib/orpc';
+const { user, token, isAuthenticated, isLoading, login, logout } = useAuth();
+```
 
-export function useUsers() {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: () => orpcClient.users.list(),
-  });
+See [authentication.md](./authentication.md) for full details.
+
+## useTranslations
+
+Returns a `t()` function for looking up translations:
+
+```typescript
+import { useTranslations } from '@/lib/i18n';
+
+function MyComponent() {
+  const t = useTranslations();
+  return <h1>{t('search')}</h1>; // "Search" (en) or "搜索" (zh)
 }
 ```
 
-### Query with Parameters
+The hook depends on `useLanguage()` from `ThemeProvider`. Language changes re-render all components that use `t()`.
+
+Adding new keys: add entries to both `translations.en` and `translations.zh` in `lib/i18n.ts`.
+
+## useLanguage
+
+Returns the current language and a setter:
 
 ```typescript
-export function useUser(userId: string) {
-  return useQuery({
-    queryKey: ['users', userId],
-    queryFn: () => orpcClient.users.get({ id: userId }),
-    enabled: !!userId, // Only fetch when userId is available
-  });
+import { useLanguage } from '@/components/ThemeProvider';
+
+const { language, setLanguage } = useLanguage();
+// language: 'en' | 'zh'
+// setLanguage: (lang: 'en' | 'zh') => void
+```
+
+## useSearchHistory / useDownloadHistory
+
+Local-storage-backed history hooks:
+
+```typescript
+const { history, addSearch, removeSearch, clearSearchHistory } = useSearchHistory();
+const { history, addDownload, removeDownload, clearDownloadHistory } = useDownloadHistory();
+```
+
+### Implementation Details
+
+- Keys: `thunder-subtitle-search-history` and `thunder-subtitle-download-history`
+- Max items: 50 per history type
+- Lazy initialization: reads from localStorage on first render via `useState(() => ...)`
+- Deduplication: `addSearch()` removes older entries with the same name
+- SSR-safe: guards `typeof window !== 'undefined'` for all localStorage access
+
+### Pattern
+
+```typescript
+export function useSearchHistory() {
+  const [history, setHistory] = useState<HistoryItem[]>(() => getStoredArray<HistoryItem>(KEY));
+
+  const addSearch = useCallback((name: string) => {
+    setHistory((prev) => {
+      const filtered = prev.filter((item) => item.name !== name);
+      const updated = [newItem, ...filtered].slice(0, MAX_HISTORY_ITEMS);
+      setStoredArray(KEY, updated); // persist to localStorage
+      return updated;
+    });
+  }, []);
+
+  return { history, isHydrated, addSearch, removeSearch, clearSearchHistory };
 }
 ```
 
-### Query with Filters
+## Creating New Hooks
 
-```typescript
-interface UseOrdersOptions {
-  status?: string;
-  page?: number;
-  pageSize?: number;
-}
+Follow these conventions:
 
-export function useOrders(options: UseOrdersOptions = {}) {
-  const { status, page = 1, pageSize = 20 } = options;
+1. Place hooks in `src/hooks/` for domain hooks, or co-locate with their provider (e.g., `useAuth` in `auth.tsx`)
+2. Use `'use client'` directive if the hook uses React state or browser APIs
+3. Always type the return value explicitly
+4. Guard localStorage access with `typeof window !== 'undefined'`
+5. Use `useCallback` for functions returned from hooks to prevent unnecessary re-renders
 
-  return useQuery({
-    queryKey: ['orders', { status, page, pageSize }],
-    queryFn: () => orpcClient.orders.list({ status, page, pageSize }),
-    placeholderData: (previousData) => previousData, // Keep previous data while fetching
-  });
-}
-```
+## Anti-Patterns
 
-## Mutation Hooks
-
-### Basic Mutation Pattern
-
-```typescript
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { orpcClient } from '@/lib/orpc';
-
-export function useCreateUser() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CreateUserInput) => orpcClient.users.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
-}
-```
-
-### Mutation with Optimistic Updates
-
-```typescript
-type OrderListData = Awaited<ReturnType<typeof orpcClient.orders.list>>;
-
-export function useUpdateOrderStatus() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      orpcClient.orders.updateStatus({ id, status }),
-
-    onMutate: async ({ id, status }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-
-      // Snapshot previous value
-      const previousOrders = queryClient.getQueryData<OrderListData>(['orders']);
-
-      // Optimistically update
-      queryClient.setQueryData<OrderListData>(['orders'], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          items: old.items.map((order) =>
-            order.id === id ? { ...order, status } : order
-          ),
-        };
-      });
-
-      return { previousOrders };
-    },
-
-    onError: (_err, _variables, context) => {
-      // Rollback on error
-      if (context?.previousOrders) {
-        queryClient.setQueryData(['orders'], context.previousOrders);
-      }
-    },
-
-    onSettled: () => {
-      // Always refetch after mutation
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    },
-  });
-}
-```
-
-## Overriding Mutation Callbacks
-
-When overriding mutation callbacks at the call site, you MUST add explicit generics to maintain type safety:
-
-### Problem: Lost Type Safety
-
-```typescript
-// Hook definition
-export function useDeleteUser() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => orpcClient.users.delete({ id }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
-}
-
-// Bad: Overriding without generics loses type safety
-const deleteUser = useDeleteUser();
-deleteUser.mutate(userId, {
-  onSuccess: (data) => {
-    // 'data' is typed as 'unknown' here!
-    console.log(data.id); // TypeScript error or runtime error
-  },
-});
-```
-
-### Solution: Explicit Generics
-
-```typescript
-// Infer types for the mutation
-type DeleteUserData = Awaited<ReturnType<typeof orpcClient.users.delete>>;
-type DeleteUserVariables = string;
-
-// Good: Add explicit generics when overriding callbacks
-deleteUser.mutate<DeleteUserData, Error, DeleteUserVariables>(userId, {
-  onSuccess: (data) => {
-    // 'data' is properly typed
-    console.log(data.id); // Works correctly
-  },
-});
-```
-
-### Alternative: Define Types in Hook
-
-```typescript
-// Export types from the hook file
-export type DeleteUserMutationData = Awaited<
-  ReturnType<typeof orpcClient.users.delete>
->;
-
-// Usage with exported types
-deleteUser.mutate(userId, {
-  onSuccess: (data: DeleteUserMutationData) => {
-    console.log(data.id);
-  },
-});
-```
-
-## Using orpcClient Directly in Hooks
-
-Inside hooks, use `orpcClient` directly instead of wrapping with `useMutation`:
-
-### DO: Direct orpcClient Usage
-
-```typescript
-export function useOrderActions() {
-  const queryClient = useQueryClient();
-
-  const updateOrder = useMutation({
-    mutationFn: (data: UpdateOrderInput) => orpcClient.orders.update(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    },
-  });
-
-  const deleteOrder = useMutation({
-    mutationFn: (id: string) => orpcClient.orders.delete({ id }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    },
-  });
-
-  return {
-    updateOrder: updateOrder.mutate,
-    deleteOrder: deleteOrder.mutate,
-    isUpdating: updateOrder.isPending,
-    isDeleting: deleteOrder.isPending,
-  };
-}
-```
-
-### DON'T: Nested Hooks
-
-```typescript
-// Bad: Don't create hooks that use other mutation hooks
-export function useOrderActions() {
-  // Don't do this - creates unnecessary abstraction
-  const updateMutation = useUpdateOrder();
-  const deleteMutation = useDeleteOrder();
-
-  return {
-    updateOrder: updateMutation.mutate,
-    deleteOrder: deleteMutation.mutate,
-  };
-}
-```
-
-## Compound Hooks
-
-Combine related queries and mutations into a single hook:
-
-```typescript
-export function useProduct(productId: string) {
-  const queryClient = useQueryClient();
-
-  const query = useQuery({
-    queryKey: ['products', productId],
-    queryFn: () => orpcClient.products.get({ id: productId }),
-    enabled: !!productId,
-  });
-
-  const update = useMutation({
-    mutationFn: (data: UpdateProductInput) =>
-      orpcClient.products.update({ id: productId, ...data }),
-    onSuccess: (updatedProduct) => {
-      queryClient.setQueryData(['products', productId], updatedProduct);
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: () => orpcClient.products.delete({ id: productId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
-  });
-
-  return {
-    product: query.data,
-    isLoading: query.isLoading,
-    error: query.error,
-    updateProduct: update.mutate,
-    deleteProduct: remove.mutate,
-    isUpdating: update.isPending,
-    isDeleting: remove.isPending,
-  };
-}
-```
-
-## Infinite Query Pattern
-
-```typescript
-export function useInfiniteOrders() {
-  return useInfiniteQuery({
-    queryKey: ['orders', 'infinite'],
-    queryFn: ({ pageParam = 1 }) =>
-      orpcClient.orders.list({ page: pageParam, pageSize: 20 }),
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.page + 1 : undefined,
-    initialPageParam: 1,
-  });
-}
-```
-
-## Dependent Queries
-
-```typescript
-export function useUserOrders(userId: string) {
-  // First query: get user
-  const userQuery = useQuery({
-    queryKey: ['users', userId],
-    queryFn: () => orpcClient.users.get({ id: userId }),
-    enabled: !!userId,
-  });
-
-  // Second query: depends on user data
-  const ordersQuery = useQuery({
-    queryKey: ['orders', { userId }],
-    queryFn: () => orpcClient.orders.list({ userId }),
-    enabled: !!userQuery.data, // Only run when user is loaded
-  });
-
-  return {
-    user: userQuery.data,
-    orders: ordersQuery.data,
-    isLoading: userQuery.isLoading || ordersQuery.isLoading,
-  };
-}
-```
-
-## Best Practices
-
-1. **Single Responsibility**: Each hook should have one clear purpose
-2. **Consistent Naming**: `useXxx` for hooks, `useXxxQuery` for queries, `useXxxMutation` for mutations
-3. **Error Handling**: Always consider error states in your hooks
-4. **Loading States**: Expose loading states for UI feedback
-5. **Cache Keys**: Use consistent, hierarchical query keys
-6. **Type Safety**: Always maintain proper TypeScript types
-
-## Common Pitfalls
-
-- Forgetting to invalidate related queries after mutations
-- Not handling race conditions with `cancelQueries`
-- Missing `enabled` flag for conditional queries
-- Not providing explicit generics when overriding callbacks
-- Creating too many small hooks instead of compound hooks
+- Using React Query or SWR for server state (we use `FastApiClient` directly)
+- Creating hooks that wrap `FastApiClient` in complex state machines — call the client methods directly in event handlers or `useEffect`
+- Using URL state libraries like `nuqs` (not a dependency — use `useState` and `useRouter` instead)

@@ -1,278 +1,137 @@
 # Type Safety Guidelines
 
-This document covers TypeScript best practices for maintaining type safety across the frontend application.
+This document covers TypeScript type patterns used in Thunder Subtitle Web.
 
-## Core Principles
+## Core Principle
 
-1. **Import types from backend, never redefine them**
-2. **Use type inference wherever possible**
-3. **Avoid type assertions and escape hatches**
-4. **Leverage oRPC for end-to-end type safety**
+**Frontend types mirror backend Pydantic schemas.** All types that correspond to API request/response shapes are defined in `lib/types.ts` and must stay in sync with the FastAPI backend.
 
-## Importing Backend Types
+## Type Definitions
 
-### DO: Import from API Package
+All shared types live in `src/lib/types.ts`:
 
 ```typescript
-// Good: Import types from the API package
-import type { User, Order, Product } from '@your-app/api/modules/users/types'; // Replace with your monorepo package path
-import type { OrderStatus } from '@your-app/api/modules/orders/types'; // Replace with your monorepo package path
+// Domain types
+interface Subtitle { gcid, cid, url, ext, name, duration, languages, source, score, fingerprintf_score, extra_name, mt, is_chinese? }
+interface ApiResponse { code, data, msg? }
+interface SearchResult { subtitles, total }
+
+// History types (localStorage)
+interface HistoryItem { id, name, timestamp }
+interface DownloadHistoryItem extends HistoryItem { subtitle }
+
+// Task types
+type TaskType = "scan" | "review" | "dump"
+type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled"
+interface TaskResponse { id, type, status, progress, message, params, created_at, updated_at }
+
+// Config types
+interface AppConfig { output_dir, timeout, download_timeout, chunk_size, rate_limit, retry_count, retry_delay, preferred_groups, media_paths }
+
+// Review types
+type ReviewState = "ok" | "fail" | "not_reviewed"
+interface ReviewItem { file_path, file_name, quality, chinese_ratio, encoding, review_status, review_date }
+
+// Media types
+interface MediaDirectory { path, name, movie_count }
+interface NfoInfo { path, duration_seconds, has_chinese_subtitle, release_date }
 ```
 
-### DON'T: Redefine Backend Types
+## API-Specific Types
+
+Types that are only used by the API client live in `lib/api.ts`:
 
 ```typescript
-// Bad: Redefining types that exist in backend
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
-// Bad: Creating parallel type definitions
-type OrderStatus = 'pending' | 'processing' | 'completed';
+interface LoginResponse { access_token, token_type, expires_in }
 ```
 
-## Type Inference from API Client
+These are exported alongside the client classes but not in `types.ts` since they're API-internal.
 
-### Using `Awaited<ReturnType>` Pattern
+## Naming Conventions
 
-Infer types directly from API client calls to ensure frontend types stay in sync with backend:
-
-```typescript
-import { orpcClient } from '@/lib/orpc';
-
-// Infer the response type from the API client
-type UsersResponse = Awaited<ReturnType<typeof orpcClient.users.list>>;
-
-// Infer a single item type from array response
-type User = UsersResponse['items'][number];
-
-// Infer input types
-type CreateUserInput = Parameters<typeof orpcClient.users.create>[0];
-```
-
-### Type Inference in Hooks
-
-```typescript
-import { useQuery } from '@tanstack/react-query';
-import { orpcClient } from '@/lib/orpc';
-
-// The return type is automatically inferred
-export function useUsers() {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: () => orpcClient.users.list(),
-  });
-}
-
-// For complex transformations, use explicit inference
-type UserListData = Awaited<ReturnType<typeof orpcClient.users.list>>;
-
-export function useFormattedUsers() {
-  return useQuery({
-    queryKey: ['users', 'formatted'],
-    queryFn: async () => {
-      const data = await orpcClient.users.list();
-      return transformUsers(data);
-    },
-  });
-}
-```
+| Backend (Python) | Frontend (TypeScript) | Notes |
+|-------------------|----------------------|-------|
+| `snake_case` fields | `snake_case` fields | Keep same naming for 1:1 mapping |
+| `Optional[str]` | `string \| undefined` | Use optional `?` for nullable fields |
+| `list[str]` | `string[]` | Arrays map directly |
+| `dict[str, Any]` | `Record<string, unknown>` | Use `unknown` not `any` |
+| `bool` | `boolean` | Direct mapping |
 
 ## Forbidden Patterns
 
-### NO @ts-expect-error for Custom Fields
-
-Never use type suppression to access fields that don't exist in the type:
+### No `any` Types
 
 ```typescript
-// Bad: Suppressing type errors
-// @ts-expect-error - customField exists at runtime
-const value = user.customField;
+// Bad
+const data: any = await response.json();
 
-// Bad: Using any to bypass type checking
-const value = (user as any).customField;
+// Good
+const data: SearchResult = await response.json();
 ```
 
-**Solution**: If a field exists at runtime but not in types, update the backend type definition.
-
-### NO `any` Type in Cache Updates
-
-React Query cache updates must maintain type safety:
+### No `@ts-expect-error`
 
 ```typescript
-// Bad: Using any in cache updates
-queryClient.setQueryData(['users'], (old: any) => {
-  return old.map((user: any) => /* ... */);
-});
+// Bad
+// @ts-expect-error — backend returns this field
+const value = response.someField;
 
-// Good: Properly typed cache updates
-queryClient.setQueryData<UserListData>(['users'], (old) => {
-  if (!old) return old;
-  return {
-    ...old,
-    items: old.items.map((user) => /* ... */),
-  };
-});
+// Good — update the type definition to include the field
 ```
 
-### NO Type Assertions Without Validation
+### No Type Assertions Without Validation
 
 ```typescript
-// Bad: Blind type assertion
-const user = data as User;
+// Bad
+const user = data as AuthUser;
 
-// Good: Runtime validation with Zod
-import { userSchema } from '@your-app/api/modules/users/types'; // Replace with your monorepo package path
-const user = userSchema.parse(data);
+// Good — validate with type guard or trust the API type
+const user: AuthUser = { username: data.username };
+```
 
-// Good: Type guard
-function isUser(data: unknown): data is User {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'id' in data &&
-    'email' in data
-  );
+## Adding New Types
+
+When the backend adds a new endpoint or changes a schema:
+
+1. Update `lib/types.ts` with the new or changed type
+2. Update `FastApiClient` methods in `lib/api.ts` with the correct generic type
+3. Export the type if components need it: `export type { Subtitle } from '@/lib/types'`
+
+Example — adding a new type:
+
+```typescript
+// lib/types.ts
+export interface ScanResult {
+  task_id: string;
+  total_files: number;
+  missing_subtitles: number;
+}
+
+// lib/api.ts
+async startScan(path: string): Promise<ScanResult> {
+  return fastApiFetch<ScanResult>('/api/scan', {
+    method: 'POST',
+    body: JSON.stringify({ path }),
+  });
 }
 ```
 
-## View Model Types
+## Local Storage Types
 
-When the frontend needs additional computed properties, create view models that extend backend types:
-
-```typescript
-// types/index.ts
-import type { Order } from '@your-app/api/modules/orders/types'; // Replace with your monorepo package path
-
-// Extend backend type with frontend-specific computed properties
-export interface OrderViewModel extends Order {
-  formattedTotal: string;
-  statusLabel: string;
-  isEditable: boolean;
-}
-
-// Transform function
-export function toOrderViewModel(order: Order): OrderViewModel {
-  return {
-    ...order,
-    formattedTotal: formatCurrency(order.total),
-    statusLabel: getStatusLabel(order.status),
-    isEditable: order.status === 'draft',
-  };
-}
-```
-
-## Generic Type Patterns
-
-### API Response Wrapper
+History items use `HistoryItem` and `DownloadHistoryItem`:
 
 ```typescript
-// Generic paginated response type
-type PaginatedResponse<T> = {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
-
-// Usage with inference
-type UserListResponse = PaginatedResponse<User>;
+interface HistoryItem { id: string; name: string; timestamp: number }
+interface DownloadHistoryItem extends HistoryItem { subtitle: Subtitle }
 ```
 
-### Hook Return Types
+These are client-only types (not from the backend) but follow the same `snake_case` convention for consistency.
 
-```typescript
-// Explicit return type for complex hooks
-interface UseOrderActionsReturn {
-  updateOrder: (id: string, data: UpdateOrderInput) => Promise<void>;
-  deleteOrder: (id: string) => Promise<void>;
-  isUpdating: boolean;
-  isDeleting: boolean;
-}
+## Best Practices
 
-export function useOrderActions(): UseOrderActionsReturn {
-  // Implementation
-}
-```
-
-## Working with External Data
-
-### API Responses
-
-```typescript
-// Always validate external data
-import { z } from 'zod';
-
-const externalDataSchema = z.object({
-  id: z.string(),
-  value: z.number(),
-});
-
-async function fetchExternalData() {
-  const response = await fetch('/api/external');
-  const data = await response.json();
-  return externalDataSchema.parse(data);
-}
-```
-
-### Local Storage
-
-```typescript
-// Type-safe local storage wrapper
-function getStoredValue<T>(key: string, schema: z.ZodType<T>): T | null {
-  const stored = localStorage.getItem(key);
-  if (!stored) return null;
-
-  try {
-    return schema.parse(JSON.parse(stored));
-  } catch {
-    return null;
-  }
-}
-```
-
-## TypeScript Configuration
-
-Ensure strict mode is enabled in `tsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true
-  }
-}
-```
-
-## Common Type Utilities
-
-```typescript
-// Extract array element type
-type ArrayElement<T> = T extends (infer E)[] ? E : never;
-
-// Make specific properties optional
-type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-// Make specific properties required
-type RequiredBy<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
-
-// Non-nullable
-type NonNullableFields<T> = {
-  [K in keyof T]: NonNullable<T[K]>;
-};
-```
-
-## Checklist
-
-Before committing, verify:
-
-- [ ] No `@ts-expect-error` or `@ts-ignore` comments added
-- [ ] No `any` types in new code
-- [ ] All API response types are inferred or imported from backend
-- [ ] Cache updates are properly typed
-- [ ] External data is validated with Zod schemas
+1. **Keep types.ts in sync with backend schemas** — check when backend changes
+2. **Use `unknown` over `any`** for truly unknown types
+3. **Mark optional fields with `?`** — only if the backend marks them `Optional`
+4. **Export types from `api.ts`** only when they're API-internal (like `LoginResponse`)
+5. **Component props** — always define an explicit interface
+6. **Generic `fastApiFetch<T>`** — always provide the concrete type argument

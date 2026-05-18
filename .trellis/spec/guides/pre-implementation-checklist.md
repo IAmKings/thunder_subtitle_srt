@@ -6,15 +6,15 @@
 
 ## Why This Checklist?
 
-Most code quality issues aren't caught during implementation--they're **designed in** from the start:
+Most code quality issues aren't caught during implementation—they're **designed in** from the start:
 
 | Problem                                | Root Cause                                    | Cost                       |
 | -------------------------------------- | --------------------------------------------- | -------------------------- |
-| Constants duplicated across 5 files    | Didn't ask "will this be used elsewhere?"     | Refactoring + testing      |
-| Same logic repeated in multiple hooks  | Didn't ask "does this pattern exist?"         | Creating abstraction later |
+| Types duplicated in `types.ts` and `schemas.py` | Didn't ask "is this type already defined?" | Debugging type mismatches  |
+| Same logic repeated in multiple components | Didn't ask "does this pattern exist?"        | Creating abstraction later |
 | Cross-layer type mismatches            | Didn't ask "who else consumes this?"          | Debugging + fixing         |
-| Zod schema redefined in frontend       | Didn't ask "is this type already exported?"   | Inconsistent validation    |
-| oRPC procedure duplicates existing one | Didn't ask "does a similar endpoint exist?"   | API surface bloat          |
+| Pydantic schema changed but TS not updated | Didn't ask "does this affect the frontend?" | API contract violation     |
+| FastAPI endpoint duplicates existing   | Didn't ask "does a similar endpoint exist?"   | API surface bloat          |
 
 **This checklist catches these issues before they become code.**
 
@@ -26,21 +26,21 @@ Most code quality issues aren't caught during implementation--they're **designed
 
 Before adding any constant or config value:
 
-- [ ] **Cross-package usage?** Will this value be used in both frontend app and API package?
-  - If yes -> Put in a shared package (e.g., `@your-app/utils` or `@your-app/config`)
-  - Example: `MAX_UPLOAD_SIZE` used by both file upload UI and oRPC validation
+- [ ] **Cross-stack usage?** Will this value be used in both frontend and backend?
+  - If yes -> Define in backend (`config.py` / `schemas.py`), mirror in frontend (`types.ts`)
+  - Example: Task status values (`pending`, `running`, etc.) must be consistent across both
 
-- [ ] **Multiple consumers?** Will this value be used in 2+ files within the same package?
-  - If yes -> Put in a shared constants file for that package
-  - Example: Don't define `DEBOUNCE_MS = 300` in each hook file
+- [ ] **Multiple consumers?** Will this value be used in 2+ files?
+  - If yes -> Put in a shared constants file for that codebase
+  - Example: Don't define `DEFAULT_TIMEOUT = 30000` in each component
 
 - [ ] **Magic number?** Is this a hardcoded value that could change?
   - If yes -> Extract to named constant with comment explaining why
-  - Example: `PAGINATION_LIMIT: 50  // oRPC default page size`
+  - Example: `WS_RECONNECT_DELAY: 3000  // ms, wait before reconnecting`
 
 - [ ] **Environment-dependent?** Does this differ between dev/staging/production?
-  - If yes -> Use environment variables with proper validation
-  - Example: API URLs, feature flags, third-party API keys
+  - If yes -> Use environment variables
+  - Example: `NEXT_PUBLIC_API_URL`, `JWT_SECRET`, `MEDIA_PATHS`
 
 ### 2. Logic & Patterns
 
@@ -49,43 +49,49 @@ Before implementing any logic:
 - [ ] **Pattern exists?** Search for similar patterns in the codebase first
 
   ```bash
-  # Example: Before implementing debounced search
-  rg "debounce" src/ packages/
-  rg "useDebounce" src/ packages/
+  # Example: Before implementing a new API client method
+  rg "async.*get" thunder-subtitle-web/src/lib/api.ts
+  rg "get_" thunder-subtitle-api/app/api/
+
+  # Example: Before implementing a new hook
+  rg "useAuth\|useHistory\|useTranslations" thunder-subtitle-web/src/
   ```
 
 - [ ] **Will repeat?** Will this exact logic be needed in 2+ places?
   - If yes -> Create a shared hook/utility **first**, then use it
-  - Example: `useDebounce` instead of repeating debounce logic in 5 hooks
+  - Example: `useAuth` hook instead of repeating auth logic in each page
 
-- [ ] **React Query pattern?** Is there an existing query/mutation hook for this data?
-  - Search before creating: `rg "orpc.items" src/`
-  - Check if you can extend an existing hook rather than creating a new one
-
-- [ ] **Server or client?** Does this logic need interactivity?
-  - If no -> Keep it in a Server Component (default)
-  - If yes -> Extract only the interactive part into a Client Component
+- [ ] **Frontend or backend?** Where does this logic belong?
+  - Pure UI transformation -> Frontend component
+  - Data validation / business rules -> Backend (Pydantic schema + service)
+  - Shared between components -> Frontend hook or utility
 
 ### 3. Types & Schemas
 
 Before defining types:
 
-- [ ] **Zod schema exists?** Is there already a Zod schema for this data shape?
-  - Check the API module's `types.ts`: `rg "Schema = z.object" packages/api/`
-  - Derive TypeScript types from Zod schemas with `z.infer<typeof schema>`
-  - Never manually define a TypeScript interface that duplicates a Zod schema
+- [ ] **Pydantic schema exists?** Is there already a Pydantic model for this data?
+  - Check `schemas.py`: `rg "class.*Model" thunder-subtitle-api/app/models/schemas.py`
+  - If yes -> Mirror it in `types.ts`, don't redefine from scratch
 
-- [ ] **Existing type?** Does a similar type already exist?
-  - Search before creating: `rg "interface.*YourTypeName\|type.*YourTypeName" src/ packages/`
+- [ ] **Existing TypeScript type?** Does a similar type already exist?
+  - Search before creating: `rg "interface.*Name\|type.*Name" thunder-subtitle-web/src/lib/types.ts`
 
-- [ ] **Cross-layer type?** Is this type used across the oRPC boundary?
-  - If yes -> Define the Zod schema in the API module's `types.ts`, export the inferred type
-  - Frontend should import types from the API package, not redefine them
+- [ ] **Cross-boundary type?** Is this type used in both frontend and backend?
+  - If yes -> Define in `schemas.py` (backend, source of truth), mirror in `types.ts` (frontend)
+  - Both must be updated in the same PR
 
-- [ ] **Derived from client?** Can you infer the type from the oRPC client?
+- [ ] **Snake_case matching?** Do TypeScript field names match the API JSON response?
+  - Example: `created_at` in Python → `created_at` in TypeScript (NOT `createdAt`)
+
+- [ ] **Literal types?** Are enum-like values defined as union types on both sides?
+  ```python
+  # Python
+  type: Literal["scan", "review", "dump"]
+  ```
   ```typescript
-  // Prefer this over manually defining types
-  type ItemResult = Awaited<ReturnType<(typeof orpcClient)["items"]["get"]>>;
+  // TypeScript
+  export type TaskType = "scan" | "review" | "dump";
   ```
 
 ### 4. UI Components
@@ -99,47 +105,52 @@ Before creating UI components:
   - None of the above? -> Keep as Server Component (default)
 
 - [ ] **Similar component exists?** Search before creating
-  - `rg "function.*YourComponent\|export.*YourComponent" src/`
+  - `rg "function.*Component\|export.*Component" thunder-subtitle-web/src/components/`
 
-- [ ] **Visual-logic consistency?** If there's already a visual distinction (icon, color, label) for a concept, does your logic match?
+- [ ] **Uses dark theme tokens?** Are you using `@theme` design tokens, not raw colors?
+  - Reference: `src/app/globals.css` for the design token system
 
-- [ ] **State lifecycle?** Will this component unmount during normal user flow?
-  - If yes -> Consider where state should persist (URL params with nuqs, parent, context)
+- [ ] **Needs auth?** Does this page require authentication?
+  - If yes -> Wrap with `withAuth()` HOC or check `useAuth()` state
 
-### 5. API Routes & oRPC Procedures
+### 5. API Endpoints (FastAPI Routers)
 
-Before writing an API route or oRPC procedure:
+Before writing a FastAPI endpoint:
 
-- [ ] **Existing procedure?** Does a similar oRPC procedure already exist?
-  - Check the module's `router.ts`: `rg "Router = {" packages/api/`
-  - Can you extend an existing procedure rather than creating a new one?
+- [ ] **Existing endpoint?** Does a similar route already exist?
+  - Check: `rg "router\.(get|post|put|delete)" thunder-subtitle-api/app/api/`
+  - Can you extend an existing endpoint rather than creating a new one?
 
 - [ ] **Correct HTTP method?**
-  - GET for read operations (queries)
-  - POST for create operations (mutations)
-  - PUT/PATCH for update operations
+  - GET for read operations (search, list, get)
+  - POST for create operations (create task, login)
+  - PUT for update operations (update config)
   - DELETE for removal operations
 
-- [ ] **Authentication level?** Which base procedure to use?
-  - Public data -> `publicProcedure`
-  - User-specific data -> `protectedProcedure`
-  - Admin operations -> `adminProcedure`
+- [ ] **Authentication level?** Does this endpoint need authentication?
+  - Public endpoints (search) -> No auth required
+  - Protected endpoints (config, tasks) -> Add `Depends(get_current_user)`
+  - Check other endpoints in the same router for consistency
 
-- [ ] **Input/output schemas defined?** Both should be Zod schemas in `types.ts`
+- [ ] **Pydantic model defined?** Both request and response models should be in `schemas.py`
+
+- [ ] **Service layer used?** Business logic should be in `*_service.py`, not in the router
 
 ### 6. Dependencies
 
 Before adding a dependency:
 
-- [ ] **Already installed?** Check `package.json` across all packages
+- [ ] **Already installed?** Check the right `requirements.txt` or `package.json`
   ```bash
-  rg "\"dependency-name\"" package.json packages/*/package.json
+  rg "dependency-name" thunder-subtitle-api/requirements.txt
+  rg "dependency-name" thunder-subtitle-web/package.json
   ```
 
 - [ ] **Built-in alternative?** Can you use a native API or existing utility instead?
-  - Example: `structuredClone()` instead of `lodash.cloneDeep`
+  - Example: `structuredClone()` instead of `lodash.cloneDeep` (frontend)
+  - Example: `pathlib.Path` instead of `os.path` (backend)
 
-- [ ] **Bundle impact?** Will this significantly increase the client bundle?
+- [ ] **Bundle impact?** (Frontend only) Will this significantly increase the client bundle?
   - If yes -> Consider dynamic import or server-only usage
 
 ---
@@ -148,8 +159,8 @@ Before adding a dependency:
 
 ```
 Adding a value/constant?
-|-- Used in both app AND api package? -> shared package (@your-app/utils)
-|-- Used in 2+ files within same package? -> shared constants file
+|-- Used in both frontend AND backend? -> Backend: schemas.py/config.py, Frontend: types.ts (mirror)
+|-- Used in 2+ files within same codebase? -> shared constants file
 +-- Single file only? -> Local constant is fine
 
 Adding logic/behavior?
@@ -158,30 +169,35 @@ Adding logic/behavior?
 +-- Single use only? -> Implement directly (but document pattern)
 
 Adding a type?
-|-- Zod schema exists? -> Use z.infer<typeof schema>
-|-- Crosses oRPC boundary? -> Define in API types.ts, import elsewhere
-|-- Can derive from client? -> Use Awaited<ReturnType<...>>
-+-- Local only? -> Define locally
+|-- Pydantic model exists? -> Mirror in types.ts with matching field names
+|-- Crosses API boundary? -> schemas.py (source of truth) + types.ts (mirror)
++-- Frontend-only? -> Define in types.ts or local
 
 Adding a component?
 |-- Needs interactivity? -> 'use client'
 |-- Pure display? -> Server Component (default)
 +-- Mix of both? -> Split into Server wrapper + Client interactive part
+
+Adding an API endpoint?
+|-- Similar route exists? -> Extend it
+|-- Needs auth? -> Add Depends(get_current_user)
++-- New endpoint? -> Router + Service + Pydantic schema
 ```
 
 ---
 
 ## What to Verify Across Layers
 
-When implementing a feature that spans Server Component -> API -> Database, verify:
+When implementing a feature that spans Frontend → API → Service → CLI, verify:
 
 | Layer            | Check                                                              |
 | ---------------- | ------------------------------------------------------------------ |
-| Server Component | Data fetched correctly? Props serializable? No client-only APIs?   |
-| Client Component | Loading/error states handled? React Query cache invalidated?       |
-| oRPC Procedure   | Input validated? Auth checked? Output schema matches?              |
-| Database Query   | No N+1 queries? Proper indexes? Transactions where needed?         |
-| Zod Schemas      | Input and output schemas consistent? Date/null handling correct?   |
+| Next.js Component| Loading/error states handled? Auth checked? WebSocket connected?   |
+| FastApiClient    | Method exists? Correct return type? Auth header attached?          |
+| FastAPI Router   | Input validated? Auth required? Response model matches?             |
+| Service Layer    | CLI function exists? Resources cleaned up? Errors caught?          |
+| CLI Module       | Function signature matches service call? Returns expected format?  |
+| Pydantic ↔ TS    | Field names match? Types compatible? Literal values consistent?     |
 
 ---
 
@@ -190,59 +206,69 @@ When implementing a feature that spans Server Component -> API -> Database, veri
 ### Redefining Backend Types
 
 ```typescript
-// DON'T: Manually define types that mirror Zod schemas
-interface Item {
+// DON'T: Manually define types with different field names than backend
+interface Task {
+  taskId: string;      // backend sends "id"
+  taskType: string;    // backend sends "type"
+  createdAt: string;   // backend sends "created_at"
+}
+
+// DO: Mirror backend Pydantic schema exactly
+interface TaskResponse {
   id: string;
-  name: string;
-  createdAt: Date;
-}
-
-// DO: Import or infer from the source of truth
-import type { Item } from "@your-app/api/modules/items/types";
-// or
-type Item = Awaited<ReturnType<(typeof orpcClient)["items"]["get"]>>["item"];
-```
-
-### Manual Query Keys
-
-```typescript
-// DON'T: Manually construct query keys
-queryClient.invalidateQueries({ queryKey: ["items", "list"] });
-
-// DO: Use oRPC generated keys
-queryClient.invalidateQueries({ queryKey: orpc.items.list.key() });
-```
-
-### Unnecessary Client Components
-
-```typescript
-// DON'T: Mark everything as 'use client'
-'use client';
-export function ItemCard({ item }) {
-  return <div>{item.name}</div>; // No interactivity needed!
-}
-
-// DO: Keep as Server Component when possible
-export function ItemCard({ item }) {
-  return <div>{item.name}</div>;
+  type: TaskType;
+  status: TaskStatus;
+  progress: number;
+  message: string;
+  params: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 ```
 
-### Fetch in Client Components When Server Would Work
+### Using Raw `fetch` Instead of FastApiClient
 
 ```typescript
-// DON'T: Fetch in Client Component when data could come from Server Component
-'use client';
-export function ItemList() {
-  const { data } = useQuery(orpc.items.list.queryOptions({ input: {} }));
-  return <ul>{data?.items.map(...)}</ul>;
-}
+// DON'T: Raw fetch without auth
+const response = await fetch("/api/config");
+const config = await response.json();
 
-// DO: Fetch in Server Component, pass as props (when no interactivity needed)
-export async function ItemList() {
-  const data = await orpcClient.items.list({});
-  return <ul>{data.items.map(...)}</ul>;
-}
+// DO: Use FastApiClient which handles auth and typing
+const config = await fastApiClient.getConfig();
+```
+
+### Business Logic in Router
+
+```python
+# DON'T: Business logic directly in router
+@router.get("/config")
+async def get_config():
+    result = thunder_subtitle_config.load()  # direct CLI call
+    return result
+
+# DO: Use service layer
+@router.get("/config")
+async def get_config(service: ConfigService = Depends(get_config_service)):
+    return service.get_config()
+```
+
+### Missing `client.close()` in Service
+
+```python
+# DON'T: Resource leak
+async def search(self, name: str):
+    client = ThunderSubtitleClient()
+    result = client.search(name)
+    return result  # client never closed!
+
+# DO: Always close in finally block
+async def search(self, name: str):
+    client = ThunderSubtitleClient()
+    try:
+        result = client.search(name)
+        return result
+    finally:
+        client.close()
 ```
 
 ---
@@ -255,7 +281,7 @@ export async function ItemList() {
 | About to implement logic                   | Run through Section 2     |
 | About to define a type or schema           | Run through Section 3     |
 | About to create a component                | Run through Section 4     |
-| About to add an oRPC procedure             | Run through Section 5     |
+| About to add an API endpoint               | Run through Section 5     |
 | About to add a dependency                  | Run through Section 6     |
 | Feels like you've seen similar code before | **STOP** and search first |
 
@@ -271,18 +297,19 @@ export async function ItemList() {
 **Ideal workflow:**
 
 1. Read this checklist before coding
-2. Use Cross-Layer guide for features spanning multiple layers
+2. Use Cross-Layer guide for features spanning frontend ↔ backend ↔ CLI
 
 ---
 
 ## Lessons Learned
 
-| Date | Issue                                          | Lesson                                                                |
-| ---- | ---------------------------------------------- | --------------------------------------------------------------------- |
-| -    | Zod schema redefined in frontend and backend   | Always derive frontend types from the API package's Zod schemas       |
-| -    | `useQuery` used where Server Component sufficed | Ask "does this need interactivity?" before reaching for React Query   |
-| -    | Manual query keys diverged from oRPC keys      | Always use `orpc.xxx.key()` or `orpc.xxx.queryKey()` for cache ops   |
-| -    | Type defined in both app and api package       | Cross-boundary types must be defined once in the API module           |
+| Date | Issue                                               | Lesson                                                             |
+| ---- | --------------------------------------------------- | ------------------------------------------------------------------ |
+| -    | Pydantic schema changed but types.ts not updated    | Always update both files in the same PR                            |
+| -    | Using raw `fetch` instead of FastApiClient          | Always use FastApiClient for authenticated endpoints               |
+| -    | Business logic in router instead of service          | Keep routers thin; business logic belongs in service layer         |
+| -    | snake_case fields converted to camelCase in TS      | TypeScript interfaces must match snake_case JSON keys from API     |
+| -    | Missing `client.close()` causing resource leaks     | Always close CLI clients in finally blocks                         |
 
 ---
 

@@ -1,464 +1,178 @@
 # API Integration
 
-This document covers API integration patterns including oRPC client usage, real-time communication, and AI streaming.
+This document covers the API client architecture for communicating with the FastAPI backend.
 
-## oRPC Client Usage
+## Client Architecture
 
-### Client Setup
-
-```typescript
-// lib/orpc.ts
-import { createORPCClient } from '@your-app/api/client'; // Replace with your monorepo package path
-
-export const orpcClient = createORPCClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL,
-});
+```
+┌────────────────────┐     Direct HTTP      ┌──────────────┐
+│   FastApiClient     │ ───────────────────► │  FastAPI       │
+│   (auth + config +  │                     │  Backend       │
+│    tasks + media +  │                     │  :8000         │
+│    reviews)         │                     └──────────────┘
+└────────────────────┘                            ▲
+                                                   │
+┌────────────────────┐     Next.js proxy      │
+│   SubtitleApiClient │ ──► /api/subtitle ──────►│
+│   (legacy search)    │     route.ts              │
+└────────────────────┘                            │
+                                                   │
+┌────────────────────┐     WebSocket              │
+│   ProgressWebSocket │ ◄──────────────────────────┘
+│   (task progress)    │     /ws/progress/{taskId}
+└────────────────────┘
 ```
 
-### Basic API Calls
+## FastApiClient
+
+The primary API client for all backend operations:
 
 ```typescript
-// Simple GET
-const users = await orpcClient.users.list();
+import { fastApiClient } from '@/lib/api';
 
-// GET with parameters
-const user = await orpcClient.users.get({ id: userId });
+// Authentication
+await fastApiClient.login(username, password);
+await fastApiClient.verifyToken(token);
 
-// POST (create)
-const newUser = await orpcClient.users.create({
-  name: 'John Doe',
-  email: 'john@example.com',
-});
+// Subtitle search (via FastAPI)
+await fastApiClient.searchSubtitles(name, { chineseOnly: true, chineseFirst: true });
 
-// PUT/PATCH (update)
-const updatedUser = await orpcClient.users.update({
-  id: userId,
-  name: 'Jane Doe',
-});
+// Config
+await fastApiClient.getConfig();
+await fastApiClient.updateConfig(config);
+await fastApiClient.reloadConfig();
 
-// DELETE
-await orpcClient.users.delete({ id: userId });
+// Tasks
+await fastApiClient.createTask('scan', { path: '/media/movies' });
+await fastApiClient.listTasks();
+await fastApiClient.getTask(taskId);
+await fastApiClient.cancelTask(taskId);
+
+// Media
+await fastApiClient.listMediaDirectories();
+await fastApiClient.getNfoInfo(path);
+
+// Reviews
+await fastApiClient.listReviews(baseDir, nameFilter);
+await fastApiClient.markReview(baseDir, path, 'ok');
 ```
 
-### With React Query
+### fastApiFetch Helper
+
+All `FastApiClient` methods go through `fastApiFetch<T>()`, which:
+
+1. Reads the auth token from localStorage
+2. Injects `Authorization: Bearer <token>` header automatically
+3. Sets `Content-Type: application/json` and `Accept: application/json`
+4. Applies a 30-second timeout via `AbortSignal.timeout`
+5. Returns parsed JSON with type assertion `as Promise<T>`
+6. Throws `Error` on non-OK responses
 
 ```typescript
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { orpcClient } from '@/lib/orpc';
+async function fastApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getAuthToken();
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json', ...existingHeaders };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-// Query
-export function useUsers() {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: () => orpcClient.users.list(),
-  });
-}
-
-// Mutation
-export function useCreateUser() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: orpcClient.users.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
-}
-```
-
-## Query Patterns
-
-### Pagination
-
-```typescript
-interface PaginationParams {
-  page: number;
-  pageSize: number;
-}
-
-export function usePaginatedOrders({ page, pageSize }: PaginationParams) {
-  return useQuery({
-    queryKey: ['orders', { page, pageSize }],
-    queryFn: () => orpcClient.orders.list({ page, pageSize }),
-    placeholderData: (prev) => prev, // Keep previous data while fetching
-  });
-}
-```
-
-### Filtering and Sorting
-
-```typescript
-interface OrderFilters {
-  status?: string;
-  customerId?: string;
-  sortBy?: 'createdAt' | 'total';
-  sortOrder?: 'asc' | 'desc';
-}
-
-export function useFilteredOrders(filters: OrderFilters) {
-  return useQuery({
-    queryKey: ['orders', filters],
-    queryFn: () => orpcClient.orders.list(filters),
-  });
-}
-```
-
-### Prefetching
-
-```typescript
-export function useOrdersWithPrefetch() {
-  const queryClient = useQueryClient();
-
-  const query = useQuery({
-    queryKey: ['orders', { page: 1 }],
-    queryFn: () => orpcClient.orders.list({ page: 1 }),
+  const response = await fetch(`${FASTAPI_BASE_URL}${path}`, {
+    ...options,
+    headers,
+    signal: options.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT),
   });
 
-  // Prefetch next page
-  useEffect(() => {
-    if (query.data?.hasNextPage) {
-      queryClient.prefetchQuery({
-        queryKey: ['orders', { page: 2 }],
-        queryFn: () => orpcClient.orders.list({ page: 2 }),
-      });
-    }
-  }, [query.data, queryClient]);
-
-  return query;
+  if (!response.ok) throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  return response.json() as Promise<T>;
 }
 ```
 
-## Real-time Communication
+### Environment Variable
 
-### WebSocket with Ably
+`NEXT_PUBLIC_API_URL` (default: `http://localhost:8000`) — the FastAPI base URL.
+
+## SubtitleApiClient (Legacy)
+
+The legacy client routes through the Next.js proxy route:
 
 ```typescript
-// lib/ably.ts
-import Ably from 'ably';
+import { subtitleApiClient } from '@/lib/api';
 
-export const ablyClient = new Ably.Realtime({
-  authUrl: '/api/ably/auth',
+await subtitleApiClient.searchSubtitles(name);
+const chineseSubs = subtitleApiClient.filterChineseSubtitles(subtitles);
+const downloadUrl = subtitleApiClient.getDownloadUrl(subtitle);
+```
+
+This client calls `/api/subtitle?name=...` which is proxied to the FastAPI backend via the Next.js API route at `app/api/subtitle/route.ts`.
+
+For new code, prefer `fastApiClient.searchSubtitles()` which goes directly to FastAPI.
+
+## ProgressWebSocket
+
+Real-time task progress via WebSocket:
+
+```typescript
+import { ProgressWebSocket } from '@/lib/api';
+
+const ws = new ProgressWebSocket();
+
+// Connect to a specific task
+ws.connect(taskId, (data) => {
+  console.log('Progress update:', data);
+  // Data shape depends on backend, likely: { taskId, progress, status, message }
 });
 
-// Hook for real-time updates
-export function useRealtimeOrders() {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const channel = ablyClient.channels.get('orders');
-
-    channel.subscribe('order:created', (message) => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    });
-
-    channel.subscribe('order:updated', (message) => {
-      const order = message.data;
-      queryClient.setQueryData(['orders', order.id], order);
-    });
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [queryClient]);
-}
+// Disconnect when done
+ws.disconnect();
 ```
 
-### WebSocket Connection Management
+The WebSocket URL is derived by replacing `http` with `ws` in `FASTAPI_BASE_URL`, then connecting to `/ws/progress/{taskId}`.
+
+### Connection Behavior
+
+- Calling `connect()` closes any existing connection before creating a new one
+- Malformed messages are silently ignored
+- `onclose` sets `ws = null` (reconnect logic is the caller's responsibility)
+
+## Next.js Proxy Rewrite
+
+In `next.config.ts`, the `/fastapi/:path*` path is rewritten to the FastAPI backend:
 
 ```typescript
-export function useWebSocket(channelName: string) {
-  const [isConnected, setIsConnected] = useState(false);
-  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
-
-  useEffect(() => {
-    const channel = ablyClient.channels.get(channelName);
-    channelRef.current = channel;
-
-    channel.on('attached', () => setIsConnected(true));
-    channel.on('detached', () => setIsConnected(false));
-
-    return () => {
-      channel.detach();
-    };
-  }, [channelName]);
-
-  const subscribe = useCallback(
-    (event: string, callback: (data: unknown) => void) => {
-      channelRef.current?.subscribe(event, (message) => {
-        callback(message.data);
-      });
-    },
-    []
-  );
-
-  return { isConnected, subscribe };
+async rewrites() {
+  return [{ source: '/fastapi/:path*', destination: apiBaseUrl + '/:path*' }];
 }
 ```
 
-## SSE/Streaming for AI Chat
-
-### Basic SSE Pattern
-
-```typescript
-export function useAIChat() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-
-  const sendMessage = useCallback(async (content: string) => {
-    setIsStreaming(true);
-
-    // Add user message
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', content },
-    ]);
-
-    // Create placeholder for assistant response
-    setMessages((prev) => [
-      ...prev,
-      { role: 'assistant', content: '' },
-    ]);
-
-    try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content }),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      while (reader) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        setMessages((prev) => {
-          const updated = [...prev];
-          const lastMessage = updated[updated.length - 1];
-          lastMessage.content += chunk;
-          return updated;
-        });
-      }
-    } finally {
-      setIsStreaming(false);
-    }
-  }, []);
-
-  return { messages, sendMessage, isStreaming };
-}
-```
-
-### Using Vercel AI SDK
-
-```typescript
-import { useChat } from 'ai/react';
-
-export function useAIChatWithSDK() {
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    error,
-  } = useChat({
-    api: '/api/ai/chat',
-    onFinish: (message) => {
-      // Handle completed message
-    },
-  });
-
-  return {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    error,
-  };
-}
-```
-
-## AI Tool Calls Handling
-
-AI responses may include tool calls (function calls). The format differs between real-time streaming and history restore.
-
-### Real-time Streaming Format
-
-During streaming, tool calls arrive incrementally:
-
-```typescript
-interface StreamingToolCall {
-  type: 'tool-call';
-  toolCallId: string;
-  toolName: string;
-  args: Record<string, unknown>;
-}
-
-interface StreamingToolResult {
-  type: 'tool-result';
-  toolCallId: string;
-  result: unknown;
-}
-```
-
-### History Restore Format
-
-When loading chat history, tool calls are embedded in messages:
-
-```typescript
-interface HistoryMessage {
-  role: 'assistant';
-  content: string;
-  toolInvocations?: Array<{
-    toolCallId: string;
-    toolName: string;
-    args: Record<string, unknown>;
-    result?: unknown;
-    state: 'pending' | 'result' | 'error';
-  }>;
-}
-```
-
-### Unified Handler Pattern
-
-```typescript
-interface ToolCall {
-  id: string;
-  name: string;
-  args: Record<string, unknown>;
-  result?: unknown;
-  state: 'pending' | 'result' | 'error';
-}
-
-function normalizeToolCall(
-  data: StreamingToolCall | HistoryMessage['toolInvocations'][0]
-): ToolCall {
-  // Handle streaming format
-  if ('type' in data && data.type === 'tool-call') {
-    return {
-      id: data.toolCallId,
-      name: data.toolName,
-      args: data.args,
-      state: 'pending',
-    };
-  }
-
-  // Handle history format
-  return {
-    id: data.toolCallId,
-    name: data.toolName,
-    args: data.args,
-    result: data.result,
-    state: data.state,
-  };
-}
-
-// Usage in component
-function ToolCallDisplay({ toolCall }: { toolCall: ToolCall }) {
-  switch (toolCall.name) {
-    case 'searchProducts':
-      return <ProductSearchResult args={toolCall.args} result={toolCall.result} />;
-    case 'createOrder':
-      return <OrderCreationResult args={toolCall.args} result={toolCall.result} />;
-    default:
-      return <GenericToolResult toolCall={toolCall} />;
-  }
-}
-```
-
-### Handling Tool Call States
-
-```typescript
-export function useToolCallHandler() {
-  const [pendingToolCalls, setPendingToolCalls] = useState<Map<string, ToolCall>>(
-    new Map()
-  );
-
-  const handleStreamChunk = useCallback((chunk: unknown) => {
-    if (isToolCall(chunk)) {
-      setPendingToolCalls((prev) => {
-        const next = new Map(prev);
-        next.set(chunk.toolCallId, normalizeToolCall(chunk));
-        return next;
-      });
-    }
-
-    if (isToolResult(chunk)) {
-      setPendingToolCalls((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(chunk.toolCallId);
-        if (existing) {
-          next.set(chunk.toolCallId, {
-            ...existing,
-            result: chunk.result,
-            state: 'result',
-          });
-        }
-        return next;
-      });
-    }
-  }, []);
-
-  return { pendingToolCalls, handleStreamChunk };
-}
-```
+This allows direct browser-to-FastAPI calls from the Next.js domain, avoiding CORS issues.
 
 ## Error Handling
 
-### API Error Handling
+API calls throw on HTTP errors:
 
 ```typescript
-import { isORPCError } from '@your-app/api/client'; // Replace with your monorepo package path
-
-export function useCreateOrder() {
-  const [error, setError] = useState<string | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: orpcClient.orders.create,
-    onError: (err) => {
-      if (isORPCError(err)) {
-        switch (err.code) {
-          case 'UNAUTHORIZED':
-            setError('Please sign in to continue');
-            break;
-          case 'VALIDATION_ERROR':
-            setError('Please check your input');
-            break;
-          default:
-            setError('Something went wrong');
-        }
-      } else {
-        setError('Network error. Please try again.');
-      }
-    },
-  });
-
-  return { ...mutation, error };
+try {
+  const config = await fastApiClient.getConfig();
+} catch (error) {
+  if (error instanceof Error) {
+    if (error.message.includes('API request failed')) {
+      // HTTP error from backend
+    }
+  }
 }
 ```
 
-### Retry Logic
-
-```typescript
-export function useResilientQuery() {
-  return useQuery({
-    queryKey: ['data'],
-    queryFn: () => orpcClient.data.get(),
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-}
-```
+For `verifyToken()`, errors are caught and return `false` instead of throwing.
 
 ## Best Practices
 
-1. **Centralize API Client**: Keep oRPC client configuration in one place
-2. **Use Query Keys Consistently**: Follow a hierarchical naming convention
-3. **Handle Loading States**: Always show feedback during API calls
-4. **Implement Error Boundaries**: Catch and display errors gracefully
-5. **Optimize Real-time**: Unsubscribe from channels when components unmount
-6. **Type Everything**: Leverage TypeScript for API response types
+1. **Use `fastApiClient` for new code** — not `subtitleApiClient`
+2. **Always handle loading + error states** in UI when making API calls
+3. **Token auto-injection** — never manually add `Authorization` headers; `fastApiFetch` does this
+4. **Clean up WebSocket connections** — call `ws.disconnect()` in `useEffect` cleanup
+5. **Type all responses** — cast `fastApiFetch<T>()` with the correct `T` from `lib/types.ts`
+6. **Use 30-second timeout** — the default `DEFAULT_TIMEOUT` handles hung requests
+
+## Anti-Patterns
+
+- Using raw `fetch()` directly in components — always go through `FastApiClient`
+- Adding React Query / SWR — not a dependency; call client methods in `useEffect` or event handlers
+- Using the `/api/subtitle` proxy route for new features — go directly to FastAPI

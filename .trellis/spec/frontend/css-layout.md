@@ -1,381 +1,165 @@
-# CSS & Layout Best Practices
+# CSS & Layout — Dark Theme Design System
 
-This document covers CSS patterns, layout strategies, and cross-environment compatibility considerations.
+This document covers the dark theme design tokens and layout patterns used in Thunder Subtitle Web.
 
-## Flexbox Patterns
+## Design Tokens
 
-### Use items-stretch on Main Flex Containers
+All tokens are defined in `globals.css` using `@theme` (TailwindCSS v4):
 
-For full-height layouts where children should fill the available space:
+### Color Palette
 
-```typescript
-// Good: items-stretch (default) allows children to fill height
-<div className="flex h-screen">
-  <aside className="w-64 bg-gray-100">
-    {/* Sidebar fills full height */}
-  </aside>
-  <main className="flex-1">
-    {/* Main content fills full height */}
-  </main>
-</div>
-```
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `--color-surface` | `#0f1417` | Page background |
+| `--color-surface-dim` | `#0f1417` | Dimmed surface |
+| `--color-surface-bright` | `#353a3e` | Bright surface |
+| `--color-surface-container-lowest` | `#0a0f12` | Deepest container |
+| `--color-surface-container-low` | `#171c20` | Low container (sidebar bg) |
+| `--color-surface-container` | `#1b2024` | Default container |
+| `--color-surface-container-high` | `#252b2e` | High container (hover bg) |
+| `--color-surface-container-highest` | `#303539` | Highest container |
+| `--color-on-surface` | `#dee3e8` | Primary text |
+| `--color-on-surface-variant` | `#bdc8d0` | Secondary text |
+| `--color-primary` | `#7bd0ff` | Electric Blue — links, active states |
+| `--color-on-primary` | `#003549` | Text on primary |
+| `--color-primary-container` | `#00A4DC` | Primary container |
+| `--color-on-primary-container` | `#00354A` | Text on primary container |
+| `--color-secondary` | `#d1bcff` | Purple accent |
+| `--color-secondary-container` | `#562ca9` | Purple container |
+| `--color-tertiary` | `#ffb869` | Amber accent |
+| `--color-tertiary-container` | `#d78719` | Amber container |
+| `--color-error` | `#ffb4ab` | Error text |
+| `--color-error-container` | `#93000a` | Error bg |
+| `--color-outline` | `#87929a` | Borders (visible) |
+| `--color-outline-variant` | `#3e484f` | Borders (subtle) |
+| `--color-inverse-surface` | `#dee3e8` | Inverted surface |
+| `--color-inverse-on-surface` | `#2c3135` | Text on inverted |
+| `--color-background` | `#0f1417` | Root background |
+| `--color-on-background` | `#dee3e8` | Text on background |
 
-```typescript
-// Bad: items-center prevents children from filling container height
-<div className="flex h-screen items-center">
-  <aside className="w-64 bg-gray-100">
-    {/* Sidebar only as tall as its content */}
-  </aside>
-  <main className="flex-1">
-    {/* Main content only as tall as its content */}
-  </main>
-</div>
-```
-
-### Nested Flex Containers
-
-```typescript
-<div className="flex h-screen flex-col">
-  {/* Header - fixed height */}
-  <header className="h-16 shrink-0 border-b">
-    <nav>...</nav>
-  </header>
-
-  {/* Main area - fills remaining space */}
-  <div className="flex min-h-0 flex-1">
-    {/* Sidebar - fixed width, full height */}
-    <aside className="w-64 shrink-0 overflow-y-auto border-r">
-      <nav>...</nav>
-    </aside>
-
-    {/* Content - fills remaining width */}
-    <main className="flex-1 overflow-y-auto">
-      <div className="p-6">...</div>
-    </main>
-  </div>
-</div>
-```
-
-### min-h-0 for Overflow Control
-
-When using flex containers with scrollable children:
-
-```typescript
-// Without min-h-0, content may overflow
-<div className="flex h-screen flex-col">
-  <div className="flex-1">
-    {/* This might overflow if content is tall */}
-  </div>
-</div>
-
-// With min-h-0, overflow is properly contained
-<div className="flex h-screen flex-col">
-  <div className="min-h-0 flex-1 overflow-y-auto">
-    {/* Content scrolls within container */}
-  </div>
-</div>
-```
-
-## Parent-Child Styling Pattern
-
-### Parent Provides External Styles
-
-The parent component controls:
-- Positioning (absolute, relative, grid placement)
-- External spacing (margin, gap)
-- Size constraints (width, max-width)
-
-```typescript
-// Parent component
-<div className="grid grid-cols-3 gap-4">
-  <Card className="col-span-2" />  {/* Parent sets grid span */}
-  <Card />
-</div>
-```
-
-### Child Provides Internal Layout
-
-The child component controls:
-- Internal padding
-- Internal layout (flex, grid)
-- Background, borders, shadows
-- Typography
-
-```typescript
-// Child component
-export function Card({ className, children }: CardProps) {
-  return (
-    <div
-      className={cn(
-        // Internal styles owned by Card
-        'rounded-lg border bg-white p-4 shadow-sm',
-        // External styles from parent
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-```
-
-### Complete Example
-
-```typescript
-// Page layout (parent)
-export function DashboardPage() {
-  return (
-    <div className="grid gap-6 p-6 lg:grid-cols-3">
-      {/* Parent controls: grid position, external spacing */}
-      <StatsCard className="lg:col-span-2" />
-      <ActivityFeed className="lg:row-span-2" />
-      <RecentOrders />
-    </div>
-  );
-}
-
-// Card component (child)
-export function StatsCard({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        // Child controls: internal padding, background, border
-        'flex flex-col gap-4 rounded-xl bg-white p-6 shadow',
-        className
-      )}
-    >
-      {/* Internal layout */}
-    </div>
-  );
-}
-```
-
-## Cross-Environment Testing
-
-### Dev Mode (Turbopack) vs Production (Webpack)
-
-CSS may behave differently between development and production builds:
-
-```bash
-# Test in development (Turbopack)
-pnpm dev
-
-# Test in production (Webpack)
-pnpm build && pnpm start
-```
-
-### Common Differences
-
-1. **CSS Order**: Tailwind classes may be applied in different orders
-2. **Purging**: Unused classes removed in production
-3. **Minification**: Class names optimized
-
-### Testing Checklist
-
-- [ ] Run `pnpm dev` and test all features
-- [ ] Run `pnpm build && pnpm start` and test again
-- [ ] Check for visual differences
-- [ ] Verify responsive breakpoints work
-- [ ] Test animations and transitions
-
-## Mobile Touch Optimization
-
-### Disable Tap Highlight
-
-Prevent the default blue/gray highlight on mobile tap:
-
-```typescript
-// Using Tailwind
-<button className="[-webkit-tap-highlight-color:transparent]">
-  Tap me
-</button>
-
-// Using inline styles (when needed)
-<button style={{ WebkitTapHighlightColor: 'transparent' }}>
-  Tap me
-</button>
-
-// Global reset in CSS
-@layer base {
-  button, a, [role="button"] {
-    -webkit-tap-highlight-color: transparent;
-  }
-}
-```
-
-### Touch-Friendly Sizing
-
-```typescript
-// Minimum touch target: 44x44px
-<button className="min-h-[44px] min-w-[44px] p-3">
-  <Icon size={20} />
-</button>
-
-// For lists
-<ul className="divide-y">
-  {items.map((item) => (
-    <li key={item.id}>
-      <button className="w-full px-4 py-3 text-left">
-        {item.label}
-      </button>
-    </li>
-  ))}
-</ul>
-```
-
-### Prevent Pull-to-Refresh
-
-When implementing custom scroll behaviors:
-
-```typescript
-<div
-  className="h-screen overflow-y-auto overscroll-contain"
-  style={{ touchAction: 'pan-y' }}
->
-  {/* Scrollable content */}
-</div>
-```
-
-## Responsive Design Patterns
-
-### Mobile-First Approach
-
-```typescript
-// Start with mobile styles, add breakpoints for larger screens
-<div className="
-  p-4           // Mobile: small padding
-  md:p-6        // Tablet: medium padding
-  lg:p-8        // Desktop: large padding
-">
-  <h1 className="
-    text-xl       // Mobile: small heading
-    md:text-2xl   // Tablet: medium heading
-    lg:text-3xl   // Desktop: large heading
-  ">
-    Title
-  </h1>
-</div>
-```
-
-### Container Queries (Tailwind v4)
-
-```typescript
-// Container-based responsive styles
-<div className="@container">
-  <div className="
-    flex flex-col
-    @md:flex-row    // Row layout when container >= md
-    @lg:gap-6       // Larger gap when container >= lg
-  ">
-    {/* Content */}
-  </div>
-</div>
-```
-
-### Hiding/Showing Elements
-
-```typescript
-// Hide on mobile, show on desktop
-<div className="hidden lg:block">
-  Desktop only content
-</div>
-
-// Show on mobile, hide on desktop
-<div className="lg:hidden">
-  Mobile only content
-</div>
-```
-
-## Z-Index Management
-
-### Establish a Scale
+### Typography
 
 ```css
-/* In your CSS or Tailwind config */
-:root {
-  --z-dropdown: 10;
-  --z-sticky: 20;
-  --z-fixed: 30;
-  --z-modal-backdrop: 40;
-  --z-modal: 50;
-  --z-popover: 60;
-  --z-tooltip: 70;
-}
+--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+--font-mono: "SF Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
 ```
 
-### Tailwind Config
+### Border Radius
 
-```javascript
-// tailwind.config.js
-module.exports = {
-  theme: {
-    extend: {
-      zIndex: {
-        dropdown: '10',
-        sticky: '20',
-        fixed: '30',
-        modalBackdrop: '40',
-        modal: '50',
-        popover: '60',
-        tooltip: '70',
-      },
-    },
-  },
-};
+```css
+--radius-sm: 0.25rem;  /* 4px */
+--radius-md: 0.75rem;  /* 12px */
+--radius-lg: 1rem;     /* 16px */
+--radius-xl: 1.5rem;   /* 24px */
+--radius-full: 9999px;  /* Pill */
 ```
 
-### Usage
+## Using Design Tokens
+
+In TailwindCSS v4, tokens defined in `@theme` become utility classes:
 
 ```typescript
-<div className="z-modal">Modal content</div>
-<div className="z-tooltip">Tooltip</div>
+// Background & Surface
+<div className="bg-surface">                     // Main background #0f1417
+<div className="bg-surface-container-low">        // Sidebar background #171c20
+<div className="bg-surface-container-high">       // Hover background #252b2e
+
+// Text
+<span className="text-on-surface">               // Primary text #dee3e8
+<span className="text-on-surface-variant">        // Secondary text #bdc8d0
+<span className="text-primary">                    // Accent text #7bd0ff
+
+// Borders
+<div className="border border-outline-variant/30">  // Subtle divider
+<div className="border border-outline">              // Visible border
+
+// Primary actions
+<button className="bg-primary text-on-primary">    // Blue button
+<button className="hover:bg-surface-container-high"> // Hover state
 ```
 
-## Animation Best Practices
+## Layout Patterns
 
-### Use CSS Transitions
+### App Shell (Sidebar + TopBar + Content)
 
 ```typescript
-<button className="
-  transition-colors duration-200 ease-out
-  hover:bg-primary-dark
-">
-  Hover me
-</button>
+// Sidebar: fixed left, full height
+<aside className="fixed left-0 top-0 z-50 flex h-full w-64 flex-col
+  border-r border-outline-variant/30 bg-surface-container-low px-4 py-6">
+
+// Main content: offset by sidebar width
+<div className="ml-64 flex min-h-screen flex-1 flex-col overflow-y-auto">
+
+// TopBar: sticky header
+<header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between
+  border-b border-outline-variant/30 bg-surface px-8">
 ```
 
-### Respect Motion Preferences
+### Full-Page Centered Content
 
 ```typescript
-// Disable animations for users who prefer reduced motion
-<div className="
-  transition-transform duration-300
-  motion-reduce:transition-none
-  hover:scale-105
-  motion-reduce:hover:scale-100
-">
-  Animated element
+<div className="flex h-screen w-full items-center justify-center bg-surface">
+  <Spinner />
 </div>
 ```
 
-### Hardware Acceleration
+### Card / Container Pattern
 
 ```typescript
-// Use transform for smooth animations
-<div className="
-  translate-x-0 transition-transform
-  group-hover:translate-x-2
-">
-  Slides on hover
+<div className="rounded-lg border border-outline-variant/30 bg-surface-container p-6">
+  {/* Card content */}
 </div>
 ```
 
-## Best Practices Summary
+## Custom Scrollbar
 
-1. **items-stretch**: Default for main flex containers
-2. **Parent External, Child Internal**: Clear separation of concerns
-3. **Test Both Modes**: Always verify in dev AND production
-4. **Touch Optimization**: Disable tap highlight, ensure touch targets
-5. **Mobile First**: Build up from smallest screens
-6. **Consistent Z-Index**: Use a defined scale
-7. **Respect Accessibility**: Honor motion preferences
+```css
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-surface-container-low); }
+::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }
+```
+
+## Utility Classes
+
+```css
+.ghost-border { border: 1px solid rgba(135, 146, 154, 0.2); }
+.focus-ring { /* focus-visible ring */ }
+```
+
+## Responsive Design
+
+The app uses `ml-64` for the sidebar offset on all screens. For mobile adaptations, consider collapsing the sidebar with a toggle.
+
+## Animation Patterns
+
+```typescript
+// Spinner
+<div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+
+// Active press feedback
+<button className="active:scale-95 transition-all duration-100">
+```
+
+## Tap Highlight
+
+All interactive elements disable mobile tap highlight globally:
+
+```css
+* { -webkit-tap-highlight-color: transparent; }
+```
+
+Or per-element:
+
+```typescript
+<button style={{ WebkitTapHighlightColor: 'transparent' }}>
+```
+
+## Best Practices
+
+1. **Always use design tokens** — never hardcode hex colors
+2. **Use border-opacity for subtlety** — `border-outline-variant/30` for dividers
+3. **Test dark contrast** — ensure text-on-surface-variant is readable
+4. **Use `bg-surface-container-high`** for hover states, not raw colors
+5. **Use `ghost-border`** class for very subtle borders
+6. **Use `focus-ring`** class for keyboard focus visibility

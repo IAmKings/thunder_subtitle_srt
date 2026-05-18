@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality checklist - lint, typecheck, component patterns"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component quality standards for review"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Type safety standards - verify API types match between FastAPI and Next.js"}
+{"file": ".trellis/spec/frontend/css-layout.md", "reason": "CSS quality standards - verify design system compliance"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared quality standards"}
+{"file": "design/media_management_utility/DESIGN.md", "reason": "Design system tokens - verify visual implementation matches high-fidelity designs"}

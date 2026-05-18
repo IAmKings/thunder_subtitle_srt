@@ -10,10 +10,24 @@
 
 Use this guide when your feature:
 
-- Touches 3+ layers (Server Component, Client Component, oRPC, Database)
-- Involves data transformation between layers
-- Has real-time or event-driven components
-- Receives data from external sources (APIs, webhooks, file uploads)
+- Touches 3+ layers (Next.js Component, FastAPI Router, Service, CLI)
+- Involves data transformation between layers (Pydantic → JSON → TypeScript)
+- Has real-time components (WebSocket progress)
+- Receives data from external sources (APIs, file system)
+
+---
+
+## Project Layer Architecture
+
+```
+Frontend (Next.js 16 Client Components)
+       ↕ HTTP (fetch / FastApiClient) + WebSocket
+Backend (FastAPI Routers)
+       ↕ Service Layer
+CLI Python Modules (thunder_subtitle)
+       ↕
+File System (media paths, config JSON, subtitle files)
+```
 
 ---
 
@@ -25,73 +39,66 @@ Before writing code, answer these questions:
 
 **Which layers does this feature touch?**
 
-- [ ] Server Components (RSC - data fetching, static rendering)
-- [ ] Client Components (interactivity, browser APIs, React hooks)
-- [ ] API Routes / oRPC Procedures (validation, business logic)
-- [ ] Middleware (auth checks, redirects, header manipulation)
-- [ ] Database (Drizzle ORM queries, migrations)
-- [ ] Server Actions (form handling, progressive enhancement)
-- [ ] External Services (third-party APIs, webhooks)
+- [ ] Next.js Page/Component (UI, interactivity, hooks)
+- [ ] FastAPI Router (validation, auth, business logic)
+- [ ] Service Layer (wraps CLI modules)
+- [ ] CLI Module (thunder_subtitle package)
+- [ ] WebSocket (progress reporting)
+- [ ] File System (media files, config, subtitles)
+- [ ] External API (subtitle search API)
 
 ### 2. Data Flow Direction
 
 **How does data flow?**
 
 ```
-Read Flow:  DB -> Drizzle -> oRPC Handler -> API Response -> React Query -> Component -> UI
-Write Flow: UI -> Form/Action -> oRPC Mutation -> Handler -> Drizzle -> DB
-SSR Flow:   DB -> Drizzle -> oRPC Handler -> Server Component -> HTML -> Client Hydration
+Read Flow:  CLI Module → Service → FastAPI Router → JSON Response → FastApiClient → React State → UI
+Write Flow: UI → React Event → FastApiClient → FastAPI Router → Service → CLI Module → File System
+WebSocket:  CLI Module → Service → WebSocket Manager → ProgressWebSocket → React State → UI
 ```
 
-- [ ] Read-only (data flows from DB to UI)
-- [ ] Write-only (data flows from UI to DB)
+- [ ] Read-only (data flows from backend to UI)
+- [ ] Write-only (data flows from UI to backend)
 - [ ] Bidirectional (both directions)
-- [ ] Server-rendered (data fetched in Server Components)
-- [ ] Client-fetched (data fetched via React Query in Client Components)
+- [ ] Real-time (WebSocket progress updates)
 
 ### 3. Data Format at Each Layer
 
 **What format is the data at each boundary?**
 
-| Layer            | Format                  | Example                                         |
-| ---------------- | ----------------------- | ----------------------------------------------- |
-| Database         | SQL types               | `TEXT`, `INTEGER`, `TIMESTAMP`, `JSONB`          |
-| Drizzle ORM      | TypeScript types        | `string`, `number`, `Date`, `Record<>`           |
-| oRPC Handler     | Zod-validated objects   | `{ id: string, createdAt: Date }`                |
-| oRPC Response    | Serialized JSON         | `{ id: "abc", createdAt: "2024-01-01T..." }`    |
-| React Query      | Cached response         | Same as oRPC response (deserialized)             |
-| Server Component | Props (must serialize)  | No functions, no Date objects, no class instances |
-| Client Component | React state             | Component props, hook return values              |
-| UI               | Rendered output         | HTML, Tailwind-styled elements                   |
+| Layer            | Format                  | Example                                              |
+| ---------------- | ----------------------- | ---------------------------------------------------- |
+| CLI Module       | Python objects / dicts  | `dict` with snake_case keys                          |
+| Service          | Python objects          | Pydantic models, Python primitives                   |
+| FastAPI Router   | Pydantic-validated      | `TaskResponse`, `AppConfig`, `SearchResult`          |
+| JSON Response    | Serialized JSON         | `{"id": "...", "created_at": "2024-01-01T..."}`     |
+| FastApiClient    | TypeScript objects      | `TaskResponse` interface (snake_case keys)           |
+| React State      | Component state         | `useState<TaskResponse \| null>`                     |
+| UI               | Rendered output          | HTML, Tailwind-styled elements                       |
 
-### 3.1 Serialization Boundary (CRITICAL!)
+### 3.1 Snake_case / camelCase Boundary (CRITICAL!)
 
-**Design Principle**: Data crossing the Server/Client Component boundary must be serializable.
+**Design Principle**: The API uses snake_case JSON keys (Python default). TypeScript interfaces must match these keys exactly — do NOT convert to camelCase in the interface definitions.
 
-| Serializable (OK)       | NOT Serializable (WILL BREAK)     |
-| ----------------------- | --------------------------------- |
-| `string`, `number`      | `Date` objects                    |
-| `boolean`, `null`       | `Map`, `Set`                      |
-| Plain objects, arrays   | Functions, class instances        |
-| `undefined` (as absent) | `BigInt`, `Symbol`                |
+| Layer           | Convention      | Example                       |
+| --------------- | --------------- | ----------------------------- |
+| Python code     | snake_case      | `created_at`, `has_subtitle`  |
+| JSON response   | snake_case      | `"created_at"`, `"has_subtitle"` |
+| TypeScript type | snake_case     | `created_at`, `has_subtitle`  |
 
-**Common serialization trap**:
+**Common trap**:
 
 ```typescript
-// BAD - Date objects don't serialize across RSC boundary
-async function ItemPage() {
-  const item = await orpcClient.items.get({ itemId: "123" });
-  // item.createdAt might be a Date object from Drizzle
-  return <ClientItem item={item} />; // Date becomes string or breaks!
+// BAD - Don't convert API keys to camelCase
+interface TaskResponse {
+  createdAt: string;  // API sends "created_at"
+  hasSubtitle: boolean;  // API sends "has_chinese_subtitle"
 }
 
-// GOOD - Convert to serializable format before passing to Client Component
-async function ItemPage() {
-  const item = await orpcClient.items.get({ itemId: "123" });
-  return <ClientItem item={{
-    ...item,
-    createdAt: item.createdAt.toISOString(), // Explicit string conversion
-  }} />;
+// GOOD - Match the API JSON keys exactly
+interface TaskResponse {
+  created_at: string;
+  has_chinese_subtitle: boolean;
 }
 ```
 
@@ -99,205 +106,170 @@ async function ItemPage() {
 
 **Where does format change? Who is responsible?**
 
-| From              | To                  | Transformer         | Location                   |
-| ----------------- | ------------------- | ------------------- | -------------------------- |
-| DB timestamp      | JS Date             | Drizzle ORM         | Automatic                  |
-| JS Date           | ISO string          | oRPC serialization  | API response               |
-| ISO string        | Display string      | React component     | UI layer                   |
-| User input        | Validated data      | Zod schema          | oRPC input validation      |
-| JSONB column      | TypeScript object   | Drizzle + cast      | Query layer                |
+| From                  | To                  | Transformer          | Location                     |
+| --------------------- | ------------------- | -------------------- | ---------------------------- |
+| CLI module dict       | Pydantic model      | Service layer        | `*_service.py`               |
+| Pydantic model        | JSON response       | FastAPI serialization| Router handler                |
+| JSON response         | TypeScript object   | `fastApiFetch<T>()`  | `api.ts`                     |
+| Python datetime       | ISO string          | Pydantic serializer  | Automatic (`datetime` → str)  |
+| User input (form)     | Validated data      | Pydantic schema      | FastAPI request body          |
+| Snake_case JSON       | TypeScript typing   | Manual mirroring     | `types.ts`                   |
 
 ### 5. Boundary Questions (Critical!)
 
 For each layer boundary, ask:
 
-**RSC / Client Component Boundary:**
+**Frontend / FastAPI Boundary:**
 
-- What data is the Server Component passing as props?
-- Is all of it serializable? (no functions, no Date objects, no Maps)
-- Could this data be fetched directly in the Client Component via React Query instead?
-- Does the Client Component need to refetch or mutate this data?
+- What format does the FastAPI response return? (Check Pydantic schema)
+- Does `FastApiClient` handle the response correctly? (Check method return type)
+- What happens if the response format changes? (Update both `schemas.py` and `types.ts`)
+- Are WebSocket message formats documented and consistent?
 
-**Client Component / oRPC Boundary:**
+**FastAPI / Service Boundary:**
 
-- What format does the oRPC response return?
-- How does React Query cache and deserialize it?
-- What happens if the response format changes?
-- Are query keys consistent for cache invalidation?
+- Does the service return the type the router expects?
+- Are CLI module exceptions properly caught and converted to HTTP errors?
+- Is async/sync handled correctly? (Service calls CLI sync functions from async routers)
 
-**oRPC Handler / Database Boundary:**
+**Service / CLI Boundary:**
 
-- Are timestamps handled consistently? (ISO strings vs Date objects)
-- Are IDs strings or numbers?
-- What about null vs undefined?
-- Does Drizzle transform types automatically?
-- Are JSONB columns properly cast?
+- Does the CLI module function exist and match the expected signature?
+- Are file paths properly validated before passing to CLI functions?
+- Are resources (like HTTP clients) properly closed? (`client.close()` in finally block)
 
-**Middleware / Route Boundary:**
+**WebSocket / Frontend Boundary:**
 
-- Is auth checked in middleware, oRPC procedure, or both?
-- What happens if middleware redirects but the API call continues?
-- Are headers properly forwarded in SSR context?
+- Does the WebSocket message format match what `ProgressWebSocket.onProgress` expects?
+- Are reconnection and error handling robust?
+- Is the `taskId` passed correctly when connecting?
 
 ### 6. Authentication Context
 
 **Where is auth available?**
 
-| Layer            | Auth Method                            | Notes                                   |
-| ---------------- | -------------------------------------- | --------------------------------------- |
-| Middleware       | `getSession()` from headers/cookies    | Runs before route handler               |
-| Server Component | `getSession()` or `auth()` helper      | Can redirect on the server              |
-| Client Component | `useSession()` hook                    | May need loading state                  |
-| oRPC Procedure   | `protectedProcedure` middleware        | Throws UNAUTHORIZED if no session       |
-| API Route        | `getSession()` from request headers    | Manual check needed                     |
+| Layer           | Auth Method                            | Notes                                   |
+| --------------- | -------------------------------------- | --------------------------------------- |
+| FastAPI Router  | `Depends(get_current_user)`            | JWT token extraction from header       |
+| Auth Router     | `/api/auth/login`                      | Returns JWT token                       |
+| Frontend        | `AuthProvider` + `useAuth`             | Stores token in localStorage            |
+| FastApiClient   | `Authorization: Bearer <token>`        | Auto-attached by `fastApiFetch`         |
+| WebSocket       | No auth (connect by taskId)            | Consider adding auth in future          |
 
 **Common auth pitfall**:
 
 ```typescript
-// BAD - Auth checked in middleware but not in oRPC procedure
-// If someone calls the API directly, auth is bypassed!
-export const middleware = NextResponse.next(); // auth check here
-export const getSecret = publicProcedure.handler(...); // no auth check!
+// BAD - API call without auth token
+const response = await fetch("/api/config");
 
-// GOOD - Auth in oRPC procedure (always enforced)
-export const getSecret = protectedProcedure.handler(...);
+// GOOD - Use FastApiClient which auto-attaches token
+const config = await fastApiClient.getConfig();
+```
+
+```python
+# BAD - No auth check on protected endpoint
+@router.get("/config")
+async def get_config():
+    ...
+
+# GOOD - Require auth
+@router.get("/config")
+async def get_config(user: str = Depends(get_current_user)):
+    ...
 ```
 
 ### 7. Edge Cases
 
 - [ ] What if the data is empty/null?
-- [ ] What if the database query fails?
-- [ ] What if the oRPC call times out?
-- [ ] What if a referenced entity doesn't exist?
-- [ ] What if the user navigates away mid-mutation?
-- [ ] What if React Query returns stale data?
-- [ ] What if the user's session expires mid-operation?
-- [ ] What if the same mutation fires twice (double-click)?
+- [ ] What if the FastAPI request fails (network error, 500)?
+- [ ] What if the WebSocket disconnects mid-progress?
+- [ ] What if the CLI module raises an unexpected exception?
+- [ ] What if the user navigates away during a running task?
+- [ ] What if the JWT token expires mid-operation?
+- [ ] What if the same action fires twice (double-click)?
 
 ---
 
 ## Common Patterns
 
-### Pattern A: Server Component Data Fetch
+### Pattern A: Read Data (Config/Status)
 
-**Layers**: Server Component -> oRPC Client -> Handler -> Database
-
-**Data Flow**:
-
-```
-1. Server Component: Calls oRPC client directly (server-side)
-2. oRPC Handler: Validates auth, queries database
-3. Drizzle: Returns typed results
-4. Server Component: Renders HTML with data
-5. Client: Receives pre-rendered HTML
-```
-
-**Common Issues**:
-
-- **Serialization**: Server Components can render Date objects directly, but cannot pass them as props to Client Components
-- **No cache**: Server-side oRPC calls bypass React Query cache; consider prefetching
-- **Waterfall**: Sequential server-side calls create request waterfalls; use `Promise.all` for parallel fetching
-
-### Pattern B: Client Component with React Query
-
-**Layers**: Client Component -> React Query -> oRPC Client -> Handler -> Database
+**Layers**: Next.js Component → FastApiClient → FastAPI Router → Service → CLI Module
 
 **Data Flow**:
 
 ```
-1. Client Component: Mounts, triggers useQuery
-2. React Query: Checks cache, calls oRPC client if stale
-3. oRPC Client: Sends HTTP request to API route
-4. oRPC Handler: Validates input/auth, queries DB
-5. Response: JSON back through React Query
-6. Client Component: Re-renders with data
+1. Component: Calls fastApiClient.getConfig()
+2. FastApiClient: GET /api/config with auth header
+3. Router: Validates auth, calls service
+4. Service: Calls CLI module function
+5. CLI: Returns config data
+6. Response: JSON back through FastApiClient
+7. Component: Re-renders with data
 ```
 
 **Common Issues**:
 
-- **Loading states**: Must handle `isLoading`, `isError`, `isPending` properly
-- **Stale data**: Configure `staleTime` and `gcTime` appropriately
-- **Cache invalidation**: Use `orpc.xxx.key()` for consistent invalidation after mutations
-- **Enabled flag**: Disable queries when required parameters are missing
+- **Auth required**: Remember to check `isLoading` state from `useAuth` before rendering
+- **Error states**: Handle network failures and invalid tokens
+- **Stale data**: Consider when to re-fetch vs. cache
 
-### Pattern C: Mutation with Optimistic Update
+### Pattern B: Submit Action (Search/Scan/Review)
 
-**Layers**: Client Component -> useMutation -> oRPC Client -> Handler -> Database
+**Layers**: UI Event → FastApiClient → FastAPI Router → Service → CLI → Results
 
 **Data Flow**:
 
 ```
-1. User: Triggers action (click, form submit)
-2. onMutate: Optimistically update React Query cache
-3. oRPC Client: Sends mutation request
-4. Handler: Validates, writes to DB
-5. onSuccess: Invalidate related queries
-6. onError: Rollback optimistic update from snapshot
+1. User: Clicks button or submits form
+2. FastApiClient: POST /api/tasks with auth header
+3. Router: Validates auth, creates task
+4. Service: Wraps CLI call in background task
+5. WebSocket: Sends progress updates
+6. Component: Updates UI based on progress
 ```
 
 **Common Issues**:
 
-- **Rollback complexity**: Must snapshot all affected queries before optimistic update
-- **Type safety**: Cache manipulation needs explicit type annotations
-- **Race conditions**: Cancel outgoing refetches before optimistic update (`cancelQueries`)
-- **Partial failures**: Batch operations may partially succeed
+- **Loading state**: Disable button while request is in flight
+- **Error handling**: Show user-friendly error messages
+- **Double-submit**: Prevent by disabling button or using debouncing
+- **Task polling**: Client must poll `/api/tasks/{id}` or use WebSocket for progress
 
-### Pattern D: Server Action (Form Handling)
+### Pattern C: Real-time Progress (WebSocket)
 
-**Layers**: Form -> Server Action -> oRPC Client / DB -> Revalidate
+**Layers**: CLI → Service → WebSocket Manager → ProgressWebSocket → React State → UI
 
 **Data Flow**:
 
 ```
-1. User: Submits form
-2. Server Action: Receives FormData, validates
-3. Action: Calls oRPC client or DB directly
-4. Action: Calls revalidatePath/revalidateTag
-5. Page: Re-renders with updated data
+1. CLI Module: Reports progress
+2. Service: Sends progress to ConnectionManager
+3. WebSocket: Broadcasts to connected clients
+4. ProgressWebSocket:.onProgress callback updates state
+5. Component: Re-renders with progress data
 ```
 
 **Common Issues**:
 
-- **Progressive enhancement**: Forms work without JS when using Server Actions
-- **Validation**: Validate on both client (UX) and server (security)
-- **Redirect vs revalidate**: Choose the right post-action behavior
-- **Error handling**: Server Action errors need proper error boundaries
-
-### Pattern E: Middleware + API Route Auth
-
-**Layers**: Request -> Middleware -> API Route / oRPC -> Handler
-
-**Data Flow**:
-
-```
-1. Request: Arrives at Next.js server
-2. Middleware: Checks auth, may redirect to login
-3. API Route: Handles oRPC request
-4. oRPC Middleware: Validates session (protectedProcedure)
-5. Handler: Executes business logic
-```
-
-**Common Issues**:
-
-- **Double auth check**: Middleware protects pages, oRPC protects API; both are needed
-- **Header forwarding**: SSR requests must forward cookies/headers to oRPC client
-- **Middleware scope**: Don't run auth middleware on public assets or API routes that handle their own auth
+- **Connection drops**: Must handle reconnection
+- **Task not found**: Server may not have taskId yet
+- **Message format mismatch**: Both sides must agree on JSON schema
+- **Cleanup**: Disconnect WebSocket when component unmounts
 
 ---
 
 ## Lessons from Common Bugs
 
-| Bug                             | Root Cause                                                | Prevention                                          |
-| ------------------------------- | --------------------------------------------------------- | --------------------------------------------------- |
-| `Date` props break hydration    | Date objects passed from Server to Client Component       | Convert to ISO string before passing as props        |
-| Stale data after mutation       | Forgot to invalidate React Query cache                    | Always invalidate with `orpc.xxx.key()` in onSuccess |
-| Auth bypass on API              | Auth only in middleware, not in oRPC procedure             | Always use `protectedProcedure` for protected data   |
-| `BigInt` serialization error    | Database returns BigInt, JSON.stringify fails              | Cast to number or string before response             |
-| Query fires with null ID        | `enabled` flag not set on conditional queries              | Always guard with `enabled: !!requiredParam`         |
-| Cache key mismatch              | Manual query key doesn't match oRPC generated key          | Always use `orpc.xxx.key()` or `orpc.xxx.queryKey()` |
-| N+1 queries in handler          | Fetching related data in a loop                            | Use `inArray()` for batch queries                    |
-| Hydration mismatch              | Server and client render different output (e.g., locale)   | Ensure consistent data between server and client     |
-| Headers not forwarded in SSR    | oRPC client doesn't forward cookies in server context      | Configure client to forward headers in SSR mode      |
+| Bug                                  | Root Cause                                              | Prevention                                              |
+| ------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------- |
+| Type mismatch between frontend/backend | Pydantic schema changed but `types.ts` not updated   | Update both `schemas.py` and `types.ts` in same PR     |
+| snake_case / camelCase confusion     | Converting API keys to camelCase in TS interfaces       | Keep TS interfaces matching snake_case API keys        |
+| Auth token not sent                   | Using raw `fetch` instead of `FastApiClient`           | Always use `FastApiClient` for authenticated endpoints  |
+| WebSocket message format mismatch     | Backend sends different format than frontend expects    | Define and document WebSocket message schema           |
+| CLI client resource leak             | Missing `client.close()` in finally block                | Always close HTTP clients in finally                    |
+| Async/sync mismatch                   | Calling sync CLI function from async router without await | Use `asyncio.to_thread()` for sync CLI calls           |
+| Token expiry not handled             | JWT expires but frontend doesn't redirect to login     | Add 401 response interceptor → redirect to login       |
 
 ---
 
@@ -310,13 +282,12 @@ Copy this for your feature:
 
 ### Layers Involved
 
-- [ ] Server Component
-- [ ] Client Component
-- [ ] oRPC Procedure
-- [ ] Middleware
-- [ ] Database
-- [ ] Server Action
-- [ ] External Service
+- [ ] Next.js Component
+- [ ] FastAPI Router
+- [ ] Service Layer
+- [ ] CLI Module
+- [ ] WebSocket
+- [ ] File System
 
 ### Data Flow
 
@@ -336,17 +307,16 @@ Copy this for your feature:
 
 ### Auth Strategy
 
-- Middleware: [yes/no, what it checks]
-- oRPC: [publicProcedure/protectedProcedure/adminProcedure]
+- FastAPI Router: [public / Depends(get_current_user)]
+- Frontend: [withAuth HOC / useAuth hook]
 
 ### Edge Cases Considered
 
 - [ ] Empty/null data
-- [ ] Invalid format / serialization
-- [ ] Operation failure / timeout
-- [ ] User cancellation / navigation
-- [ ] Session expiry mid-operation
-- [ ] Double submission
+- [ ] Network failure / API error
+- [ ] Token expiry
+- [ ] WebSocket disconnect
+- [ ] Double-submit prevention
 ```
 
 ---
@@ -359,10 +329,10 @@ Copy this for your feature:
 
 ```
 Comparison thinking (surface level):
-  Before: new Date() -> After: new Date() -> "No change, must be fine"
+  Before: created_at: str -> After: created_at: str -> "No change, must be fine"
 
 Global thinking (design level):
-  Design intent: ISO strings across RSC boundary -> Current: Date object -> "This is a bug"
+  Design intent: API sends ISO timestamp strings -> Current: TS expects Date object -> "This is a bug"
 ```
 
 **Key insight**: Review validates "system state is correct", not just "change is correct".
@@ -373,12 +343,11 @@ Every review must cover ALL data outlets:
 
 ```
 Data Outlets:
-|-- oRPC Response (handler -> client)
-|-- Server Component Props (RSC -> Client Component)
-|-- React Query Cache (shared across components)
-|-- URL State (nuqs, searchParams)
-|-- Server Action Return (action -> form)
-|-- Any external interface
+|-- FastAPI JSON Response (router -> client)
+|-- WebSocket Message (manager -> ProgressWebSocket)
+|-- React Component Props (parent -> child)
+|-- localStorage (auth token)
+|-- File System writes (config, subtitles)
 ```
 
 Ask: **"Is the format correct at EACH outlet?"**
@@ -391,26 +360,18 @@ Before finishing any cross-layer review:
 2. **Design Question**: Does existing code match design principles? (Not "is the change correct?")
 3. **Checklist Question**: Could my checklist itself be wrong?
 
-### Validation vs Verification
-
-| Approach        | Focus                        | Risk                                 |
-| --------------- | ---------------------------- | ------------------------------------ |
-| **Incremental** | "Is this change correct?"    | Misses pre-existing bugs             |
-| **Global**      | "Is the system correct now?" | More thorough, catches legacy issues |
-
-Always prefer global verification for cross-layer features.
-
 ---
 
 ## When Things Go Wrong
 
 If you encounter a cross-layer bug:
 
-1. **Identify the boundary** - Where exactly does it fail?
-2. **Log at boundaries** - Add logging before and after each transformation
+1. **Identify the boundary** - Where exactly does it fail? Frontend? Router? Service? CLI?
+2. **Log at boundaries** - Add console.log / logger.info before and after each transformation
 3. **Check assumptions** - What format did you expect vs what you got?
 4. **Test in isolation** - Can you reproduce with a simple test case?
 5. **Document the fix** - Add to "Lessons from Common Bugs" table
+6. **Update types.ts** - If the Pydantic schema was wrong, update both sides
 
 ---
 

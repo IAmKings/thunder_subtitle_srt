@@ -1,34 +1,34 @@
-# Next.js Frontend Development Guidelines
+# Thunder Subtitle Web — Frontend Development Guidelines
 
-> Universal frontend development guidelines for Next.js full-stack applications with React + TypeScript + TailwindCSS.
+> Guidelines for the Next.js 16 + React 19 + TypeScript + TailwindCSS 4 dark-themed web UI for Thunder Subtitle.
 
 ## Tech Stack
 
-- **Framework**: Next.js 15, React 19
+- **Framework**: Next.js 16 (App Router), React 19
 - **Language**: TypeScript (strict mode)
-- **Styling**: TailwindCSS 4, Radix UI
-- **API**: oRPC (OpenAPI RPC), React Query (TanStack Query)
-- **URL State**: nuqs
-- **Auth**: better-auth
-- **AI**: Vercel AI SDK (@ai-sdk/react)
+- **Styling**: TailwindCSS 4 with custom design tokens (`@theme` block)
+- **API**: FastApiClient (direct HTTP to FastAPI backend), SubtitleApiClient (legacy Next.js proxy)
+- **Real-time**: ProgressWebSocket (native WebSocket)
+- **Auth**: JWT via FastAPI `/api/auth/login`, stored in localStorage
+- **i18n**: Custom key-value dictionary (`useTranslations` hook)
+- **Icons**: lucide-react
+- **Deployment**: Docker standalone (`output: "standalone"`)
 
 ---
 
 ## Documentation Files
 
-| File                                                 | Description                                          | Priority      |
-| ---------------------------------------------------- | ---------------------------------------------------- | ------------- |
-| [components.md](./components.md)                     | Server/Client components, semantic HTML, next/image  | **Must Read** |
-| [authentication.md](./authentication.md)             | better-auth client, session, protected routes        | **Must Read** |
-| [orpc-usage.md](./orpc-usage.md)                     | Type-safe API calls, React Query integration         | **Must Read** |
-| [hooks.md](./hooks.md)                               | Query and mutation hook patterns                     | Reference     |
-| [api-integration.md](./api-integration.md)           | oRPC client, real-time, AI streaming                 | Reference     |
-| [state-management.md](./state-management.md)         | URL state with nuqs, React Context patterns          | Reference     |
-| [directory-structure.md](./directory-structure.md)    | Project structure and module conventions             | Reference     |
-| [type-safety.md](./type-safety.md)                   | TypeScript guidelines, type inference, Zod           | Reference     |
-| [css-layout.md](./css-layout.md)                     | CSS patterns, flexbox, responsive, touch             | Reference     |
-| [ai-sdk-integration.md](./ai-sdk-integration.md)     | useChat hook, streaming, tool call handling           | Reference     |
-| [quality.md](./quality.md)                           | Pre-commit checklist and code quality standards      | Reference     |
+| File | Description | Priority |
+|------|-------------|----------|
+| [directory-structure.md](./directory-structure.md) | Project structure and file conventions | **Must Read** |
+| [components.md](./components.md) | Dark theme UI, AppShell, Sidebar, ThemeProvider | **Must Read** |
+| [authentication.md](./authentication.md) | JWT auth with FastAPI, AuthProvider, withAuth HOC | **Must Read** |
+| [api-integration.md](./api-integration.md) | FastApiClient, SubtitleApiClient, ProgressWebSocket | **Must Read** |
+| [hooks.md](./hooks.md) | useAuth, useTranslations, useHistory | Reference |
+| [state-management.md](./state-management.md) | React Context + localStorage patterns | Reference |
+| [type-safety.md](./type-safety.md) | TypeScript types mirroring Pydantic schemas | Reference |
+| [css-layout.md](./css-layout.md) | Dark theme design tokens, layout patterns | Reference |
+| [quality.md](./quality.md) | Pre-commit checklist and code quality standards | Reference |
 
 ---
 
@@ -36,49 +36,44 @@
 
 ### Before Starting Development
 
-| Task                              | Document                                           |
-| --------------------------------- | -------------------------------------------------- |
-| Understand project structure      | [directory-structure.md](./directory-structure.md)  |
-| Learn Server vs Client components | [components.md](./components.md)                   |
-| Set up authentication             | [authentication.md](./authentication.md)           |
+| Task | Document |
+|------|----------|
+| Understand project structure | [directory-structure.md](./directory-structure.md) |
+| Learn dark theme system | [css-layout.md](./css-layout.md) |
+| Set up authentication | [authentication.md](./authentication.md) |
 
 ### During Development
 
-| Task                        | Document                                           |
-| --------------------------- | -------------------------------------------------- |
-| Make type-safe API calls    | [orpc-usage.md](./orpc-usage.md)                   |
-| Create custom hooks         | [hooks.md](./hooks.md)                             |
-| Manage application state    | [state-management.md](./state-management.md)       |
-| Build UI components         | [components.md](./components.md)                   |
-| Ensure type safety          | [type-safety.md](./type-safety.md)                 |
-| Integrate AI features       | [ai-sdk-integration.md](./ai-sdk-integration.md)   |
-| Handle CSS & layout         | [css-layout.md](./css-layout.md)                   |
+| Task | Document |
+|------|----------|
+| Make API calls | [api-integration.md](./api-integration.md) |
+| Create UI components | [components.md](./components.md) |
+| Use custom hooks | [hooks.md](./hooks.md) |
+| Manage state | [state-management.md](./state-management.md) |
+| Ensure type safety | [type-safety.md](./type-safety.md) |
+| Handle CSS & layout | [css-layout.md](./css-layout.md) |
 
 ### Before Committing
 
-| Task                    | Document                         |
-| ----------------------- | -------------------------------- |
-| Run quality checklist   | [quality.md](./quality.md)       |
-| Verify CSS in both envs | [css-layout.md](./css-layout.md) |
-| Check type safety       | [type-safety.md](./type-safety.md) |
+| Task | Document |
+|------|----------|
+| Run quality checklist | [quality.md](./quality.md) |
+| Check type safety | [type-safety.md](./type-safety.md) |
 
 ---
 
 ## Core Rules Summary
 
-| Rule                                                         | Reference                                          |
-| ------------------------------------------------------------ | -------------------------------------------------- |
-| **Default to Server Components**                             | [components.md](./components.md)                   |
-| **Use `<button>` for clickable actions, not `<div>`**        | [components.md](./components.md)                   |
-| **Always use `next/image` instead of `<img>`**               | [components.md](./components.md)                   |
-| **Import types from backend, never redefine them**           | [type-safety.md](./type-safety.md)                 |
-| **No `any` types or `@ts-expect-error` in new code**         | [type-safety.md](./type-safety.md)                 |
-| **Use oRPC client for API calls (not raw fetch)**            | [orpc-usage.md](./orpc-usage.md)                   |
-| **Use oRPC generated query keys (not manual strings)**       | [orpc-usage.md](./orpc-usage.md)                   |
-| **Store shareable state in URL with nuqs**                   | [state-management.md](./state-management.md)       |
-| **Use `items-stretch` on main flex containers**              | [css-layout.md](./css-layout.md)                   |
-| **Handle both tool call formats (streaming + history)**      | [ai-sdk-integration.md](./ai-sdk-integration.md)   |
-| **Always check session loading state before rendering**      | [authentication.md](./authentication.md)           |
+| Rule | Reference |
+|------|-----------|
+| **Use FastApiClient for backend calls** | [api-integration.md](./api-integration.md) |
+| **Use AuthProvider + useAuth for auth** | [authentication.md](./authentication.md) |
+| **Use useTranslations for i18n** | [hooks.md](./hooks.md) |
+| **Use design tokens, not raw colors** | [css-layout.md](./css-layout.md) |
+| **Always check isLoading before rendering** | [authentication.md](./authentication.md) |
+| **No `any` types or `@ts-expect-error` in new code** | [type-safety.md](./type-safety.md) |
+| **Use `withAuth()` HOC for page-level guards** | [authentication.md](./authentication.md) |
+| **Mirror backend Pydantic schemas in types.ts** | [type-safety.md](./type-safety.md) |
 
 ---
 
@@ -86,39 +81,43 @@
 
 ```
 +--------------------------------------------------------------+
-|                    Next.js Application                        |
+|                   Next.js 16 Application                      |
 |                                                               |
-|  app/                          modules/                       |
-|  ├── (marketing)/              ├── [feature]/                 |
-|  │   └── [locale]/             │   ├── components/            |
-|  └── (app)/                    │   ├── hooks/                 |
-|      └── [routes]/             │   ├── context/               |
-|                                │   └── lib/                   |
-|                                ├── shared/                    |
-|                                └── ui/                        |
-+-------------------------------+------------------------------+
-                                |
-          oRPC (type-safe RPC)  |  React Query (cache)
-                                |
-+-------------------------------+------------------------------+
-|                    API Layer (Server)                         |
-|  +--------------+  +----------------+  +------------------+  |
-|  |   oRPC       |  |   better-auth  |  |   AI SDK         |  |
-|  |   Router     |  |   Sessions     |  |   Streaming      |  |
-|  +--------------+  +----------------+  +------------------+  |
-+--------------------------------------------------------------+
+|  app/                          components/                    |
+|  ├── login/page.tsx            ├── AppShell.tsx               |
+|  ├── search/page.tsx           ├── Sidebar.tsx                |
+|  ├── scanner/page.tsx          ├── TopBar.tsx                 |
+|  ├── verification/page.tsx    ├── SearchBox.tsx              |
+|  ├── settings/page.tsx         ├── SubtitleItem.tsx           |
+|  └── layout.tsx (AuthProvider) ├── SubtitleList.tsx           |
+|                                 ├── History.tsx                |
+|  lib/                           ├── ThemeProvider.tsx          |
+|  ├── api.ts (FastApiClient)    └── ThunderSubtitleApp.tsx     |
+|  ├── auth.tsx (AuthProvider)                                   |
+|  ├── i18n.ts (useTranslations)                                |
+|  └── types.ts (TS ↔ Pydantic)   hooks/                       |
+|                                   └── useHistory.ts            |
++---------------------------------------------------------------+
+                                 |
+           FastApiClient (HTTP + Auth header)  |  WebSocket
+                                 |              |
++--------------------------------+-------------+
+|              FastAPI Backend                   |
+|  /api/auth/login  /api/subtitle/search        |
+|  /api/config  /api/tasks  /api/review         |
+|  /api/media  /ws/progress/{taskId}            |
++-----------------------------------------------+
 ```
 
 ---
 
 ## Getting Started
 
-1. **Read the Must-Read documents** - Components, authentication, and oRPC usage
-2. **Set up your project structure** - Follow [directory-structure.md](./directory-structure.md)
-3. **Configure TypeScript paths** - See [type-safety.md](./type-safety.md)
-4. **Set up API client** - Use patterns from [orpc-usage.md](./orpc-usage.md)
-5. **Build components** - Follow [components.md](./components.md) and [hooks.md](./hooks.md)
-6. **Before committing** - Complete the [quality.md](./quality.md) checklist
+1. **Read the Must-Read documents** — Components, authentication, and API integration
+2. **Understand the dark theme** — See [css-layout.md](./css-layout.md) for design tokens
+3. **Set up API client** — Use `fastApiClient` from `@/lib/api`
+4. **Build components** — Follow [components.md](./components.md) patterns
+5. **Before committing** — Complete the [quality.md](./quality.md) checklist
 
 ---
 

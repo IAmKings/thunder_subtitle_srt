@@ -1,172 +1,94 @@
 # TypeScript Best Practices
 
-> TypeScript guidelines for Next.js full-stack applications.
+> TypeScript guidelines for the Thunder Subtitle Next.js 16 frontend.
 
 ---
 
-## Zod-First Type Definitions
+## Type Mirroring from Pydantic Schemas
 
-Define Zod schemas first, then infer TypeScript types from them. Never define types manually when a Zod schema exists.
+There is no automatic type sharing between the Python backend and TypeScript frontend. TypeScript types in `types.ts` must **manually mirror** the Pydantic schemas defined in `thunder-subtitle-api/app/models/schemas.py`.
 
-```typescript
-import { z } from 'zod';
+### Source of Truth
 
-// 1. Define the schema (single source of truth)
-export const createUserInputSchema = z.object({
-  name: z.string().min(1).max(100),
-  email: z.string().email(),
-  role: z.enum(['admin', 'member', 'viewer']),
-});
+**Backend Pydantic models are the source of truth.** When a schema changes in `schemas.py`, the corresponding TypeScript interface must be updated in `types.ts`.
 
-export const createUserOutputSchema = z.object({
-  success: z.boolean(),
-  reason: z.string(),
-  user: z.object({
-    id: z.string(),
-    name: z.string(),
-    email: z.string(),
-  }).optional(),
-});
-
-// 2. Derive types from schemas
-export type CreateUserInput = z.infer<typeof createUserInputSchema>;
-export type CreateUserOutput = z.infer<typeof createUserOutputSchema>;
-
-// BAD - Manual type that duplicates schema
-interface CreateUserInput {
-  name: string;
-  email: string;
-  role: 'admin' | 'member' | 'viewer';
-}
+```python
+# Python (source of truth) — thunder-subtitle-api/app/models/schemas.py
+class TaskResponse(BaseModel):
+    id: str
+    type: Literal["scan", "review", "dump"]
+    status: Literal["pending", "running", "completed", "failed", "cancelled"]
+    progress: float
+    message: str
+    params: dict
+    created_at: datetime
+    updated_at: datetime
 ```
 
-### Reusable Base Schemas
-
 ```typescript
-const paginationSchema = z.object({
-  page: z.number().min(1).default(1),
-  limit: z.number().min(1).max(100).default(20),
-});
+// TypeScript (mirror) — thunder-subtitle-web/src/lib/types.ts
+export type TaskType = "scan" | "review" | "dump";
+export type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
-const timestampSchema = z.object({
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-});
-
-// Compose into larger schemas
-export const listOrdersInputSchema = paginationSchema.extend({
-  status: orderStatusZodSchema.optional(),
-  customerId: z.string().optional(),
-});
-```
-
----
-
-## Type Inference from API
-
-Import types from the backend or infer them from the API client. Never redefine backend types on the frontend.
-
-### Import from Backend Package
-
-```typescript
-// GOOD - Import from the API package
-import type { User, Order } from '@your-app/api/modules/users/types';
-import type { OrderStatus } from '@your-app/api/modules/orders/types';
-
-// BAD - Redefining types that exist in backend
-interface User {
+export interface TaskResponse {
   id: string;
-  name: string;
-  email: string;
+  type: TaskType;
+  status: TaskStatus;
+  progress: number;
+  message: string;
+  params: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 ```
 
-### Infer from API Client
+### Mirroring Rules
+
+1. **Field names** must match the JSON keys from the API response (snake_case)
+2. **Literal unions** in Pydantic become TypeScript union types (`"a" | "b"`)
+3. **Optional fields** in Pydantic (`field: str | None = None`) become `field?: string | null` in TypeScript
+4. **`datetime` fields** become `string` in TypeScript (ISO 8601 format from JSON serialization)
+5. **`dict` fields** become `Record<string, unknown>` in TypeScript
+
+### Where to Define Types
+
+- **Shared domain types** (mirroring backend schemas): `src/lib/types.ts`
+- **Component-specific types**: Co-located with the component or in a local `types.ts`
+- **API client-specific types** (e.g., `LoginResponse`): In `src/lib/api.ts` since they're tightly coupled to the API client
+
+---
+
+## Type Imports
+
+Always use `import type` for type-only imports:
 
 ```typescript
-import { orpcClient } from '@/lib/orpc';
+// GOOD
+import type { Subtitle, SearchResult } from "@/lib/types";
+import { fastApiClient } from "@/lib/api";
 
-// Infer the response type from the API client
-type UsersResponse = Awaited<ReturnType<typeof orpcClient.users.list>>;
-
-// Infer a single item type from array response
-type User = UsersResponse['items'][number];
-
-// Infer input types
-type CreateUserInput = Parameters<typeof orpcClient.users.create>[0];
-```
-
-### Type Inference in Hooks
-
-```typescript
-// The return type is automatically inferred from oRPC
-export function useUsers() {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: () => orpcClient.users.list(),
-  });
-}
-
-// For complex transformations, use explicit inference
-type UserListData = Awaited<ReturnType<typeof orpcClient.users.list>>;
-
-export function useFormattedUsers() {
-  return useQuery({
-    queryKey: ['users', 'formatted'],
-    queryFn: async () => {
-      const data = await orpcClient.users.list();
-      return transformUsers(data);
-    },
-  });
-}
+// BAD
+import { Subtitle, fastApiClient } from "@/lib/types";
 ```
 
 ---
 
 ## Discriminated Unions
 
-Use discriminated unions for types that can be one of several shapes. Use strict equality (`=== true`) for narrowing.
-
-### TypeScript Discriminated Union
+Use discriminated unions for types that can be one of several shapes:
 
 ```typescript
-type Result<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+// Union type from backend Literal
+export type TaskType = "scan" | "review" | "dump";
 
-const result: Result<User> = doSomething();
-
-// CORRECT: Use === true for narrowing
-if (result.success === true) {
-  console.log(result.data); // TypeScript knows data exists
-} else {
-  console.log(result.error); // TypeScript knows error exists
+// Narrowing with discriminated union
+interface TaskBase {
+  id: string;
+  type: TaskType;
+  status: TaskStatus;
 }
-```
 
-### Zod Discriminated Union
-
-```typescript
-export const notificationSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('email'),
-    recipient: z.string().email(),
-    subject: z.string(),
-  }),
-  z.object({
-    type: z.literal('sms'),
-    phoneNumber: z.string(),
-    message: z.string(),
-  }),
-  z.object({
-    type: z.literal('push'),
-    deviceToken: z.string(),
-    title: z.string(),
-    body: z.string(),
-  }),
-]);
-
-type Notification = z.infer<typeof notificationSchema>;
+// Can be narrowed: if (task.type === "scan") { ... }
 ```
 
 ---
@@ -176,90 +98,24 @@ type Notification = z.infer<typeof notificationSchema>;
 ### Generic Result Type
 
 ```typescript
-type Result<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+// Match the backend pattern: { success: bool, message: str }
+interface ApiResult {
+  success: boolean;
+  message: string;
+}
 
-function createResult<T>(data: T): Result<T> {
-  return { success: true, data };
+interface ApiResultWithData<T> extends ApiResult {
+  data: T;
 }
 ```
 
 ### Generic Paginated Response
 
 ```typescript
-type PaginatedResponse<T> = {
+interface PaginatedResponse<T> {
   items: T[];
   total: number;
-  page: number;
-  pageSize: number;
-};
-
-type UserListResponse = PaginatedResponse<User>;
-```
-
-### Generic with Constraints
-
-```typescript
-function getProperty<T, K extends keyof T>(obj: T, key: K): T[K] {
-  return obj[key];
 }
-```
-
-### Common Utility Types
-
-```typescript
-// Extract array element type
-type ArrayElement<T> = T extends (infer E)[] ? E : never;
-
-// Make specific properties optional
-type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-// Make specific properties required
-type RequiredBy<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
-```
-
----
-
-## Standard Response Format
-
-All API responses must include `success` and `reason` fields.
-
-```typescript
-// Output schema pattern
-export const operationResultSchema = z.object({
-  success: z.boolean(),
-  reason: z.string(),
-  data: z.unknown().optional(),
-});
-
-// Success response
-return {
-  success: true,
-  reason: 'User created successfully',
-  user: { id, name, email },
-};
-
-// Error response
-return {
-  success: false,
-  reason: 'Email address is already in use',
-};
-```
-
-### Batch Operation Response
-
-```typescript
-export const batchOperationResultSchema = z.object({
-  success: z.boolean(),
-  total: z.number(),
-  processed: z.number(),
-  failed: z.number(),
-  errors: z.array(z.object({
-    itemId: z.string(),
-    error: z.string(),
-  })).optional(),
-});
 ```
 
 ---
@@ -273,39 +129,18 @@ export const batchOperationResultSchema = z.object({
 function process(data: any) { ... }
 
 // GOOD
-function process(data: unknown) { ... }
 function process(data: ProcessInput) { ... }
 ```
 
-### No Non-null Assertion
+### No Non-Null Assertion
 
 ```typescript
 // BAD
 const name = user!.name;
-const first = items[0]!;
 
 // GOOD
 if (user) {
   const name = user.name;
-}
-
-const first = items[0];
-if (!first) {
-  return { success: false, reason: 'No items found' };
-}
-```
-
-### No `@ts-expect-error` / `@ts-ignore`
-
-```typescript
-// BAD
-// @ts-expect-error - customField exists at runtime
-const value = user.customField;
-
-// GOOD - Update the type definition instead
-interface User {
-  customField: string;
-  // ...
 }
 ```
 
@@ -313,39 +148,32 @@ interface User {
 
 ```typescript
 // BAD - Blind assertion
-const user = data as User;
+const task = data as TaskResponse;
 
-// GOOD - Runtime validation with Zod
-const user = userSchema.parse(data);
-
-// GOOD - Type guard
-function isUser(data: unknown): data is User {
+// GOOD - Check the shape
+function isTaskResponse(data: unknown): data is TaskResponse {
   return (
-    typeof data === 'object' &&
+    typeof data === "object" &&
     data !== null &&
-    'id' in data &&
-    'email' in data
+    "id" in data &&
+    "type" in data
   );
 }
 ```
 
 ---
 
-## Type Imports
+## API Client Type Patterns
 
-Always use `import type` for type-only imports:
+The `FastApiClient` class handles type conversion:
 
 ```typescript
-// GOOD
-import type { User, Project } from './types';
-import { createUser } from './procedures';
-
-// Also acceptable
-import { type User, createUser } from './types';
-
-// BAD
-import { User, createUser } from './types';
+// FastApiClient methods are typed with the response interface
+async getConfig(): Promise<AppConfig> { ... }
+async listTasks(status?: string): Promise<{ tasks: TaskResponse[]; total: number }> { ... }
 ```
+
+**Never add raw `fetch` calls** — always add methods to `FastApiClient` so types are centralized.
 
 ---
 
@@ -354,14 +182,14 @@ import { User, createUser } from './types';
 Always annotate explicit return types on exported functions:
 
 ```typescript
-// BAD - Implicit return type
-export function getUser(id: string) {
-  return db.query.users.findFirst({ where: eq(users.id, id) });
+// BAD
+export function formatTaskStatus(status: TaskStatus) {
+  return statusLabelMap[status];
 }
 
-// GOOD - Explicit return type
-export function getUser(id: string): Promise<User | undefined> {
-  return db.query.users.findFirst({ where: eq(users.id, id) });
+// GOOD
+export function formatTaskStatus(status: TaskStatus): string {
+  return statusLabelMap[status];
 }
 ```
 
@@ -369,7 +197,7 @@ export function getUser(id: string): Promise<User | undefined> {
 
 ## TypeScript Configuration
 
-Ensure strict mode is enabled:
+Ensure strict mode is enabled in `tsconfig.json`:
 
 ```json
 {
@@ -377,65 +205,34 @@ Ensure strict mode is enabled:
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true
+    "noImplicitReturns": true
   }
 }
 ```
 
 ---
 
-## Drizzle Type Inference
+## Synchronization Checklist
 
-```typescript
-// Infer types from Drizzle tables
-type User = typeof userTable.$inferSelect;
-type NewUser = typeof userTable.$inferInsert;
+When updating backend Pydantic schemas, follow this checklist:
 
-// Combine with Zod via drizzle-zod
-import { createSelectSchema, createInsertSchema } from 'drizzle-zod';
-const userSelectSchema = createSelectSchema(userTable);
-const userInsertSchema = createInsertSchema(userTable);
-```
-
----
-
-## View Model Types
-
-When the frontend needs computed properties, extend backend types rather than redefining them:
-
-```typescript
-import type { Order } from '@your-app/api/modules/orders/types';
-
-export interface OrderViewModel extends Order {
-  formattedTotal: string;
-  statusLabel: string;
-  isEditable: boolean;
-}
-
-export function toOrderViewModel(order: Order): OrderViewModel {
-  return {
-    ...order,
-    formattedTotal: formatCurrency(order.total),
-    statusLabel: getStatusLabel(order.status),
-    isEditable: order.status === 'draft',
-  };
-}
-```
+- [ ] Update the corresponding TypeScript interface in `types.ts`
+- [ ] Check all fields match (names, types, optionality)
+- [ ] Update literal union types if `Literal` values changed
+- [ ] Update `FastApiClient` methods if response shape changed
+- [ ] Check component code that uses the type
 
 ---
 
 ## Summary
 
-| Practice                    | Reason                        |
-| --------------------------- | ----------------------------- |
-| Zod-first types             | Single source of truth        |
-| Import, don't redefine      | No type drift                 |
-| `=== true` for unions       | Proper narrowing              |
-| Generics for reuse          | DRY, type-safe                |
-| `success` + `reason` format | Consistent API responses      |
-| No `any`                    | Type safety                   |
-| No `!` assertions           | Runtime safety                |
-| No `@ts-expect-error`       | Masks real issues             |
-| `import type`               | Clear separation, tree-shake  |
-| Explicit return types       | Documentation, catch errors   |
+| Practice                              | Reason                        |
+| ------------------------------------- | ----------------------------- |
+| Mirror Pydantic schemas manually      | No automatic type sharing     |
+| Keep field names as snake_case        | Match API JSON keys           |
+| `import type` for type-only imports   | Clear separation, tree-shake  |
+| Explicit return types on exports      | Documentation, catch errors   |
+| No `any`                              | Type safety                   |
+| No `!` assertions                     | Runtime safety                |
+| No `@ts-expect-error`                 | Masks real issues             |
+| Add methods to FastApiClient          | Centralize API type handling  |

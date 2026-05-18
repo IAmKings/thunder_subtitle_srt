@@ -1,4 +1,4 @@
-# Thinking Guides for Next.js Full-Stack Projects
+# Thinking Guides for Thunder Subtitle (FastAPI + Next.js)
 
 > **Purpose**: Systematic thinking guides to catch issues before they become bugs.
 >
@@ -34,11 +34,11 @@ These guides help you **ask the right questions before coding**.
 
 Use [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) when:
 
-- [ ] Feature touches 3+ layers (Server Component, Client Component, oRPC, Database)
-- [ ] Data format changes between layers
+- [ ] Feature touches 3+ layers (Next.js Component, FastAPI Router, Service, CLI)
+- [ ] Data format changes between layers (Pydantic → JSON → TypeScript)
 - [ ] Multiple consumers need the same data
-- [ ] You're not sure where to put some logic
-- [ ] Integrates with external services or third-party APIs
+- [ ] You're not sure where to put some logic (frontend vs backend)
+- [ ] Integrates with WebSocket, external APIs, or file system
 
 ### Before Writing Code
 
@@ -46,9 +46,9 @@ Use [Pre-Implementation Checklist](./pre-implementation-checklist.md) when:
 
 - [ ] About to add a constant or config value
 - [ ] About to implement new logic
-- [ ] About to define a type or Zod schema
+- [ ] About to define a TypeScript interface or Pydantic model
 - [ ] About to create a component or hook
-- [ ] About to add an oRPC procedure
+- [ ] About to add a FastAPI router endpoint
 - [ ] Feels like you've seen similar code before
 
 ---
@@ -58,44 +58,45 @@ Use [Pre-Implementation Checklist](./pre-implementation-checklist.md) when:
 > **Before changing ANY value, ALWAYS search first!**
 
 ```bash
-# Search for the value you're about to change
+# Search TypeScript files
 rg "value_to_change" --type ts
 
+# Search Python files
+rg "value_to_change" --type py
+
 # Check how many files define this value
-rg "CONFIG_NAME" --type ts -c
+rg "CONFIG_NAME" -c
 ```
 
 This single habit prevents most "forgot to update X" bugs.
 
 ---
 
-## Next.js-Specific Layers
+## Project Architecture Layers
 
-In Next.js full-stack projects with oRPC and Drizzle, these are the typical layers:
+In the Thunder Subtitle project (FastAPI + Next.js), these are the layers:
 
 ```
-Server Components (RSC - data fetching, static rendering)
-        |
-        v
-Client Components ('use client' - interactivity, React Query)
-        |
-        v
-API Routes / oRPC Router (type-safe RPC, middleware, validation)
-        |
-        v
-Service / Business Logic (shared utilities, domain rules)
-        |
-        v
-Database Layer (Drizzle ORM, PostgreSQL, migrations)
+Frontend (Next.js 16 Client Components - React, UI, hooks)
+        ↕
+  HTTP (fetch / FastApiClient) + WebSocket
+        ↕
+Backend (FastAPI Routers - validation, auth, business logic)
+        ↕
+Service Layer (Python services wrapping CLI modules)
+        ↕
+CLI Python Modules (thunder_subtitle - search, scan, review, config)
+        ↕
+File System (media paths, config JSON, subtitle files)
 ```
 
 Each boundary is a potential source of bugs due to:
 
-- **Serialization** - Only serializable data crosses the RSC/Client boundary (no functions, no Date objects, no Maps)
-- **Type mismatches** - Zod schemas on oRPC may not match what the frontend expects
-- **Auth context** - Session availability differs between Server Components, API routes, and middleware
-- **Rendering mode** - Server Components vs Client Components have different capabilities and constraints
-- **Async timing** - React Query caching, stale data, and race conditions
+- **Serialization** - JSON serialization between Python (snake_case) and TypeScript (camelCase conventions)
+- **Type mismatches** - Pydantic models define the contract; TypeScript must mirror them manually
+- **Auth context** - JWT token stored in localStorage, sent via `Authorization: Bearer` header
+- **WebSocket contracts** - Message format must be consistent between `ProgressWebSocket` and FastAPI WebSocket handler
+- **Naming conventions** - Python snake_case vs TypeScript camelCase; API JSON uses snake_case
 
 ---
 
@@ -104,7 +105,7 @@ Each boundary is a potential source of bugs due to:
 1. **Search Before Write** - Always search for existing patterns before creating new ones
 2. **Think Before Code** - 5 minutes of checklist saves 50 minutes of debugging
 3. **Document Assumptions** - Make implicit assumptions explicit
-4. **Verify All Layers** - Changes often need updates in multiple places
+4. **Verify All Layers** - Changes often need updates in both frontend and backend
 5. **Learn From Bugs** - Add lessons to these guides after fixing non-trivial bugs
 
 ---

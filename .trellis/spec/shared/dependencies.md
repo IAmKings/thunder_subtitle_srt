@@ -1,164 +1,125 @@
 # Dependencies & Versions
 
-> Adjust versions to your project. These represent a known-working combination as of the time of writing. Pin or widen ranges to match your stability requirements.
+> Thunder Subtitle project: FastAPI Python backend + Next.js 16 TypeScript frontend.
 
 ---
 
 ## Runtime Environment
 
-| Dependency | Version | Description |
-|------------|---------|-------------|
-| Node.js | >=20 | JavaScript runtime |
-| pnpm | ^10.x | Package manager |
+| Dependency | Version    | Description                          |
+| ---------- | ---------- | ------------------------------------ |
+| Python     | >=3.10     | Backend runtime                      |
+| Node.js    | >=20       | Frontend runtime                     |
+| Docker     | node:20-alpine + python3 | Single-image deployment    |
 
 ---
 
-## Core Framework
+## Backend (Python) — `thunder-subtitle-api/`
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| next | ^15.x | React framework for production |
-| react | ^19.x | UI library |
-| react-dom | ^19.x | React DOM renderer |
-| typescript | ^5.x | TypeScript language |
+### Core Framework
 
----
-
-## Backend
-
-### API Layer
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| hono | ^4.x | Lightweight web framework |
-| @orpc/server | ^1.x | oRPC server implementation |
-| @orpc/client | ^1.x | oRPC client |
-| @orpc/zod | ^1.x | oRPC Zod integration |
-| @orpc/openapi | ^1.x | OpenAPI schema generation |
-| zod | ^4.x | Schema validation |
-
-### Database
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| drizzle-orm | ^0.44.x | TypeScript ORM |
-| drizzle-kit | ^0.31.x | Drizzle CLI tools |
-| drizzle-zod | ^0.8.x | Drizzle + Zod integration |
-| pg | ^8.x | PostgreSQL client |
+| Package              | Version      | Description                          |
+| -------------------- | ------------ | ------------------------------------ |
+| fastapi              | >=0.115.0    | Async web framework                  |
+| uvicorn[standard]   | >=0.30.0     | ASGI server                          |
+| pydantic             | >=2.0.0      | Data validation & serialization       |
+| pydantic-settings    | >=2.0.0      | Settings from env vars               |
 
 ### Authentication
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| better-auth | ^1.x | Authentication library |
+| Package              | Version      | Description                          |
+| -------------------- | ------------ | ------------------------------------ |
+| python-jose[cryptography] | >=3.3.0 | JWT encoding/decoding               |
+| passlib[bcrypt]      | >=1.7.4      | Password hashing                    |
 
-### Caching & Queue
+### HTTP & Networking
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| @upstash/redis | ^1.x | Redis client (Upstash) |
-| @upstash/qstash | ^2.x | Message queue |
-
----
-
-## AI Integration
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| ai | ^5.x | Vercel AI SDK core |
-| @ai-sdk/react | ^2.x | AI SDK React hooks |
-| @ai-sdk/openai | ^2.x | OpenAI provider |
-| @ai-sdk/anthropic | ^2.x | Anthropic provider |
-
----
-
-## Frontend
-
-### UI Components
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| @radix-ui/* | latest | Headless UI primitives |
-| lucide-react | ^0.x | Icon library |
-| cmdk | ^1.x | Command palette |
-| sonner | ^2.x | Toast notifications |
-
-### Styling
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| tailwindcss | ^4.x | Utility-first CSS (v4 config format) |
-| @tailwindcss/postcss | ^4.x | PostCSS plugin |
-| tailwind-merge | ^3.x | Tailwind class merging |
-| class-variance-authority | ^0.7.x | Variant management |
-| clsx | ^2.x | Class name utility |
-
-### State Management
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| @tanstack/react-query | ^5.x | Data fetching & caching |
-| @orpc/tanstack-query | ^1.x | oRPC + React Query bridge |
-| nuqs | ^2.x | URL state management |
-| react-hook-form | ^7.x | Form state management |
-| @hookform/resolvers | ^5.x | Form validation resolvers |
-
-### Internationalization
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| next-intl | ^4.x | Next.js i18n |
-
-### Utilities
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| date-fns | ^4.x | Date utilities |
-| es-toolkit | ^1.x | Utility functions |
-| nanoid | ^5.x | ID generation |
-| p-limit | ^7.x | Concurrency control |
-
----
-
-## Monitoring & Logging
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| @sentry/nextjs | ^10.x | Error tracking |
-
----
-
-## Development Tools
-
-### Build & Bundling
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| turbo | ^2.x | Monorepo build system |
-| tsx | ^4.x | TypeScript executor |
+| Package              | Version      | Description                          |
+| -------------------- | ------------ | ------------------------------------ |
+| httpx                | >=0.27.0     | Async HTTP client (for CLI calls)    |
+| websockets           | >=12.0       | WebSocket server (progress reporting)|
+| python-multipart     | >=0.0.9      | File upload support                  |
 
 ### Code Quality
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| @biomejs/biome | ^2.x | Linter & formatter |
-| husky | ^9.x | Git hooks |
+| Tool          | Description                          |
+| ------------- | ------------------------------------ |
+| ruff          | Linter + formatter (Black-compatible)|
 
-### Testing
+---
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| @playwright/test | ^1.x | E2E testing |
+## Frontend (TypeScript) — `thunder-subtitle-web/`
+
+### Core Framework
+
+| Package              | Version      | Description                          |
+| -------------------- | ------------ | ------------------------------------ |
+| next                 | 16.2.4       | React framework (App Router)         |
+| react                | 19.2.4       | UI library                           |
+| react-dom            | 19.2.4       | React DOM renderer                   |
+| typescript           | ^5           | TypeScript language                  |
+
+### UI & Styling
+
+| Package              | Version      | Description                          |
+| -------------------- | ------------ | ------------------------------------ |
+| tailwindcss          | ^4           | Utility-first CSS (v4 config format) |
+| @tailwindcss/postcss | ^4           | PostCSS plugin                       |
+| lucide-react         | ^1.16.0      | Icon library                         |
+
+### Development Tools
+
+| Package              | Version      | Description                          |
+| -------------------- | ------------ | ------------------------------------ |
+| eslint               | ^9           | Linter                               |
+| eslint-config-next   | 16.2.4       | Next.js ESLint config                |
+| @types/node          | ^20          | Node.js type definitions             |
+| @types/react         | ^19          | React type definitions               |
+| @types/react-dom     | ^19          | React DOM type definitions           |
+
+---
+
+## Architecture Dependencies
+
+### Data Flow
+
+```
+Frontend (Next.js 16)
+  ├── FastApiClient → HTTP fetch → FastAPI backend
+  ├── SubtitleApiClient → Next.js API route proxy → FastAPI backend
+  └── ProgressWebSocket → WebSocket → FastAPI /ws/progress/{taskId}
+```
+
+### Auth Flow
+
+```
+Login form → FastApiClient.login()
+  → POST /api/auth/login
+  → JWT token received
+  → Stored in localStorage
+  → Attached as Authorization: Bearer <token> on subsequent requests
+```
+
+### Deployment
+
+```
+Docker (node:20-alpine + python3)
+  └── supervisord
+      ├── next start (Next.js production server)
+      └── uvicorn (FastAPI ASGI server)
+```
 
 ---
 
 ## Important Notes
 
-1. **React 19**: Major version with breaking changes from React 18
-2. **Next.js 15**: App Router is the primary routing pattern
-3. **TailwindCSS 4**: Uses the new v4 configuration format (not `tailwind.config.js`)
-4. **Zod 4**: Latest version with improved TypeScript support
-5. **Monorepo**: Use `@your-app/*` for internal workspace package references
+1. **Next.js 16**: Uses App Router. Server Components are default; Client Components need `'use client'` directive.
+2. **TailwindCSS 4**: Uses the new v4 configuration format (CSS-based `@theme` block, not `tailwind.config.js`).
+3. **React 19**: Major version with breaking changes from React 18.
+4. **Pydantic v2**: Uses `model_config` instead of `class Config`, `model_validate` instead of `parse_obj`.
+5. **snake_case / camelCase**: Backend API responses use snake_case. TypeScript interfaces must match these keys exactly.
+6. **WebSocket**: `ProgressWebSocket` connects directly to FastAPI's `/ws/progress/{taskId}` endpoint.
+7. **No Zod**: This project uses Pydantic on the backend and plain TypeScript interfaces on the frontend — no Zod for schema validation.
 
 ---
 
@@ -166,8 +127,46 @@
 
 When updating dependencies:
 
-1. Check compatibility with React 19 and Next.js 15
-2. Update pnpm overrides if changing React or Drizzle versions
-3. Run `pnpm install` from the root directory
-4. Run `pnpm type-check` to verify TypeScript compatibility
-5. Run `pnpm build` to ensure production build works
+### Backend
+
+```bash
+cd thunder-subtitle-api
+pip install --upgrade <package>
+# Test the application
+python -m app.main  # or your test command
+```
+
+### Frontend
+
+```bash
+cd thunder-subtitle-web
+pnpm install  # or npm install
+pnpm lint     # verify no lint errors
+tsc --noEmit  # verify type compatibility
+pnpm build    # verify production build
+```
+
+---
+
+## Monorepo Structure
+
+```
+thunder_subtitle_srt/
+├── thunder-subtitle-api/     # Python FastAPI backend
+│   ├── app/
+│   │   ├── main.py           # FastAPI app & lifespan
+│   │   ├── config.py         # Settings (pydantic-settings)
+│   │   ├── api/              # Router modules
+│   │   ├── auth/             # JWT auth router
+│   │   ├── models/           # Pydantic schemas
+│   │   ├── services/         # Service layer (wraps CLI)
+│   │   └── ws/               # WebSocket manager
+│   └── requirements.txt
+├── thunder-subtitle-web/     # Next.js 16 frontend
+│   ├── src/
+│   │   ├── app/              # Next.js App Router pages
+│   │   ├── components/       # React components
+│   │   └── lib/              # api.ts, types.ts, auth.tsx, i18n.ts
+│   └── package.json
+└── Dockerfile                # Single-image deployment
+```

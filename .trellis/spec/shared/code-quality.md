@@ -1,39 +1,29 @@
 # Code Quality Guidelines
 
-> Mandatory code quality rules for all Next.js full-stack applications.
+> Mandatory code quality rules for the Thunder Subtitle project (FastAPI backend + Next.js frontend).
 
 ---
 
-## No Non-Null Assertions
+## Dual-Stack Conventions
 
-**NEVER** use non-null assertions (`!`). They bypass TypeScript's null checking and lead to runtime errors.
+This project has two codebases with different conventions:
 
-```typescript
-// FORBIDDEN
-const name = user!.name;
-const value = data!.items![0]!;
-
-// REQUIRED - Use explicit checks
-const user = getUser();
-if (!user) {
-  throw new Error('User not found');
-}
-const name = user.name;
-
-// REQUIRED - Use optional chaining with fallback
-const value = data?.items?.[0] ?? defaultValue;
-
-// REQUIRED - Use local variable after null check
-const project = getProject(id);
-if (!project) {
-  return { success: false, reason: 'Project not found' };
-}
-const projectName = project.name;
-```
+| Aspect             | Python (Backend)                    | TypeScript (Frontend)               |
+| ------------------ | ------------------------------------ | ------------------------------------ |
+| Language           | Python 3.10+                        | TypeScript (strict mode)             |
+| Framework          | FastAPI                              | Next.js 16                           |
+| Naming             | snake_case                           | camelCase                            |
+| Type system        | Pydantic models                      | TypeScript interfaces                |
+| Linter             | ruff                                 | eslint                               |
+| Formatter          | ruff format (Black-compatible)       | (project convention)                 |
+| Type check         | mypy (if configured)                 | tsc --noEmit                         |
+| API schema source  | Pydantic models (source of truth)    | Must mirror Python schemas           |
 
 ---
 
-## No `any` Type
+## TypeScript Rules
+
+### No `any` Type
 
 ```typescript
 // BAD
@@ -46,255 +36,246 @@ function process(data: ProcessInput) { ... }
 function parseJSON(input: string): unknown {
   return JSON.parse(input);
 }
-
-// BAD - any in cache updates
-queryClient.setQueryData(['users'], (old: any) => ...);
-
-// GOOD - Properly typed cache updates
-queryClient.setQueryData<UserListData>(['users'], (old) => {
-  if (!old) return old;
-  return { ...old, items: old.items.filter((u) => u.id !== deletedId) };
-});
 ```
 
----
+### No Non-Null Assertions
 
-## No `@ts-expect-error` / `@ts-ignore`
+```typescript
+// BAD
+const name = user!.name;
+const first = items[0]!;
+
+// GOOD - Use optional chaining with fallback
+const name = user?.name ?? "Unknown";
+const first = items[0];
+if (!first) {
+  return { success: false, reason: "No items found" };
+}
+```
+
+### No `@ts-expect-error` / `@ts-ignore`
 
 ```typescript
 // FORBIDDEN
 // @ts-expect-error - field exists at runtime
 const value = user.customField;
 
-// @ts-ignore
-doSomething(invalidArg);
-
 // REQUIRED - Fix the type issue at the source
-// If a field exists at runtime but not in types, update the type definition.
 doSomething(validArg);
 ```
 
----
-
-## No `console.log`
-
-Use structured logging instead of `console.log`. This applies to both frontend and backend code.
+### No `console.log` in Production Code
 
 ```typescript
 // BAD
-console.log('User created:', userId);
-console.log('Error:', error);
+console.log("User created:", userId);
 
-// GOOD - Backend: use structured logger
-logger.info('user_created', { userId });
-logger.error('operation_failed', { error, operationId });
-
-// GOOD - Frontend: remove debug logs before commit
-// Use browser dev tools for debugging, not console.log
+// OK - Development-time warnings only
+console.warn("Deprecated API used");
+console.error("Operation failed:", error);
 ```
 
-**Exception**: `console.warn` and `console.error` are acceptable in frontend code for development-time warnings that will not appear in production.
+Remove all `console.log` before committing. Use browser dev tools for debugging.
+
+---
+
+## Python Rules
+
+### Type Annotations
+
+All function signatures must have type annotations:
+
+```python
+# BAD
+def search(name, limit=10):
+    ...
+
+# GOOD
+def search(name: str, limit: int = 10) -> list[Subtitle]:
+    ...
+```
+
+### Pydantic Models for All API Bodies
+
+```python
+# BAD - raw dict
+async def login(body: dict):
+    ...
+
+# GOOD - Pydantic model
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+async def login(body: LoginRequest):
+    ...
+```
+
+### Error Handling
+
+Never swallow exceptions:
+
+```python
+# BAD - Silent failure
+try:
+    await operation()
+except Exception:
+    pass
+
+# GOOD - Log and handle
+try:
+    await operation()
+except Exception as e:
+    logger.error("operation_failed", extra={"error": str(e)})
+    raise HTTPException(status_code=500, detail="Operation failed")
+```
 
 ---
 
 ## Import Ordering
 
-Organize imports in this order, separated by blank lines:
+### TypeScript
 
 ```typescript
-// 1. Node built-ins
-import path from 'node:path';
+// 1. React / Next.js
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 // 2. External packages
-import { z } from 'zod';
-import { useQuery } from '@tanstack/react-query';
+import { Search } from "lucide-react";
 
-// 3. Internal workspace packages
-import type { User } from '@your-app/api/modules/users/types';
+// 3. Internal modules (@/ alias)
+import { fastApiClient } from "@/lib/api";
+import type { TaskResponse } from "@/lib/types";
 
-// 4. Local imports (relative paths)
-import { formatDate } from './utils';
-import type { Props } from './types';
+// 4. Relative imports
+import { formatDate } from "./utils";
 ```
 
-Always use `import type` for type-only imports:
+### Python
 
-```typescript
-// GOOD
-import type { User, Project } from './types';
-import { createUser } from './procedures';
+```python
+# 1. Standard library
+import asyncio
+from pathlib import Path
 
-// BAD - Mixed imports without type annotation
-import { User, createUser } from './types';
+# 2. Third-party packages
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+# 3. Local modules
+from app.services.subtitle_service import SubtitleService
+from app.models.schemas import SearchResult
 ```
+
+Always use `import type` for type-only imports in TypeScript.
 
 ---
 
 ## Naming Conventions
 
-### Files and Directories
+### Python (Backend)
+
+| Type           | Convention          | Example                        |
+| -------------- | ------------------- | ------------------------------ |
+| Variable       | snake_case          | `task_id`, `is_completed`      |
+| Constant       | SCREAMING_SNAKE_CASE| `MAX_RETRY_COUNT`             |
+| Function       | snake_case          | `search_subtitles()`           |
+| Class          | PascalCase          | `FastApiClient`, `AppConfig`   |
+| Pydantic model  | PascalCase          | `LoginRequest`, `TaskResponse` |
+| File           | snake_case          | `subtitle_service.py`          |
+| Router prefix  | kebab-case          | `/api/subtitle/search`         |
+
+### TypeScript (Frontend)
 
 | Type            | Convention                  | Example                     |
 | --------------- | --------------------------- | --------------------------- |
-| React Component | PascalCase                  | `UserProfile.tsx`           |
-| Hook            | camelCase with `use` prefix | `useProject.ts`             |
-| Utility         | kebab-case                  | `date-utils.ts`             |
-| Type file       | kebab-case or `types.ts`    | `types.ts`, `user-types.ts` |
-| Test file       | Same name + `.test`         | `date-utils.test.ts`        |
-| Directory       | kebab-case                  | `user-profile/`             |
+| Variable       | camelCase                   | `taskId`, `isCompleted`     |
+| Constant       | SCREAMING_SNAKE_CASE       | `DEFAULT_TIMEOUT`           |
+| Function       | camelCase                   | `searchSubtitles()`          |
+| Component      | PascalCase                  | `SearchBox`, `AppShell`      |
+| Type/Interface | PascalCase                  | `TaskResponse`, `AppConfig`  |
+| File           | PascalCase (components)     | `SearchBox.tsx`              |
+| File           | camelCase (utilities)       | `api.ts`, `types.ts`        |
 
-### Variables and Functions
-
-| Type           | Convention                                  | Example                            |
-| -------------- | ------------------------------------------- | ---------------------------------- |
-| Variable       | camelCase                                   | `userName`, `isActive`             |
-| Constant       | SCREAMING_SNAKE_CASE                        | `MAX_RETRY_COUNT`                  |
-| Function       | camelCase                                   | `getUserById`                      |
-| Class          | PascalCase                                  | `UserService`                      |
-| Type/Interface | PascalCase                                  | `UserInput`, `ProjectOutput`       |
-| Enum           | PascalCase (type), SCREAMING_SNAKE (values) | `enum Status { ACTIVE, INACTIVE }` |
-
-### Boolean Variables
+### Boolean Variables (Both Stacks)
 
 Use `is`, `has`, `should`, `can` prefixes:
 
 ```typescript
 // GOOD
 const isLoading = true;
-const hasPermission = user.role === 'admin';
-const shouldRefresh = Date.now() > expiresAt;
-const canEdit = isOwner || hasPermission;
+const hasPermission = user.role === "admin";
+```
 
-// BAD
-const loading = true;
-const permission = user.role === 'admin';
+```python
+# GOOD
+is_completed = True
+has_subtitle = nfo.has_chinese_subtitle
 ```
 
 ---
 
-## Error Handling
+## snake_case / camelCase Boundary
 
-### Never Swallow Errors
+API responses from FastAPI use **snake_case** (Python default). The frontend TypeScript defines types in **camelCase** but API responses arrive in snake_case.
+
+**Convention**: Keep TypeScript types in camelCase. The `FastApiClient` methods accept camelCase params and convert to snake_case for API calls where needed. Backend Pydantic models use `snake_case` field names.
+
+When mirroring a Pydantic model to TypeScript:
+
+```python
+# Python (Pydantic - source of truth)
+class TaskResponse(BaseModel):
+    task_id: str
+    created_at: datetime
+    is_completed: bool
+```
 
 ```typescript
-// BAD - Silent failure
-try {
-  await dangerousOperation();
-} catch (e) {
-  // nothing
-}
-
-// GOOD - Log and handle
-try {
-  await dangerousOperation();
-} catch (error) {
-  logger.error('operation_failed', { error });
-  throw new AppError('Operation failed', 'OPERATION_FAILED');
+// TypeScript (mirror - keep snake_case to match API JSON)
+interface TaskResponse {
+  id: string;           // backend uses "id" not "task_id" in response
+  created_at: string;    // matches snake_case from API JSON
+  status: TaskStatus;
 }
 ```
 
-### Consistent Error Response Format
-
-All API responses must use the standard `success` + `reason` format:
-
-```typescript
-// Success
-return {
-  success: true,
-  reason: 'Operation completed successfully',
-  data: result,
-};
-
-// Error
-return {
-  success: false,
-  reason: 'Insufficient permissions to perform this action',
-};
-```
-
----
-
-## Dead Code Elimination
-
-- Remove unused imports (Biome enforces this automatically)
-- Remove commented-out code blocks
-- Remove unused variables, functions, and types
-- Remove unreachable code after `return`, `throw`, `break`, `continue`
-
-```typescript
-// BAD - Dead code
-function processOrder(order: Order) {
-  // const oldLogic = order.items.map(...);
-  const result = newLogic(order);
-  return result;
-  cleanup(); // unreachable
-}
-
-// GOOD - Clean
-function processOrder(order: Order) {
-  return newLogic(order);
-}
-```
+**Important**: The API responses use snake_case JSON keys. TypeScript interfaces must match these exactly — do NOT convert to camelCase in the interface definition unless there is an explicit transformation layer.
 
 ---
 
 ## Lint and Type Check Before Commit
 
 ```bash
-# MUST pass before every commit
-pnpm lint
-pnpm type-check
+# Backend (from thunder-subtitle-api/)
+ruff check . && ruff format --check .
 
-# Production build check (catches additional issues)
-pnpm build
-
-# Or combined
-pnpm lint && pnpm type-check && pnpm build
+# Frontend (from thunder-subtitle-web/)
+next lint && tsc --noEmit
 ```
 
 ---
 
 ## Testing Guidelines
 
-### Test File Location
+### Backend (Python)
 
-```
-src/
-  __tests__/              # Integration tests
-    api.test.ts
-app/
-  feature/
-    page.tsx
-    page.test.tsx         # Co-located test (when appropriate)
+```python
+# tests/ directory, pytest
+def test_search_subtitles():
+    result = search_subtitles("test movie")
+    assert len(result) > 0
 ```
 
-### Test Structure (AAA Pattern)
+### Frontend (TypeScript)
 
 ```typescript
-describe('OrderService', () => {
-  describe('createOrder', () => {
-    it('should create an order with valid input', async () => {
-      // Arrange
-      const input = { items: [{ productId: '1', quantity: 2 }] };
-
-      // Act
-      const result = await createOrder(input);
-
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.order.items).toHaveLength(1);
-    });
-
-    it('should reject empty order', async () => {
-      // Arrange
-      const input = { items: [] };
-
-      // Act
-      const result = await createOrder(input);
-
-      // Assert
-      expect(result.success).toBe(false);
-    });
+// Co-located tests or __tests__/ directory
+describe("FastApiClient", () => {
+  it("should login successfully", async () => {
+    const result = await fastApiClient.login("user", "pass");
+    expect(result.access_token).toBeDefined();
   });
 });
 ```
@@ -305,11 +286,12 @@ describe('OrderService', () => {
 
 | Rule                           | Reason              |
 | ------------------------------ | ------------------- |
-| No `!` assertions              | Runtime errors      |
-| No `any` type                  | Type safety         |
+| No `any` type (TypeScript)     | Type safety         |
+| No `!` assertions (TypeScript) | Runtime safety      |
 | No `@ts-expect-error`          | Masks real issues   |
-| No `console.log`               | Use structured logs |
-| Lint + typecheck before commit | Consistent code     |
-| Structured errors              | Consistent handling |
+| No `console.log`               | Remove before commit|
+| Pydantic for all API bodies    | Validation + docs   |
+| Mirror types from backend      | No type drift       |
 | Never swallow errors           | Debuggability       |
 | Remove dead code               | Maintainability     |
+| snake_case / camelCase aware   | Cross-boundary sync |

@@ -1,748 +1,157 @@
-# Frontend Authentication with better-auth
+# Authentication — JWT with FastAPI Backend
 
-This document provides guidelines for implementing client-side authentication using better-auth in a Next.js React application.
+This document covers authentication patterns using JWT tokens issued by the FastAPI backend.
 
-## 1. Overview
+## Architecture
 
-better-auth provides a comprehensive authentication solution for React applications with:
-
-- **Session Management**: Cookie-based sessions with automatic refresh
-- **Multiple Auth Methods**: Password, magic link, OAuth, and passkeys
-- **Type Safety**: Full TypeScript support with inferred types
-- **Plugin Architecture**: Extensible through plugins (2FA, organizations, admin, etc.)
-
-### Key Concepts
-
-- **Auth Client**: The main interface for all authentication operations
-- **Session Context**: React context for accessing session state across components
-- **Middleware**: Server-side route protection before rendering
-
-## 2. Auth Client Setup
-
-### Creating the Auth Client
-
-Create a centralized auth client that can be imported throughout your application:
-
-```typescript
-// packages/auth/client.ts
-import {
-  adminClient,
-  inferAdditionalFields,
-  magicLinkClient,
-  organizationClient,
-  passkeyClient,
-  twoFactorClient,
-} from "better-auth/client/plugins";
-import { createAuthClient } from "better-auth/react";
-import type { auth } from ".";
-
-export const authClient = createAuthClient({
-  plugins: [
-    inferAdditionalFields<typeof auth>(),
-    magicLinkClient(),
-    organizationClient(),
-    adminClient(),
-    passkeyClient(),
-    twoFactorClient(),
-  ],
-});
-
-export type AuthClientErrorCodes = typeof authClient.$ERROR_CODES & {
-  INVALID_INVITATION: string;
-};
+```
+┌──────────┐     POST /api/auth/login      ┌──────────┐
+│  Login    │ ──────────────────────────────► │  FastAPI  │
+│  Page     │ ◄────────────────────────────── │  Backend  │
+└──────────┘     { access_token, expires_in } └──────────┘
+       │                                            ▲
+       │ token stored in localStorage               │
+       │ (thunder-subtitle-token)                   │
+       ▼                                            │
+┌──────────┐     GET /api/* with Authorization     │
+│  Auth     │ ──────────────────────────────────────►│
+│  Provider │     Bearer <token>                     │
+└──────────┘
 ```
 
-### Configuration Options
+## AuthProvider
 
-The auth client supports various plugins based on your needs:
-
-| Plugin | Purpose |
-|--------|---------|
-| `inferAdditionalFields` | Type inference for custom user fields |
-| `magicLinkClient` | Passwordless email login |
-| `organizationClient` | Multi-tenant organization support |
-| `adminClient` | Admin user management |
-| `passkeyClient` | WebAuthn/Passkey authentication |
-| `twoFactorClient` | Two-factor authentication |
-
-## 3. Session Hook/Context
-
-### Session Context Definition
-
-Define the session context type and create the context:
+The `AuthProvider` wraps the entire app in `layout.tsx`:
 
 ```typescript
-// lib/session-context.ts
-import type { Session } from "@your-app/auth"; // Replace with your monorepo package path
-import React from "react";
+// lib/auth.tsx
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-export const SessionContext = React.createContext<
-  | {
-      session: Session["session"] | null;
-      user: Session["user"] | null;
-      loaded: boolean;
-      reloadSession: () => Promise<void>;
-    }
-  | undefined
->(undefined);
-```
-
-### Session Provider Component
-
-Wrap your application with a SessionProvider to manage session state:
-
-```typescript
-// components/SessionProvider.tsx
-"use client";
-import { authClient } from "@your-app/auth/client"; // Replace with your monorepo package path
-import { useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
-import { SessionContext } from "../lib/session-context";
-
-// Query key for session caching
-export const sessionQueryKey = ["user", "session"] as const;
-
-// Custom hook for fetching session
-export const useSessionQuery = () => {
-  return useQuery({
-    queryKey: sessionQueryKey,
-    queryFn: async () => {
-      const { data, error } = await authClient.getSession({
-        query: {
-          disableCookieCache: true,
-        },
-      });
-
-      if (error) {
-        throw new Error(error.message || "Failed to fetch session");
-      }
-
-      return data;
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
-};
-
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const queryClient = useQueryClient();
-  const { data: session } = useSessionQuery();
-  const [loaded, setLoaded] = useState(!!session);
-
+  // On mount: verify saved token
   useEffect(() => {
-    if (session && !loaded) {
-      setLoaded(true);
+    const savedToken = localStorage.getItem(TOKEN_KEY);
+    const savedUser = localStorage.getItem(USER_KEY);
+    if (savedToken && savedUser) {
+      const isValid = await client.verifyToken(savedToken);
+      // If valid → setToken + setUser, else clear
     }
-  }, [session, loaded]);
+    setIsLoading(false);
+  }, []);
 
-  return (
-    <SessionContext.Provider
-      value={{
-        loaded,
-        session: session?.session ?? null,
-        user: session?.user ?? null,
-        reloadSession: async () => {
-          const { data: newSession, error } = await authClient.getSession({
-            query: {
-              disableCookieCache: true,
-            },
-          });
-
-          if (error) {
-            throw new Error(error.message || "Failed to fetch session");
-          }
-
-          queryClient.setQueryData(sessionQueryKey, () => newSession);
-        },
-      }}
-    >
-      {children}
-    </SessionContext.Provider>
-  );
-}
-```
-
-### useSession Hook
-
-Create a convenient hook to access session data:
-
-```typescript
-// hooks/use-session.ts
-import { useContext } from "react";
-import { SessionContext } from "../lib/session-context";
-
-export const useSession = () => {
-  const sessionContext = useContext(SessionContext);
-
-  if (sessionContext === undefined) {
-    throw new Error("useSession must be used within SessionProvider");
-  }
-
-  return sessionContext;
-};
-```
-
-### Usage Example
-
-```typescript
-function UserGreeting() {
-  const { user, loaded } = useSession();
-
-  if (!loaded) {
-    return <div>Loading...</div>;
-  }
-
-  if (!user) {
-    return <div>Please log in</div>;
-  }
-
-  return <div>Welcome, {user.name}!</div>;
-}
-```
-
-## 4. Protected Routes
-
-### Middleware for Route Protection
-
-Use Next.js middleware to protect routes at the server level:
-
-```typescript
-// middleware.ts
-import { getSessionCookie } from "better-auth/cookies";
-import { type NextRequest, NextResponse } from "next/server";
-import { withQuery } from "ufo";
-
-export default async function middleware(req: NextRequest) {
-  const { pathname, origin } = req.nextUrl;
-  const sessionCookie = getSessionCookie(req);
-
-  // Protect /app routes
-  if (pathname.startsWith("/app")) {
-    if (!sessionCookie) {
-      return NextResponse.redirect(
-        new URL(
-          withQuery("/auth/login", {
-            redirectTo: pathname,
-          }),
-          origin,
-        ),
-      );
-    }
-
-    return NextResponse.next();
-  }
-
-  // Allow auth routes
-  if (pathname.startsWith("/auth")) {
-    return NextResponse.next();
-  }
-
-  return NextResponse.next();
-}
-
-export const config = {
-  matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
-};
-```
-
-### Client-Side Route Protection
-
-For additional client-side protection, redirect authenticated users away from auth pages:
-
-```typescript
-"use client";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { useSession } from "@/hooks/use-session";
-
-export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { user, loaded } = useSession();
-  const redirectPath = "/app/dashboard";
-
+  // Auto-redirect: unauthenticated → /login, authenticated on /login → /search
   useEffect(() => {
-    if (loaded && user) {
-      router.replace(redirectPath);
-    }
-  }, [user, loaded, router]);
-
-  if (!loaded) {
-    return <LoadingSpinner />;
-  }
-
-  if (user) {
-    return null; // Will redirect
-  }
-
-  return <>{children}</>;
+    if (!user && !isLoginPage) router.push('/login');
+    else if (user && isLoginPage) router.push('/search');
+  }, [user, isLoading, pathname, router]);
 }
 ```
 
-### Loading States
+## Context Value
 
-Always handle loading states to prevent flash of unauthorized content:
+The `useAuth()` hook exposes:
 
 ```typescript
-function ProtectedContent() {
-  const { user, loaded } = useSession();
-
-  // Show loading while session is being fetched
-  if (!loaded) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spinner />
-      </div>
-    );
-  }
-
-  // Redirect or show unauthorized message
-  if (!user) {
-    return <Redirect to="/auth/login" />;
-  }
-
-  return <DashboardContent user={user} />;
+interface AuthContextValue {
+  user: AuthUser | null;        // { username: string }
+  token: string | null;         // JWT string
+  isAuthenticated: boolean;     // derived from !!user
+  isLoading: boolean;           // true during token verification
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => void;
 }
 ```
 
-## 5. Login/Logout Flows
+## Token Storage
 
-### Email/Password Sign In
+Tokens are stored in localStorage with these keys:
 
 ```typescript
-"use client";
-import { authClient } from "@your-app/auth/client"; // Replace with your monorepo package path
-import { useRouter } from "next/navigation";
-
-function LoginForm() {
-  const router = useRouter();
-
-  const onSubmit = async (values: { email: string; password: string }) => {
-    try {
-      const { data, error } = await authClient.signIn.email({
-        email: values.email,
-        password: values.password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Handle 2FA redirect if enabled
-      if ((data as any).twoFactorRedirect) {
-        router.replace("/auth/verify");
-        return;
-      }
-
-      // Redirect to dashboard
-      router.replace("/app/dashboard");
-    } catch (e) {
-      // Handle error
-      console.error("Login failed:", e);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      {/* Form fields */}
-    </form>
-  );
-}
+const TOKEN_KEY = 'thunder-subtitle-token';
+const USER_KEY = 'thunder-subtitle-user';
 ```
 
-### Magic Link Sign In
+On login, both the JWT token and user JSON are saved. On logout, both are cleared.
+
+The `api.ts` module has a companion `clearAuthToken()` function that clears the token key used by `FastApiClient`.
+
+## Login Flow
 
 ```typescript
-const signInWithMagicLink = async (email: string) => {
-  const { error } = await authClient.signIn.magicLink({
-    email,
-    callbackURL: "/app/dashboard",
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  // Show success message - user will receive email
-  showNotification("Check your email for the login link");
+const login = async (username: string, password: string) => {
+  const response: LoginResponse = await client.login(username, password);
+  const authUser: AuthUser = { username };
+  setToken(response.access_token);
+  setUser(authUser);
+  localStorage.setItem(TOKEN_KEY, response.access_token);
+  localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+  router.push('/search');
 };
 ```
 
-### OAuth Sign In
+The `FastApiClient.login()` method calls `POST /api/auth/login` with `{ username, password }` and returns `{ access_token, token_type, expires_in }`.
+
+## Page-Level Auth Guard
+
+Use the `withAuth()` HOC for page components:
 
 ```typescript
-"use client";
-import { authClient } from "@your-app/auth/client"; // Replace with your monorepo package path
+import { withAuth } from '@/lib/auth';
 
-function SocialSigninButton({ provider }: { provider: string }) {
-  const redirectPath = "/app/dashboard";
-
-  const onSignin = () => {
-    const callbackURL = new URL(redirectPath, window.location.origin);
-    authClient.signIn.social({
-      provider, // "google", "github", etc.
-      callbackURL: callbackURL.toString(),
-    });
-  };
-
-  return (
-    <button onClick={onSignin}>
-      Sign in with {provider}
-    </button>
-  );
+function SearchPage() {
+  // Only rendered when authenticated
+  return <div>...</div>;
 }
+
+export default withAuth(SearchPage);
 ```
 
-### Passkey Sign In
+The HOC returns null (redirect handled by `AuthProvider`) when `isLoading` or `!isAuthenticated`:
 
 ```typescript
-const signInWithPasskey = async () => {
-  try {
-    await authClient.signIn.passkey();
-    router.replace("/app/dashboard");
-  } catch (e) {
-    console.error("Passkey authentication failed:", e);
-  }
-};
-```
-
-### Sign Out
-
-```typescript
-import { authClient } from "@your-app/auth/client"; // Replace with your monorepo package path
-
-const onLogout = () => {
-  authClient.signOut({
-    fetchOptions: {
-      onSuccess: async () => {
-        // Redirect to home or login page
-        window.location.href = new URL("/", window.location.origin).toString();
-      },
-    },
-  });
-};
-```
-
-## 6. User Profile
-
-### Accessing Current User
-
-Use the `useSession` hook to access user data:
-
-```typescript
-function UserProfile() {
-  const { user, loaded } = useSession();
-
-  if (!loaded || !user) {
-    return null;
-  }
-
-  const { name, email, image } = user;
-
-  return (
-    <div className="flex items-center gap-2">
-      <img src={image} alt={name} className="w-10 h-10 rounded-full" />
-      <div>
-        <p className="font-medium">{name}</p>
-        <p className="text-sm text-gray-500">{email}</p>
-      </div>
-    </div>
-  );
-}
-```
-
-### Updating User Profile
-
-```typescript
-"use client";
-import { authClient } from "@your-app/auth/client"; // Replace with your monorepo package path
-import { useSession } from "@/hooks/use-session";
-
-function ChangeNameForm() {
-  const { user, reloadSession } = useSession();
-
-  const onSubmit = async ({ name }: { name: string }) => {
-    const { error } = await authClient.updateUser({
-      name,
-    });
-
-    if (error) {
-      showError("Failed to update name");
-      return;
-    }
-
-    showSuccess("Name updated successfully");
-
-    // Reload session to reflect changes
-    await reloadSession();
-  };
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <input
-        type="text"
-        defaultValue={user?.name ?? ""}
-        {...register("name")}
-      />
-      <button type="submit">Save</button>
-    </form>
-  );
-}
-```
-
-### Updating Other Profile Fields
-
-```typescript
-// Update avatar
-const updateAvatar = async (imageUrl: string) => {
-  const { error } = await authClient.updateUser({
-    image: imageUrl,
-  });
-
-  if (!error) {
-    await reloadSession();
-  }
-};
-
-// Update language preference (if custom field)
-const updateLanguage = async (language: string) => {
-  const { error } = await authClient.updateUser({
-    language,
-  });
-
-  if (!error) {
-    await reloadSession();
-  }
-};
-```
-
-## 7. Server-Side Session Access
-
-For server components, access the session directly:
-
-```typescript
-// lib/server.ts
-import "server-only";
-import { auth } from "@your-app/auth"; // Replace with your monorepo package path
-import { headers } from "next/headers";
-import { cache } from "react";
-
-export const getSession = cache(async () => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-    query: {
-      disableCookieCache: true,
-    },
-  });
-
-  return session;
-});
-
-export const getActiveOrganization = cache(async (slug: string) => {
-  try {
-    const activeOrganization = await auth.api.getFullOrganization({
-      query: {
-        organizationSlug: slug,
-      },
-      headers: await headers(),
-    });
-
-    return activeOrganization;
-  } catch {
-    return null;
-  }
-});
-```
-
-### Usage in Server Components
-
-```typescript
-// app/(app)/dashboard/page.tsx
-import { getSession } from "@/lib/server";
-import { redirect } from "next/navigation";
-
-export default async function DashboardPage() {
-  const session = await getSession();
-
-  if (!session?.user) {
-    redirect("/auth/login");
-  }
-
-  return (
-    <div>
-      <h1>Welcome, {session.user.name}</h1>
-    </div>
-  );
-}
-```
-
-## 8. Best Practices
-
-### Always Check Session Before Protected Operations
-
-```typescript
-function DeleteAccountButton() {
-  const { user, loaded } = useSession();
-
-  const handleDelete = async () => {
-    if (!loaded || !user) {
-      showError("Not authenticated");
-      return;
-    }
-
-    // Proceed with deletion
-  };
-
-  return (
-    <button onClick={handleDelete} disabled={!loaded || !user}>
-      Delete Account
-    </button>
-  );
-}
-```
-
-### Handle Loading States Properly
-
-```typescript
-function AuthenticatedComponent() {
-  const { user, loaded } = useSession();
-
-  // Always handle loading state first
-  if (!loaded) {
-    return <Skeleton />;
-  }
-
-  // Then handle unauthenticated state
-  if (!user) {
-    return <LoginPrompt />;
-  }
-
-  // Finally render authenticated content
-  return <ProtectedContent user={user} />;
-}
-```
-
-### Proper Redirect After Auth
-
-```typescript
-function LoginForm() {
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo");
-
-  const onLoginSuccess = () => {
-    // Redirect to original destination or default
-    const destination = redirectTo ?? "/app/dashboard";
-    router.replace(destination);
+export function withAuth<T extends object>(Component: React.ComponentType<T>) {
+  return function AuthGuardComponent(props: T) {
+    const { isAuthenticated, isLoading } = useAuth();
+    if (isLoading) return <LoadingSpinner />;
+    if (!isAuthenticated) return null; // Redirects to /login via AuthProvider
+    return <Component {...props} />;
   };
 }
 ```
 
-### Invalidate Session Cache After Auth Changes
+## Auth Header Injection
+
+`FastApiClient` auto-injects the `Authorization: Bearer <token>` header on every request:
 
 ```typescript
-import { useQueryClient } from "@tanstack/react-query";
-
-function AuthComponent() {
-  const queryClient = useQueryClient();
-
-  const onAuthChange = () => {
-    // Invalidate session cache to trigger refetch
-    queryClient.invalidateQueries({
-      queryKey: sessionQueryKey,
-    });
+// lib/api.ts — fastApiFetch helper
+async function fastApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getAuthToken(); // reads from localStorage
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...existingHeaders,
   };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  // ...
 }
 ```
 
-### Error Handling
+## Best Practices
 
-```typescript
-const handleAuthError = (error: any) => {
-  // Get error code from better-auth error
-  const errorCode = error?.code;
+1. **Always check `isLoading`** before rendering protected content
+2. **Use `withAuth()`** for page-level guards, not manual `useEffect` redirects
+3. **Use `useAuth()`** for accessing user info and logout in components
+4. **Call `clearAuthToken()`** from `api.ts` when manually clearing state
+5. **Never store passwords in localStorage** — only the JWT and username
+6. **Handle token expiry** — `verifyToken()` is called on mount; invalid tokens are auto-cleared
 
-  // Map to user-friendly message
-  const errorMessages: Record<string, string> = {
-    INVALID_CREDENTIALS: "Invalid email or password",
-    USER_NOT_FOUND: "No account found with this email",
-    EMAIL_NOT_VERIFIED: "Please verify your email first",
-    TOO_MANY_REQUESTS: "Too many attempts. Please try again later",
-  };
+## Anti-Patterns
 
-  const message = errorMessages[errorCode] ?? "An error occurred";
-  showError(message);
-};
-```
-
-### Security Considerations
-
-1. **Never store sensitive auth data in localStorage** - better-auth uses secure HTTP-only cookies
-2. **Always validate sessions server-side** - Middleware protection is essential
-3. **Use HTTPS in production** - Required for secure cookies
-4. **Implement CSRF protection** - better-auth handles this automatically
-5. **Set appropriate session expiry** - Configure in server auth options
-
-## 9. Common Patterns
-
-### Conditional Rendering Based on Auth
-
-```typescript
-function Navigation() {
-  const { user, loaded } = useSession();
-
-  return (
-    <nav>
-      <Link href="/">Home</Link>
-      {loaded && (
-        <>
-          {user ? (
-            <>
-              <Link href="/app/dashboard">Dashboard</Link>
-              <LogoutButton />
-            </>
-          ) : (
-            <>
-              <Link href="/auth/login">Login</Link>
-              <Link href="/auth/signup">Sign Up</Link>
-            </>
-          )}
-        </>
-      )}
-    </nav>
-  );
-}
-```
-
-### Auth State Persistence Across Tabs
-
-```typescript
-// Session is automatically synced via cookies
-// For real-time sync, listen to storage events
-useEffect(() => {
-  const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === "auth-sync") {
-      reloadSession();
-    }
-  };
-
-  window.addEventListener("storage", handleStorageChange);
-  return () => window.removeEventListener("storage", handleStorageChange);
-}, []);
-```
-
-### Automatic Session Refresh
-
-```typescript
-// Configure in useSessionQuery
-export const useSessionQuery = () => {
-  return useQuery({
-    queryKey: sessionQueryKey,
-    queryFn: fetchSession,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
-    refetchOnWindowFocus: true,
-  });
-};
-```
+- Using `better-auth`, NextAuth, or cookie-based session libraries (we use JWT + localStorage)
+- Checking authentication in every page component manually (use `AuthProvider` + `withAuth()`)
+- Storing sensitive data beyond username + token in localStorage
