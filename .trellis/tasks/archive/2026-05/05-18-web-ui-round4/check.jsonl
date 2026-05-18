@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Final quality checklist — lint, typecheck, no hardcoded strings"}
+{"file": ".trellis/spec/frontend/css-layout.md", "reason": "Design token verification after visual alignment"}
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "Docker, supervisord, and import path verification"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Final cross-stack quality check"}

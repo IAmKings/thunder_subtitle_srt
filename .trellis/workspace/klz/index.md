@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
+- **Total Sessions**: 9
 - **Last Active**: 2026-05-18
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~273 | Active |
+| `journal-1.md` | ~306 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-05-18 | Web UI Round 3: i18n fixes + change-password + Docker | `bccaa0f` | `master` |
 | 8 | 2026-05-18 | Web UI Round 2: backend integration + task engine + auth + pages | `fde0a3a` | `master` |
 | 7 | 2026-05-18 | Thunder Subtitle Web UI implementation + finish | `6075c40`, `3d7c361` | `master` |
 | 6 | 2026-05-10 | 工程优化方向分析：交叉验证 + .zh. 常量化 | `c1f1d1b` | `master` |

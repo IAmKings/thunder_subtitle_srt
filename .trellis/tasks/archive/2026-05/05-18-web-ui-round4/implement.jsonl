@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/css-layout.md", "reason": "Design tokens reference for visual alignment with design mockups"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component patterns — AppShell, Sidebar, dark theme"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Pre-commit checklist for final quality verification"}
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "Backend patterns — auth, Docker, supervisord, dual-import fallback"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Cross-stack code quality rules"}

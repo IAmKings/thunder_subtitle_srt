@@ -271,3 +271,36 @@ Complete Web UI: asyncio task engine, auth middleware, Scanner/Verification/Sett
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Web UI Round 3: i18n fixes + change-password + Docker
+
+**Date**: 2026-05-18
+**Task**: Web UI Round 3: i18n fixes + change-password + Docker
+**Branch**: `master`
+
+### Summary
+
+Fix 32 hardcoded strings to use t(), add change-password API endpoint, wire Settings form, fix docker-compose env
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bccaa0f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
