@@ -6,7 +6,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 WORKDIR /app/web
 COPY thunder-subtitle-web/package.json thunder-subtitle-web/pnpm-lock.yaml thunder-subtitle-web/pnpm-workspace.yaml ./
-RUN corepack enable pnpm && pnpm install --frozen-lockfile
+RUN corepack enable pnpm && pnpm install --frozen-lockfile --config.onlyBuiltDependencies="sharp,unrs-resolver"
 COPY thunder-subtitle-web/ .
 RUN pnpm build
 
