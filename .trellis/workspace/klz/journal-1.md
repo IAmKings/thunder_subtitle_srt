@@ -335,3 +335,36 @@ Verified Dockerfile config correct, dual-import fallback works in container, no 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: Web UI deployment docs + verification checklist
+
+**Date**: 2026-05-19
+**Task**: Web UI deployment docs + verification checklist
+**Branch**: `master`
+
+### Summary
+
+Added README_DEPLOY.md with local dev setup, Docker build/run, env vars, 10-category human verification checklist, and troubleshooting guide
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8a47d62` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

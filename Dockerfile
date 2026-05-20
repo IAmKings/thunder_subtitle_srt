@@ -1,5 +1,5 @@
 # ---- Stage 1: Build Next.js Frontend ----
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
@@ -18,7 +18,7 @@ COPY thunder-subtitle-api/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # ---- Stage 3: Runtime ----
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 
 # Install supervisord
 RUN apk add --no-cache supervisor python3
