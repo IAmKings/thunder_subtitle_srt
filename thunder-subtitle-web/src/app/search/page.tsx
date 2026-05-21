@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Search as SearchIcon,
   Download,
@@ -132,7 +132,12 @@ export default function SearchPage() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [sortMode, setSortMode] = useState<SortMode>("relevance");
   const [maxDuration, setMaxDuration] = useState("");
-  const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
+  // 初始化为空数组匹配 SSR，useEffect 挂载后同步 localStorage
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+
+  useEffect(() => {
+    setHistory(loadHistory());
+  }, []);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
 
@@ -347,9 +352,9 @@ export default function SearchPage() {
                     <div className="flex rounded-lg border border-outline-variant/30 bg-surface-container p-1">
                       {(
                         [
-                          { mode: "relevance" as SortMode, label: "Relevance" },
-                          { mode: "newest" as SortMode, label: "Newest" },
-                          { mode: "score" as SortMode, label: "Score" },
+                          { mode: "relevance" as SortMode, label: t("sort_relevance") },
+                          { mode: "newest" as SortMode, label: t("sort_newest") },
+                          { mode: "score" as SortMode, label: t("sort_score") },
                         ] as const
                       ).map(({ mode, label }) => (
                         <button
@@ -401,7 +406,7 @@ export default function SearchPage() {
                               {sub.ext.toUpperCase()} &bull;{" "}
                               {sub.duration > 0 ? formatDuration(sub.duration) : "Unknown duration"}
                               {sub.score > 0 && (
-                                <> &bull; Score: {sub.score.toFixed(1)}</>
+                                <> &bull; {t("score_label")}: {sub.score.toFixed(1)}</>
                               )}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-1">

@@ -1,18 +1,63 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useCallback, useSyncExternalStore, type ReactNode } from "react";
 
 type Language = "en" | "zh";
 
-// 从 localStorage 读取缓存语言，仅客户端调用
-function readCachedLanguage(): Language {
+// localStorage 缓存 key
+const STORAGE_KEY = "language";
+
+// 内存快照，避免直接读写 localStorage 触发渲染
+let snapshot: Language = "zh";
+
+const listeners = new Set<() => void>();
+
+function getSnapshot(): Language {
+  return snapshot;
+}
+
+function getServerSnapshot(): Language {
+  return "zh";
+}
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+}
+
+function notifyListeners() {
+  listeners.forEach((cb) => cb());
+}
+
+// 同步 localStorage → 内存快照（仅客户端调用）
+function syncFromStorage(): Language {
   try {
-    const cached = localStorage.getItem("language");
-    if (cached === "en" || cached === "zh") return cached;
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached === "en" || cached === "zh") {
+      snapshot = cached;
+      return cached;
+    }
   } catch {
     // localStorage 不可用时忽略
   }
+  snapshot = "zh";
   return "zh";
+}
+
+// 写入 localStorage + 内存快照
+function persistLanguage(lang: Language) {
+  snapshot = lang;
+  try {
+    localStorage.setItem(STORAGE_KEY, lang);
+  } catch {
+    // localStorage 不可用时忽略
+  }
+  notifyListeners();
+}
+
+// 模块加载时在客户端同步一次
+if (typeof window !== "undefined") {
+  syncFromStorage();
 }
 
 interface LanguageContextValue {
@@ -26,24 +71,12 @@ const LanguageContext = createContext<LanguageContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // 初始值固定为 "zh"，匹配 SSR 服务端输出，避免 hydration 不一致
-  const [language, setLanguageState] = useState<Language>("zh");
-
-  // 客户端挂载后同步 localStorage 缓存值
-  useEffect(() => {
-    const cached = readCachedLanguage();
-    if (cached !== "zh") {
-      setLanguageState(cached);
-    }
-  }, []);
+  // useSyncExternalStore 处理 SSR 与客户端 hydration 一致性问题：
+  // 服务端始终返回 "zh"，客户端 hydration 时自动切换到缓存值
+  const language = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
-    try {
-      localStorage.setItem("language", lang);
-    } catch {
-      // localStorage 不可用时忽略
-    }
+    persistLanguage(lang);
   }, []);
 
   return (
