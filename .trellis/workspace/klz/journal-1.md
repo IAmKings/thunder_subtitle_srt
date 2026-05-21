@@ -368,3 +368,38 @@ Added README_DEPLOY.md with local dev setup, Docker build/run, env vars, 10-cate
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: Docker 构建修复：pnpm v11 兼容、Alpine musl 适配、Python 模块名冲突、Release 工作流
+
+**Date**: 2026-05-21
+**Task**: Docker 构建修复：pnpm v11 兼容、Alpine musl 适配、Python 模块名冲突、Release 工作流
+**Branch**: `master`
+
+### Summary
+
+修复 Docker 多阶段构建中的一系列问题：pnpm v11 废弃 onlyBuiltDependencies 改用 allowBuilds、CI=true 跳过 TTY 确认、backend-builder 从 Debian 切换到 Alpine 避免 glibc/musl 跨平台不兼容、pip --target 平铺安装解决 Alpine sys.path 不包含 /usr/local 的问题、types.py 重命名为 models.py 避免遮蔽 Python stdlib、新增 GitHub Actions Docker 镜像构建发布工作流。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e80002d` | (see git log) |
+| `c500f7d` | (see git log) |
+| `c680f4b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

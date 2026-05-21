@@ -151,38 +151,41 @@ docker compose up -d
 
 ### 4.1 Docker 构建验证
 
-- [ ] `docker build -t thunder-subtitle .` 构建成功（无报错）
-- [ ] 镜像大小合理（预期 < 1GB）
-- [ ] 构建日志中 next.js standalone 输出正确
+- [x] `docker build -t thunder-subtitle .` 构建成功（无报错）
+- [x] `docker compose down
+  docker compose build --no-cache
+  docker compose up -d` compose 构建
+- [x] 镜像大小合理（预期 < 1GB）
+- [x] 构建日志中 next.js standalone 输出正确
 
 ### 4.2 Docker 运行验证
 
-- [ ] `docker compose up -d` 启动无报错
-- [ ] `docker compose logs` 中 FastAPI 日志显示 `Uvicorn running on http://0.0.0.0:8000`
-- [ ] `docker compose logs` 中 Next.js 日志显示 `Ready on http://0.0.0.0:3000`
-- [ ] 访问 http://localhost:3000 显示登录页面
-- [ ] 访问 http://localhost:8000/docs 显示 Swagger UI
+- [x] `docker compose up -d` 启动无报错
+- [x] `docker compose logs` 中 FastAPI 日志显示 `Uvicorn running on http://0.0.0.0:8000`
+- [x] `docker compose logs` 中 Next.js 日志显示 `Ready on http://0.0.0.0:3000`
+- [x] 访问 http://localhost:3000 显示登录页面
+- [x] 访问 http://localhost:8000/docs 显示 Swagger UI
 
 ### 4.3 认证流程验证
 
-- [ ] 访问 http://localhost:3000 自动跳转到 /login
-- [ ] 使用 `admin` / `changeme` 登录成功
-- [ ] 登录后跳转到 /search 页面
-- [ ] 刷新页面后仍保持登录状态
-- [ ] 点击 Logout 后跳转到登录页
+- [x] 访问 http://localhost:3000 自动跳转到 /login
+- [x] 使用 `admin` / `changeme` 登录成功
+- [x] 登录后跳转到 /search 页面
+- [x] 刷新页面后仍保持登录状态
+- [x] 点击 Logout 后跳转到登录页
 
 ### 4.4 Search 页面验证
 
-- [ ] 搜索框可输入关键词
-- [ ] 点击搜索或 Enter 触发搜索
-- [ ] 搜索结果展示字幕列表
-- [ ] 中文过滤芯片（All / Chinese Only / Chinese First）可切换
-- [ ] 排序控件（Relevance / Newest / Score）可切换
-- [ ] 点击下载按钮可触发下载
+- [x] 搜索框可输入关键词
+- [x] 点击搜索或 Enter 触发搜索
+- [x] 搜索结果展示字幕列表
+- [x] 中文过滤芯片（All / Chinese Only / Chinese First）可切换
+- [x] 排序控件（Relevance / Newest / Score）可切换
+- [x] 点击下载按钮可触发下载
 
 ### 4.5 Scanner 页面验证
 
-- [ ] 页面显示媒体库路径列表（来自 FastAPI）
+- [x] 页面显示媒体库路径列表（来自 FastAPI）
 - [ ] Scan Now 按钮可点击，创建扫描任务
 - [ ] 扫描进度条实时更新
 - [ ] 扫描结果列表展示
@@ -217,16 +220,16 @@ docker compose up -d
 
 ### 4.9 API 认证中间件验证
 
-- [ ] 无 token 访问 /api/config 返回 401/403
-- [ ] 带 token 访问 /api/config 返回 200
-- [ ] Token 过期后自动跳转登录页
+- [x] 无 token 访问 /api/config 返回 401/403
+- [x] 带 token 访问 /api/config 返回 200
+- [x] Token 过期后自动跳转登录页
 
 ### 4.10 i18n 验证
 
-- [ ] 页面默认语言为英文
-- [ ] TopBar 语言切换按钮可点击
-- [ ] 切换到中文后所有文本变为中文
-- [ ] 切回英文后恢复
+- [x] 页面默认语言为英文
+- [x] TopBar 语言切换按钮可点击
+- [x] 切换到中文后所有文本变为中文
+- [x] 切回英文后恢复
 
 ---
 

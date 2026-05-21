@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 11
-- **Last Active**: 2026-05-19
+- **Total Sessions**: 12
+- **Last Active**: 2026-05-21
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~370 | Active |
+| `journal-1.md` | ~405 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 12 | 2026-05-21 | Docker 构建修复：pnpm v11 兼容、Alpine musl 适配、Python 模块名冲突、Release 工作流 | `e80002d`, `c500f7d`, `c680f4b` | `master` |
 | 11 | 2026-05-19 | Web UI deployment docs + verification checklist | `8a47d62` | `master` |
 | 10 | 2026-05-19 | Web UI Round 4: Docker config review + visual alignment assessment | - | `master` |
 | 9 | 2026-05-18 | Web UI Round 3: i18n fixes + change-password + Docker | `bccaa0f` | `master` |

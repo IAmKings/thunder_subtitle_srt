@@ -9,7 +9,7 @@ services:
       - "3000:3000"
       - "8000:8000"
     volumes:
-      - /path/to/media:/media
+      - /Users/mac/Documents/media:/media
     environment:
       - ADMIN_PASSWORD=changeme
       - MEDIA_PATHS=/media
