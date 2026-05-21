@@ -65,6 +65,9 @@ function ScannerPage() {
   // Filter keywords
   const [filterKeywords, setFilterKeywords] = useState("");
 
+  // Scan mode
+  const [scanMode, setScanMode] = useState<"scan" | "dry_run" | "dump" | "dump_force">("scan");
+
   // Path carousel state
   const pathScrollRef = useRef<HTMLDivElement>(null);
   const [pathScrollIdx, setPathScrollIdx] = useState(0);
@@ -189,7 +192,7 @@ function ScannerPage() {
       // Pass ALL configured paths + optional keyword filters
       const allPaths = mediaDirs.map((d) => d.path);
       const filters = filterKeywords.trim();
-      const params: Record<string, unknown> = {};
+      const params: Record<string, unknown> = { mode: scanMode };
       if (allPaths.length > 0) {
         params.paths = allPaths;
       }
@@ -214,7 +217,7 @@ function ScannerPage() {
     } finally {
       setIsStartingScan(false);
     }
-  }, [isStartingScan, mediaDirs, filterKeywords, t]);
+  }, [isStartingScan, mediaDirs, filterKeywords, scanMode, t]);
 
   const handleCancelTask = useCallback(async () => {
     if (!activeTask) return;
@@ -401,18 +404,6 @@ function ScannerPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Filter keywords input */}
-            <div className="relative hidden md:block">
-              <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-              <input
-                type="text"
-                value={filterKeywords}
-                onChange={(e) => setFilterKeywords(e.target.value)}
-                placeholder={t("filter_placeholder")}
-                className="w-48 rounded-lg border border-outline-variant bg-surface-container-low py-2 pl-8 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
-                disabled={isRunning}
-              />
-            </div>
             {isRunning && (
               <button
                 type="button"
@@ -438,6 +429,47 @@ function ScannerPage() {
               )}
               {isStartingScan ? t("starting") : isRunning ? t("scanning") : t("scan_now")}
             </button>
+          </div>
+        </div>
+
+        {/* Scan mode segmented control + Filter row */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Scan Mode Segmented Control */}
+          <div className="flex rounded-lg border border-outline-variant/30 bg-surface-container p-1">
+            {([
+              { mode: "scan" as const, label: t("scan_mode_scan") },
+              { mode: "dry_run" as const, label: t("scan_mode_dry_run") },
+              { mode: "dump" as const, label: t("scan_mode_dump") },
+              { mode: "dump_force" as const, label: t("scan_mode_force") },
+            ]).map(({ mode, label }) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setScanMode(mode)}
+                disabled={isRunning}
+                className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                  scanMode === mode
+                    ? "bg-primary text-on-primary"
+                    : "text-on-surface-variant hover:bg-surface-container-high"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Filter keywords input (desktop) */}
+          <div className="relative hidden md:block">
+            <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+            <input
+              type="text"
+              value={filterKeywords}
+              onChange={(e) => setFilterKeywords(e.target.value)}
+              placeholder={t("filter_placeholder")}
+              className="w-48 rounded-lg border border-outline-variant bg-surface-container-low py-2 pl-8 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+              disabled={isRunning}
+            />
           </div>
         </div>
 

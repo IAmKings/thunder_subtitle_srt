@@ -166,6 +166,12 @@ const translations: Record<Language, Record<string, string>> = {
     failed_save_paths: "Failed to save paths",
     scanning_all_paths: "Scanning all configured directories",
 
+    // Scan mode labels
+    scan_mode_scan: "Scan",
+    scan_mode_dry_run: "Preview",
+    scan_mode_dump: "Dump",
+    scan_mode_force: "Force Dump",
+
     // Verification (additional)
     loading_reviews: "Loading reviews...",
     no_pending_subs: "No subtitles pending verification in this directory.",
@@ -344,6 +350,12 @@ const translations: Record<Language, Record<string, string>> = {
     paths_saved: "路径保存成功",
     failed_save_paths: "保存路径失败",
     scanning_all_paths: "扫描所有配置的目录",
+
+    // Scan mode labels
+    scan_mode_scan: "扫描下载",
+    scan_mode_dry_run: "仅预览",
+    scan_mode_dump: "暴力下载",
+    scan_mode_force: "暴力刷新",
 
     // Verification (additional)
     loading_reviews: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u4e2d...",

@@ -403,3 +403,47 @@ Added README_DEPLOY.md with local dev setup, Docker build/run, env vars, 10-cate
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: Docker构建修复、PyPI发布、Web前端多项优化、扫描器路径配置统一
+
+**Date**: 2026-05-21
+**Task**: Docker构建修复、PyPI发布、Web前端多项优化、扫描器路径配置统一
+**Branch**: `master`
+
+### Summary
+
+Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、Docker Release工作流、PyPI项目名修改、README更新、Web默认中文+语言缓存、搜索排序国际化、搜索状态Context持久化、扫描器路径配置统一（env var优先+JSON回退+前端路径编辑+关键词过滤+轮播优化）、枚举标准化、Python 3.9兼容
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7c79838` | (see git log) |
+| `9a680b8` | (see git log) |
+| `c6a6e51` | (see git log) |
+| `49b0442` | (see git log) |
+| `893f7b8` | (see git log) |
+| `2c9f34a` | (see git log) |
+| `ea48dc7` | (see git log) |
+| `26e5720` | (see git log) |
+| `feb564c` | (see git log) |
+| `e80002d` | (see git log) |
+| `c500f7d` | (see git log) |
+| `c680f4b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
