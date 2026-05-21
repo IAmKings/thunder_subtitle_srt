@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { SearchStateProvider } from "@/lib/search-state";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function RootLayout({
       <body className="flex h-screen overflow-hidden bg-surface text-on-surface">
         <ThemeProvider>
           <AuthProvider>
-            <AppShell>{children}</AppShell>
+            <SearchStateProvider>
+              <AppShell>{children}</AppShell>
+            </SearchStateProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

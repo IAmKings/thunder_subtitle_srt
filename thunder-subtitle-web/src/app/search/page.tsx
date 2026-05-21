@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useCallback, useMemo } from "react";
 import {
   Search as SearchIcon,
   Download,
@@ -12,59 +12,12 @@ import {
   Zap,
   CheckCircle,
 } from "lucide-react";
-import { fastApiClient, SubtitleApiClient } from "@/lib/api";
+import { SubtitleApiClient } from "@/lib/api";
 import type { Subtitle } from "@/lib/types";
 import { useTranslations } from "@/lib/i18n";
-
-// ---- Types ----
-
-type FilterMode = "all" | "chinese_only" | "chinese_first";
-type SortMode = "relevance" | "newest" | "score";
-
-interface HistoryItem {
-  id: string;
-  name: string;
-  timestamp: number;
-}
-
-const HISTORY_KEY = "thunder-subtitle-search-history";
-const MAX_HISTORY = 10;
+import { useSearchState, useSearchActions, type FilterMode, type SortMode, type HistoryItem } from "@/lib/search-state";
 
 // ---- Helpers ----
-
-function loadHistory(): HistoryItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(HISTORY_KEY);
-    return stored ? (JSON.parse(stored) as HistoryItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(history: HistoryItem[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
-}
-
-function addToHistory(name: string): void {
-  const history = loadHistory();
-  // Remove duplicate
-  const filtered = history.filter(
-    (h) => h.name.toLowerCase() !== name.toLowerCase()
-  );
-  const newItem: HistoryItem = {
-    id: Date.now().toString(),
-    name,
-    timestamp: Date.now(),
-  };
-  saveHistory([newItem, ...filtered]);
-}
-
-function removeFromHistory(id: string): void {
-  const history = loadHistory().filter((h) => h.id !== id);
-  saveHistory(history);
-}
 
 function formatDuration(ms: number): string {
   if (ms <= 0) return "Unknown";
@@ -88,7 +41,6 @@ function filterSubtitles(
 ): Subtitle[] {
   let filtered = [...subs];
 
-  // Chinese filter
   if (mode === "chinese_only") {
     const client = new SubtitleApiClient();
     filtered = client.filterChineseSubtitles(filtered);
@@ -100,16 +52,14 @@ function filterSubtitles(
     filtered = [...chinese, ...others];
   }
 
-  // Duration filter
   if (duration.trim()) {
     const match = duration.trim().match(/^(\d+)(h|m|s)?$/i);
     if (match) {
       const value = parseInt(match[1], 10);
       const unit = (match[2] ?? "m").toLowerCase();
-      let maxMs = value * 60000; // default minutes
+      let maxMs = value * 60000;
       if (unit === "h") maxMs = value * 3600000;
       else if (unit === "s") maxMs = value * 1000;
-      else if (unit === "m") maxMs = value * 60000;
 
       filtered = filtered.filter(
         (s) => s.duration <= 0 || s.duration <= maxMs
@@ -124,105 +74,32 @@ function filterSubtitles(
 
 export default function SearchPage() {
   const t = useTranslations();
-  const [query, setQuery] = useState("");
-  const [allSubtitles, setAllSubtitles] = useState<Subtitle[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<FilterMode>("all");
-  const [sortMode, setSortMode] = useState<SortMode>("relevance");
-  const [maxDuration, setMaxDuration] = useState("");
-  // 初始化为空数组匹配 SSR，useEffect 挂载后同步 localStorage
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const {
+    query, allSubtitles, isLoading, hasSearched, error,
+    filterMode, sortMode, maxDuration, history, currentPage,
+  } = useSearchState();
+  const {
+    setQuery, setFilterMode, setSortMode, setMaxDuration,
+    setCurrentPage, handleSearch, handleHistoryClick,
+    handleClearHistory, handleRemoveHistoryItem,
+  } = useSearchActions();
 
-  useEffect(() => {
-    setHistory(loadHistory());
-  }, []);
-  const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
 
-  // Derive filtered and sorted subtitles from allSubtitles + filter/sort state
   const subtitles = useMemo(() => {
     let filtered = filterSubtitles(allSubtitles, filterMode, maxDuration);
 
-    // Apply sorting
     if (sortMode === "newest") {
-      // Higher score typically correlates with newer; also use gcid as tiebreaker
       filtered = [...filtered].sort((a, b) => b.score - a.score || (b.duration || 0) - (a.duration || 0));
     } else if (sortMode === "score") {
       filtered = [...filtered].sort((a, b) => b.score - a.score);
     }
-    // "relevance" = default API order (no re-sort)
 
     return filtered;
   }, [allSubtitles, filterMode, maxDuration, sortMode]);
 
-  const handleSearch = useCallback(
-    async (searchQuery?: string) => {
-      const trimmed = (searchQuery ?? query).trim();
-      if (!trimmed) return;
-
-      setQuery(trimmed);
-      setIsLoading(true);
-      setError(null);
-      setHasSearched(true);
-      setAllSubtitles([]);
-      setCurrentPage(1);
-
-      try {
-        // Use FastAPI backend for search
-        const result = await fastApiClient.searchSubtitles(trimmed, {
-          chineseOnly: false,
-        });
-
-        setAllSubtitles(result.subtitles);
-        addToHistory(trimmed);
-        setHistory(loadHistory());
-      } catch {
-        // Fallback to legacy Next.js proxy if FastAPI is not available
-        try {
-          const legacyClient = new SubtitleApiClient();
-          const result = await legacyClient.searchSubtitles(trimmed);
-
-          setAllSubtitles(result.subtitles);
-          addToHistory(trimmed);
-          setHistory(loadHistory());
-        } catch (legacyErr) {
-          setError(
-            legacyErr instanceof Error
-              ? legacyErr.message
-              : "Search failed. Please try again."
-          );
-          setAllSubtitles([]);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [query]
-  );
-
-  const handleHistoryClick = useCallback(
-    (name: string) => {
-      setQuery(name);
-      handleSearch(name);
-    },
-    [handleSearch]
-  );
-
-  const handleClearHistory = useCallback(() => {
-    localStorage.removeItem(HISTORY_KEY);
-    setHistory([]);
-  }, []);
-
-  const handleRemoveHistoryItem = useCallback((id: string) => {
-    removeFromHistory(id);
-    setHistory(loadHistory());
-  }, []);
-
   const handleDownload = useCallback(
     (sub: Subtitle) => {
-      // Try FastAPI proxy first, fallback to direct URL
       const fastApiUrl = `${
         process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
       }/api/subtitle/download?url=${encodeURIComponent(sub.url)}`;
@@ -231,10 +108,7 @@ export default function SearchPage() {
     []
   );
 
-  const paginatedSubtitles = subtitles.slice(
-    0,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const paginatedSubtitles = subtitles.slice(0, currentPage * ITEMS_PER_PAGE);
   const hasMore = subtitles.length > currentPage * ITEMS_PER_PAGE;
 
   return (
@@ -331,7 +205,6 @@ export default function SearchPage() {
       {/* Main Content: History + Results */}
       {hasSearched && !isLoading ? (
         <div className="grid grid-cols-12 gap-6">
-          {/* Search Results */}
           <div className="col-span-12 space-y-6">
             {subtitles.length === 0 ? (
               <div className="py-16 text-center text-on-surface-variant">
@@ -392,7 +265,6 @@ export default function SearchPage() {
                       >
                         <div className="flex flex-grow flex-col justify-between p-4">
                           <div className="space-y-2">
-                            {/* Chinese indicator */}
                             {hasChinese && (
                               <div className="flex items-center gap-1">
                                 <Star size={10} className="fill-secondary text-secondary" />
@@ -440,7 +312,6 @@ export default function SearchPage() {
                   })}
                 </div>
 
-                {/* Load More */}
                 {hasMore && (
                   <div className="flex justify-center pt-6">
                     <button
@@ -458,7 +329,6 @@ export default function SearchPage() {
           </div>
         </div>
       ) : !hasSearched ? (
-        /* Un-searched state: show history */
         <HistoryPanel
           history={history}
           onHistoryClick={handleHistoryClick}
@@ -468,7 +338,6 @@ export default function SearchPage() {
         />
       ) : null}
 
-      {/* Loading state */}
       {isLoading && (
         <div className="flex flex-col items-center gap-4 py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -476,7 +345,6 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Features Section */}
       {!hasSearched && (
         <section className="grid grid-cols-1 gap-6 border-t border-outline-variant/30 pt-12 md:grid-cols-3">
           {[
