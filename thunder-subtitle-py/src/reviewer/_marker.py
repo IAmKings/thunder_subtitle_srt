@@ -1,3 +1,4 @@
+from __future__ import annotations
 """标记操作：审查状态标记/取消标记/归档"""
 
 import logging

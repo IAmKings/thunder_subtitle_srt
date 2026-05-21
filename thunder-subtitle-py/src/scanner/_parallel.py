@@ -1,3 +1,4 @@
+from __future__ import annotations
 """扫描循环：串行/并行执行，过滤器，进度管理"""
 
 import os

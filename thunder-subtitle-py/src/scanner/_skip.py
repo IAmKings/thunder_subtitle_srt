@@ -1,3 +1,4 @@
+from __future__ import annotations
 """跳过检查：决定是否跳过一部电影的下载"""
 
 import logging

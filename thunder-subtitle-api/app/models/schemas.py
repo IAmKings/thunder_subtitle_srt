@@ -10,17 +10,17 @@ from pydantic import BaseModel, Field
 
 
 class TaskType(str, Enum):
-    scan = "scan"
-    review = "review"
-    dump = "dump"
+    SCAN = "scan"
+    REVIEW = "review"
+    DUMP = "dump"
 
 
 class TaskStatus(str, Enum):
-    pending = "pending"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
-    cancelled = "cancelled"
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class ReviewState(str, Enum):
@@ -110,7 +110,7 @@ class TaskProgressUpdate(BaseModel):
     task_id: str
     progress: float = 0.0
     message: str = ""
-    status: TaskStatus = TaskStatus.running
+    status: TaskStatus = TaskStatus.RUNNING
 
 
 # ---- Media ----

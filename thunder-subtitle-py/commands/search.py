@@ -1,3 +1,4 @@
+from __future__ import annotations
 """search 命令：搜索字幕"""
 
 from src.api import SubtitleApiClient

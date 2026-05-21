@@ -2,12 +2,20 @@
 
 import os
 
-from app.config import settings
 from app.models.schemas import AppConfig, AppConfigUpdate
 
 
 class ConfigService:
     """Service for reading and writing application configuration."""
+
+    @staticmethod
+    def _effective_media_paths(config: object) -> str:
+        """Return media_paths with env var priority.
+
+        MEDIA_PATHS env var > JSON file value.
+        """
+        env_val = os.environ.get("MEDIA_PATHS", "").strip()
+        return env_val if env_val else config.media_paths  # type: ignore[attr-defined]
 
     def get_config(self) -> AppConfig:
         """Load current configuration."""
@@ -26,7 +34,7 @@ class ConfigService:
             retry_count=config.retry_count,
             retry_delay=config.retry_delay,
             preferred_groups=config.preferred_groups,
-            media_paths=config.media_paths,
+            media_paths=self._effective_media_paths(config),
         )
 
     def update_config(self, update: AppConfigUpdate) -> AppConfig:
@@ -68,7 +76,7 @@ class ConfigService:
             retry_count=config.retry_count,
             retry_delay=config.retry_delay,
             preferred_groups=config.preferred_groups,
-            media_paths=config.media_paths,
+            media_paths=self._effective_media_paths(config),
         )
 
     def reload_config(self) -> AppConfig:

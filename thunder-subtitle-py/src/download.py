@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Download logic for Thunder Subtitle Python CLI
 """

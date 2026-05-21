@@ -1,3 +1,4 @@
+from __future__ import annotations
 """review 命令：字幕审查"""
 
 from src.config import Config

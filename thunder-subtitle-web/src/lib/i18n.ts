@@ -157,6 +157,14 @@ const translations: Record<Language, Record<string, string>> = {
     failed_start_scan: "Failed to start scan",
     failed_cancel_task: "Failed to cancel task",
     x_results: "{x} results",
+    edit_paths: "Edit Paths",
+    save_paths: "Save Paths",
+    cancel_edit: "Cancel",
+    filter_keywords: "Filter Keywords",
+    filter_placeholder: "Space/comma separated keywords (empty = scan all)",
+    paths_saved: "Paths saved successfully",
+    failed_save_paths: "Failed to save paths",
+    scanning_all_paths: "Scanning all configured directories",
 
     // Verification (additional)
     loading_reviews: "Loading reviews...",
@@ -328,6 +336,14 @@ const translations: Record<Language, Record<string, string>> = {
     failed_start_scan: "\u542f\u52a8\u626b\u63cf\u5931\u8d25",
     failed_cancel_task: "\u53d6\u6d88\u4efb\u52a1\u5931\u8d25",
     x_results: "{x} \u4e2a\u7ed3\u679c",
+    edit_paths: "编辑路径",
+    save_paths: "保存路径",
+    cancel_edit: "取消",
+    filter_keywords: "关键词过滤",
+    filter_placeholder: "空格/逗号分隔的关键词（留空=全部扫描）",
+    paths_saved: "路径保存成功",
+    failed_save_paths: "保存路径失败",
+    scanning_all_paths: "扫描所有配置的目录",
 
     // Verification (additional)
     loading_reviews: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u4e2d...",

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """单部电影处理：NFO解析 → 跳过检查 → 搜索 → 下载"""
 
 import hashlib

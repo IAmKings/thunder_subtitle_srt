@@ -1,3 +1,4 @@
+from __future__ import annotations
 """字幕审查器 — 深度检测已下载字幕文件质量，给出百分制评分"""
 
 import os

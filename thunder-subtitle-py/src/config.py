@@ -18,15 +18,16 @@ CONFIG_PATH: str = os.environ.get(
 @dataclass
 class Config:
     """应用配置"""
-    output_dir: str = ""          # 默认下载目录（空=用系统默认）
-    timeout: int = 30             # API 超时（秒）
-    download_timeout: int = 60    # 下载超时（秒）
-    chunk_size: int = 8192        # 下载分块大小（字节）
-    rate_limit: int = 3           # 扫描模式下查询间隔（秒）
-    retry_count: int = 3          # 下载失败重试次数
-    retry_delay: int = 2          # 重试间隔（秒）
-    preferred_groups: str = ""    # 偏好字幕组（逗号分隔，如 KitaujiSub,DMG）
-    media_paths: str = ""         # 默认媒体库路径（逗号分隔，缺省时自动使用）
+
+    output_dir: str = ""  # 默认下载目录（空=用系统默认）
+    timeout: int = 30  # API 超时（秒）
+    download_timeout: int = 60  # 下载超时（秒）
+    chunk_size: int = 8192  # 下载分块大小（字节）
+    rate_limit: int = 3  # 扫描模式下查询间隔（秒）
+    retry_count: int = 3  # 下载失败重试次数
+    retry_delay: int = 2  # 重试间隔（秒）
+    preferred_groups: str = ""  # 偏好字幕组（逗号分隔，如 KitaujiSub,DMG）
+    media_paths: str = ""  # 默认媒体库路径（逗号分隔，缺省时自动使用）
 
     @property
     def preferred_groups_list(self) -> list[str]:
@@ -37,10 +38,18 @@ class Config:
 
     @property
     def media_paths_list(self) -> list[str]:
-        """返回媒体库路径列表，过滤不存在的路径"""
-        if not self.media_paths.strip():
+        """返回媒体库路径列表，过滤不存在的路径。
+
+        MEDIA_PATHS 环境变量优先 > JSON 文件配置值。
+        """
+        raw = os.environ.get("MEDIA_PATHS", "").strip()
+        if not raw:
+            raw = self.media_paths
+        if not raw.strip():
             return []
-        return [p.strip() for p in self.media_paths.split(",") if p.strip() and os.path.isdir(p.strip())]
+        return [
+            p.strip() for p in raw.split(",") if p.strip() and os.path.isdir(p.strip())
+        ]
 
     @classmethod
     def load(cls) -> "Config":

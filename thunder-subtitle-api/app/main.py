@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.ws.manager import manager as ws_manager
 
-# Add thunder-subtitle-py/src to sys.path so we can import CLI modules
-_cli_src = Path(__file__).resolve().parent.parent.parent / "thunder-subtitle-py" / "src"
+# Add thunder-subtitle-py/ to sys.path so `from src.config import Config` works
+_cli_src = Path(__file__).resolve().parent.parent.parent / "thunder-subtitle-py"
 if _cli_src.is_dir() and str(_cli_src) not in sys.path:
     sys.path.insert(0, str(_cli_src))
 

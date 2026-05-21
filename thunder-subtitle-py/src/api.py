@@ -4,6 +4,8 @@ API client for Xunlei Subtitle API
 
 import os
 import re
+from typing import Optional
+
 import requests
 
 from .exceptions import ApiError, NetworkError
@@ -25,7 +27,7 @@ def _default_timeout() -> int:
 class SubtitleApiClient:
     """迅雷字幕 API 客户端"""
 
-    def __init__(self, base_url: str = API_BASE_URL, timeout: int | None = None):
+    def __init__(self, base_url: str = API_BASE_URL, timeout: Optional[int] = None):
         self.base_url = base_url
         self.timeout = timeout if timeout is not None else _default_timeout()
         self._session = requests.Session()

@@ -7,19 +7,27 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from app.config import settings
 from app.models.schemas import (
     MediaDirectory,
     NfoInfoResponse,
     TaskCreate,
+    TaskProgressUpdate,
     TaskResponse,
     TaskStatus,
     TaskType,
-    TaskProgressUpdate,
 )
 from app.ws.manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
+
+
+def _get_media_paths() -> list[str]:
+    """Helper: load media paths from CLI config (env var > JSON)."""
+    try:
+        from src.config import Config
+    except ImportError:
+        from thunder_subtitle.config import Config  # type: ignore[import-untyped]
+    return Config.load().media_paths_list
 
 
 class ScanService:
@@ -128,26 +136,43 @@ class ScanService:
     async def _execute_scan(self, task: TaskResponse) -> None:
         """Execute a scan task using the CLI scanner."""
         try:
-            from src.scanner import scan_movie_dirs, process_scanned_movies
             from src.config import Config
+            from src.scanner import process_scanned_movies, scan_movie_dirs
         except ImportError:
             try:
-                from thunder_subtitle.scanner import scan_movie_dirs, process_scanned_movies  # type: ignore[import-untyped]
                 from thunder_subtitle.config import Config  # type: ignore[import-untyped]
+                from thunder_subtitle.scanner import (  # type: ignore[import-untyped]
+                    process_scanned_movies,
+                    scan_movie_dirs,
+                )
             except ImportError:
                 raise RuntimeError("Scanner module not available")
 
         # Determine which path(s) to scan
-        scan_path = task.params.get("path", "")
-        if not scan_path:
-            # Use all configured media paths
-            paths = settings.media_paths_list
-            if not paths:
-                task.status = TaskStatus.FAILED
-                task.message = "No media paths configured"
-                return
+        paths_param = task.params.get("paths", None)
+        if paths_param is not None and isinstance(paths_param, list):
+            paths = [p for p in paths_param if isinstance(p, str)]
         else:
-            paths = [scan_path]
+            scan_path = task.params.get("path", "")
+            if scan_path:
+                paths = [scan_path]
+            else:
+                # Use all configured media paths (env var > JSON)
+                paths = _get_media_paths()
+
+        if not paths:
+            task.status = TaskStatus.FAILED
+            task.message = "No media paths configured"
+            return
+
+        # Extract optional keyword filters
+        filters: list[str] = task.params.get("filters", [])
+        if isinstance(filters, str):
+            # Split by space or comma
+            import re
+
+            filters = [f.strip() for f in re.split(r"[ ,]+", filters) if f.strip()]
+        filters = filters if filters else None
 
         config = Config.load()
         total_dirs = 0
@@ -187,19 +212,23 @@ class ScanService:
                     client_cls = None
                     try:
                         from src.api import SubtitleApiClient as ClientCls
+
                         client_cls = ClientCls
                     except ImportError:
-                        from thunder_subtitle.api import SubtitleApiClient as ClientCls  # type: ignore[import-untyped]
+                        from thunder_subtitle.api import (
+                            SubtitleApiClient as ClientCls,  # type: ignore[import-untyped]
+                        )
 
                     client = client_cls()
                     try:
                         await asyncio.to_thread(
                             process_scanned_movies,
-                            [movie_path],
-                            False,  # dry_run
-                            config,
-                            False,  # needs_delay
-                            False,  # dump_mode
+                            movie_path,
+                            dry_run=False,
+                            name_filters=filters,
+                            config=config,
+                            resume=False,
+                            dump_mode=False,
                         )
                     finally:
                         client.close()
@@ -221,17 +250,17 @@ class ScanService:
         """Execute a review task using the CLI reviewer."""
         try:
             from src.reviewer import review_directory
-            from src.scanner import scan_movie_dirs
         except ImportError:
             try:
-                from thunder_subtitle.reviewer import review_directory  # type: ignore[import-untyped]
-                from thunder_subtitle.scanner import scan_movie_dirs  # type: ignore[import-untyped]
+                from thunder_subtitle.reviewer import (
+                    review_directory,  # type: ignore[import-untyped]
+                )
             except ImportError:
                 raise RuntimeError("Reviewer module not available")
 
         base_dir = task.params.get("path", "")
         if not base_dir:
-            paths = settings.media_paths_list
+            paths = _get_media_paths()
             base_dir = paths[0] if paths else ""
 
         if not base_dir or not os.path.isdir(base_dir):
@@ -264,17 +293,20 @@ class ScanService:
         """Execute a dump task (download all subtitles for a path)."""
         # Dump is similar to scan but with dump_mode=True
         try:
-            from src.scanner import scan_movie_dirs, process_scanned_movies
             from src.config import Config
+            from src.scanner import process_scanned_movies, scan_movie_dirs
         except ImportError:
             try:
-                from thunder_subtitle.scanner import scan_movie_dirs, process_scanned_movies  # type: ignore[import-untyped]
                 from thunder_subtitle.config import Config  # type: ignore[import-untyped]
+                from thunder_subtitle.scanner import (  # type: ignore[import-untyped]
+                    process_scanned_movies,
+                    scan_movie_dirs,
+                )
             except ImportError:
                 raise RuntimeError("Scanner module not available")
 
         scan_path = task.params.get("path", "")
-        paths = [scan_path] if scan_path else settings.media_paths_list
+        paths = [scan_path] if scan_path else _get_media_paths()
 
         config = Config.load()
         total_processed = 0
@@ -287,7 +319,8 @@ class ScanService:
 
             for i, movie_path in enumerate(movie_dirs):
                 movie_name = os.path.basename(movie_path)
-                task.progress = min(((total_processed + i + 1) / max(len(movie_dirs), 1)) * 100, 100.0)
+                ratio = (total_processed + i + 1) / max(len(movie_dirs), 1)
+                task.progress = min(ratio * 100, 100.0)
                 task.message = f"Dumping: {movie_name}"
                 task.updated_at = datetime.now(timezone.utc).isoformat()
 
@@ -304,11 +337,12 @@ class ScanService:
                 try:
                     await asyncio.to_thread(
                         process_scanned_movies,
-                        [movie_path],
-                        False,  # dry_run
-                        config,
-                        False,  # needs_delay
-                        True,  # dump_mode
+                        movie_path,
+                        dry_run=False,
+                        name_filters=None,
+                        config=config,
+                        resume=False,
+                        dump_mode=True,
                     )
                 except Exception as e:
                     logger.warning("Dump failed for %s: %s", movie_name, e)
@@ -323,13 +357,11 @@ class ScanService:
     def list_media_directories(self) -> list[MediaDirectory]:
         """List configured media directories with file counts."""
         dirs = []
-        for path in settings.media_paths_list:
+        for path in _get_media_paths():
             if os.path.isdir(path):
                 try:
                     entries = os.listdir(path)
-                    movie_count = sum(
-                        1 for e in entries if os.path.isdir(os.path.join(path, e))
-                    )
+                    movie_count = sum(1 for e in entries if os.path.isdir(os.path.join(path, e)))
                     dirs.append(
                         MediaDirectory(
                             path=path,

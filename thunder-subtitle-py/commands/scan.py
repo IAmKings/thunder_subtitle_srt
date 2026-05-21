@@ -1,3 +1,4 @@
+from __future__ import annotations
 """scan 命令：Jellyfin 目录扫描"""
 
 from src.config import Config

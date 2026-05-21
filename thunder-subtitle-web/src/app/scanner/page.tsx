@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  FolderOpen,
   Play,
   RefreshCw as SyncIcon,
   StopCircle,
@@ -18,7 +17,7 @@ import {
 import { useTranslations } from "@/lib/i18n";
 import { fastApiClient, ProgressWebSocket } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
-import type { TaskResponse, MediaDirectory } from "@/lib/types";
+import type { TaskResponse, MediaDirectory, AppConfig } from "@/lib/types";
 
 // ---- Types ----
 
@@ -56,12 +55,32 @@ function ScannerPage() {
   const [error, setError] = useState<string | null>(null);
   const [findings] = useState<ScanFinding[]>([]);
 
-  // Load media directories
+  // Path editing state
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [mediaPathsInput, setMediaPathsInput] = useState("");
+  const [isEditingPaths, setIsEditingPaths] = useState(false);
+  const [isSavingPaths, setIsSavingPaths] = useState(false);
+  const [savePathsError, setSavePathsError] = useState<string | null>(null);
+
+  // Filter keywords
+  const [filterKeywords, setFilterKeywords] = useState("");
+
+  // Path carousel state
+  const pathScrollRef = useRef<HTMLDivElement>(null);
+  const [pathScrollIdx, setPathScrollIdx] = useState(0);
+  const CARDS_PER_VIEW = 2;
+
+  // Load media directories + config
   useEffect(() => {
     async function loadDirs() {
       try {
-        const dirs = await fastApiClient.listMediaDirectories();
+        const [dirs, cfg] = await Promise.all([
+          fastApiClient.listMediaDirectories(),
+          fastApiClient.getConfig(),
+        ]);
         setMediaDirs(dirs);
+        setConfig(cfg);
+        setMediaPathsInput(cfg.media_paths);
       } catch {
         setError(t("failed_load_dirs"));
       } finally {
@@ -110,9 +129,9 @@ function ScannerPage() {
           clearInterval(interval);
         }
       } catch {
-        clearInterval(interval);
+        // Polling timeout — keep retrying, don't clear interval
       }
-    }, 2000);
+    }, 3000);
 
     // Also connect WebSocket for real-time updates
     const ws = new ProgressWebSocket();
@@ -138,23 +157,64 @@ function ScannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTask?.id, activeTask?.status]);
 
+  const handleSavePaths = useCallback(async () => {
+    setIsSavingPaths(true);
+    setSavePathsError(null);
+    try {
+      const updated = await fastApiClient.updateConfig({ media_paths: mediaPathsInput });
+      setConfig(updated);
+      setIsEditingPaths(false);
+      // Refresh directories list to reflect updated paths
+      const dirs = await fastApiClient.listMediaDirectories();
+      setMediaDirs(dirs);
+    } catch (err) {
+      setSavePathsError(err instanceof Error ? err.message : t("failed_save_paths"));
+    } finally {
+      setIsSavingPaths(false);
+    }
+  }, [mediaPathsInput, t]);
+
+  const handleCancelEditPaths = useCallback(() => {
+    setMediaPathsInput(config?.media_paths ?? "");
+    setIsEditingPaths(false);
+    setSavePathsError(null);
+  }, [config]);
+
   const handleScanNow = useCallback(async () => {
     if (isStartingScan) return;
     setIsStartingScan(true);
     setError(null);
 
     try {
-      // Determine scan path from first media dir or empty
-      const path = mediaDirs.length > 0 ? mediaDirs[0].path : "";
-      const task = await fastApiClient.createTask("scan", path ? { path } : {});
+      // Pass ALL configured paths + optional keyword filters
+      const allPaths = mediaDirs.map((d) => d.path);
+      const filters = filterKeywords.trim();
+      const params: Record<string, unknown> = {};
+      if (allPaths.length > 0) {
+        params.paths = allPaths;
+      }
+      if (filters) {
+        // Split by space or comma for multi-keyword support
+        params.filters = filters.split(/[ ,]+/).filter(Boolean);
+      }
+      const task = await fastApiClient.createTask("scan", params);
       setActiveTask(task);
       setProgress(0);
     } catch (err) {
+      // Check if a running/pending task already exists (e.g. from before refresh)
+      try {
+        const running = await fastApiClient.listTasks("running");
+        if (running.tasks.length > 0) {
+          setActiveTask(running.tasks[0]);
+          setProgress(running.tasks[0].progress);
+          return;
+        }
+      } catch { /* ignore */ }
       setError(err instanceof Error ? err.message : t("failed_start_scan"));
     } finally {
       setIsStartingScan(false);
     }
-  }, [isStartingScan, mediaDirs, t]);
+  }, [isStartingScan, mediaDirs, filterKeywords, t]);
 
   const handleCancelTask = useCallback(async () => {
     if (!activeTask) return;
@@ -169,66 +229,169 @@ function ScannerPage() {
   const isRunning = activeTask?.status === "running" || activeTask?.status === "pending";
   const totalFiles = mediaDirs.reduce((sum, d) => sum + d.movie_count, 0);
 
+  const scrollPaths = useCallback((dir: "left" | "right") => {
+    const el = pathScrollRef.current;
+    if (!el) return;
+    const cardWidth = el.scrollWidth / mediaDirs.length;
+    const newIdx = dir === "left"
+      ? Math.max(0, pathScrollIdx - CARDS_PER_VIEW)
+      : Math.min(mediaDirs.length - CARDS_PER_VIEW, pathScrollIdx + CARDS_PER_VIEW);
+    el.scrollTo({ left: newIdx * cardWidth, behavior: "smooth" });
+    setPathScrollIdx(newIdx);
+  }, [mediaDirs.length, pathScrollIdx]);
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
       {/* Stats Cards */}
-      <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        {mediaDirs.length > 0 ? (
-          mediaDirs.slice(0, 2).map((dir) => (
-            <div key={dir.path} className="ghost-border col-span-1 flex items-center justify-between rounded-xl bg-surface-container p-6 md:col-span-2">
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  {t("library_path")}
-                </p>
-                <h2 className="truncate text-xl font-bold" title={dir.path}>{dir.path}</h2>
+      <section className="space-y-4">
+        {/* Path Carousel Row */}
+        <div className="flex items-stretch gap-4">
+          {mediaDirs.length > CARDS_PER_VIEW && (
+            <button
+              type="button"
+              onClick={() => scrollPaths("left")}
+              disabled={pathScrollIdx === 0}
+              className="flex-shrink-0 rounded-lg border border-outline-variant/30 bg-surface-container p-2 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <div
+            ref={pathScrollRef}
+            className="flex flex-1 gap-4 overflow-hidden"
+          >
+            {mediaDirs.length > 0 ? (
+              mediaDirs.map((dir) => (
+                <div
+                  key={dir.path}
+                  className="ghost-border flex w-[calc(50%-0.5rem)] flex-shrink-0 items-center justify-between rounded-xl bg-surface-container p-6"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                      {t("library_path")}
+                    </p>
+                    <h2 className="truncate text-lg font-bold" title={dir.path}>{dir.path}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPaths(true)}
+                    className="ml-3 flex-shrink-0 rounded-lg bg-surface-container-high px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-outline-variant"
+                    title={t("edit_paths")}
+                  >
+                    {t("edit_paths")}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="ghost-border flex flex-1 items-center justify-between rounded-xl bg-surface-container p-6">
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    {t("library_path")}
+                  </p>
+                  <h2 className="text-lg font-bold text-on-surface-variant">
+                    {isLoadingDirs ? t("loading") : t("no_directories")}
+                  </h2>
+                </div>
+                {!isLoadingDirs && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPaths(true)}
+                    className="ml-3 flex-shrink-0 rounded-lg bg-surface-container-high px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-outline-variant"
+                    style={{ WebkitTapHighlightColor: "transparent" }}
+                  >
+                    {t("edit_paths")}
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                className="rounded-lg bg-surface-container-high p-3 transition-colors hover:bg-outline-variant"
-              >
-                <FolderOpen size={24} />
-              </button>
-            </div>
-          ))
-        ) : (
-          <div className="ghost-border col-span-2 flex items-center justify-between rounded-xl bg-surface-container p-6">
-            <div>
-              <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                {t("library_path")}
-              </p>
-              <h2 className="text-xl font-bold text-on-surface-variant">
-                {isLoadingDirs ? t("loading") : t("no_directories")}
-              </h2>
-            </div>
-            <FolderOpen size={24} className="text-on-surface-variant" />
+            )}
           </div>
-        )}
-        <div className="ghost-border rounded-xl bg-surface-container p-6">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-            {t("total_files")}
-          </p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold">{totalFiles}</span>
-            <span className="text-sm text-on-surface-variant">{t("items")}</span>
-          </div>
+          {mediaDirs.length > CARDS_PER_VIEW && (
+            <button
+              type="button"
+              onClick={() => scrollPaths("right")}
+              disabled={pathScrollIdx >= mediaDirs.length - CARDS_PER_VIEW}
+              className="flex-shrink-0 rounded-lg border border-outline-variant/30 bg-surface-container p-2 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              <ChevronRight size={20} />
+            </button>
+          )}
         </div>
-        <div className="ghost-border rounded-xl bg-surface-container p-6">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-            {t("missing_subs")}
-          </p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold text-tertiary">—</span>
-            <span className="text-sm text-on-surface-variant">—%</span>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="ghost-border rounded-xl bg-surface-container p-6">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              {t("total_files")}
+            </p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-bold">{totalFiles}</span>
+              <span className="text-sm text-on-surface-variant">{t("items")}</span>
+            </div>
+          </div>
+          <div className="ghost-border rounded-xl bg-surface-container p-6">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              {t("missing_subs")}
+            </p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-bold text-tertiary">—</span>
+              <span className="text-sm text-on-surface-variant">—%</span>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Path Editor */}
+      {isEditingPaths && (
+        <section className="ghost-border space-y-4 rounded-xl bg-surface-container p-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold">{t("media_paths")}</h3>
+          </div>
+          <p className="text-xs text-on-surface-variant">
+            {t("edit_paths")} — {t("save_paths")}
+          </p>
+          <input
+            type="text"
+            value={mediaPathsInput}
+            onChange={(e) => setMediaPathsInput(e.target.value)}
+            placeholder="/media/movies,/media/tv"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
+          />
+          {savePathsError && (
+            <div className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
+              {savePathsError}
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCancelEditPaths}
+              disabled={isSavingPaths}
+              className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high disabled:opacity-50"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              {t("cancel_edit")}
+            </button>
+            <button
+              type="button"
+              onClick={handleSavePaths}
+              disabled={isSavingPaths}
+              className="flex items-center gap-2 rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              {isSavingPaths ? t("loading") : t("save_paths")}
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Active Scan */}
       <section className="ghost-border space-y-6 rounded-xl bg-surface-container-low p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <SyncIcon size={24} />
+              <SyncIcon size={24} className={isRunning ? "animate-spin" : ""} />
             </div>
             <div>
               <h3 className="text-lg font-bold">{t("active_jellyfin_scan")}</h3>
@@ -237,7 +400,19 @@ function ScannerPage() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            {/* Filter keywords input */}
+            <div className="relative hidden md:block">
+              <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+              <input
+                type="text"
+                value={filterKeywords}
+                onChange={(e) => setFilterKeywords(e.target.value)}
+                placeholder={t("filter_placeholder")}
+                className="w-48 rounded-lg border border-outline-variant bg-surface-container-low py-2 pl-8 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+                disabled={isRunning}
+              />
+            </div>
             {isRunning && (
               <button
                 type="button"
@@ -256,10 +431,27 @@ function ScannerPage() {
               className="flex items-center gap-2 rounded-lg bg-primary-container px-6 py-3 text-xs font-bold text-on-primary-container transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
-              <Play size={16} fill="currentColor" />
+              {isRunning || isStartingScan ? (
+                <SyncIcon size={16} className="animate-spin" />
+              ) : (
+                <Play size={16} fill="currentColor" />
+              )}
               {isStartingScan ? t("starting") : isRunning ? t("scanning") : t("scan_now")}
             </button>
           </div>
+        </div>
+
+        {/* Mobile filter input */}
+        <div className="relative md:hidden">
+          <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+          <input
+            type="text"
+            value={filterKeywords}
+            onChange={(e) => setFilterKeywords(e.target.value)}
+            placeholder={t("filter_placeholder")}
+            className="w-full rounded-lg border border-outline-variant bg-surface-container-low py-2 pl-8 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+            disabled={isRunning}
+          />
         </div>
 
         {/* Progress Bar */}

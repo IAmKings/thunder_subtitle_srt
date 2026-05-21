@@ -17,9 +17,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
 
-    # Media
-    media_paths: str = "/media"
-    config_path: str = ""  # Empty = use default ~/.thunder-subtitle.json
+    # Config path (empty = use default ~/.thunder-subtitle.json)
+    config_path: str = ""
 
     # CORS
     cors_origins: list[str] = [
@@ -32,13 +31,6 @@ class Settings(BaseSettings):
     # Tasks
     max_concurrent_tasks: int = 2
     task_poll_interval: float = 0.5
-
-    @property
-    def media_paths_list(self) -> list[str]:
-        """Return media paths as a list, splitting on comma."""
-        if not self.media_paths.strip():
-            return []
-        return [p.strip() for p in self.media_paths.split(",") if p.strip()]
 
 
 settings = Settings()
