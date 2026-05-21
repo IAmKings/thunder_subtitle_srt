@@ -28,7 +28,37 @@ thunder-subtitle-srt/
 - [x] 字幕审查（深度检测+百分制评分+人工审查通过/不及格标记）
 - [x] 下载文件名规则：`{搜索名}{.zh}.{ext}`，中文字幕自动加 `.zh` 标识
 
-## 快速开始
+## 安装
+
+### pip install（推荐）
+
+```bash
+pip install thunder-subtitle-srt
+```
+
+安装后直接使用 `thunder-subtitle` 命令：
+
+```bash
+thunder-subtitle search "电影名称" --chinese-only
+thunder-subtitle scan /path/to/media --dry-run
+thunder-subtitle config --set media_paths /media/movies
+```
+
+### Docker
+
+```bash
+docker pull ghcr.io/iamkings/thunder_subtitle_srt:latest
+
+docker run -d \
+  -p 3000:3000 -p 8000:8000 \
+  -e ADMIN_PASSWORD=your-password \
+  -v /path/to/media:/media \
+  ghcr.io/iamkings/thunder_subtitle_srt:latest
+```
+
+访问 http://localhost:3000 进入 WebApp。
+
+## 开发环境
 
 ### CLI 工具 (TypeScript)
 
@@ -53,14 +83,14 @@ pnpm search "电影名称" --max-duration 1h30m
 pnpm search "电影名称" -d 90m
 ```
 
-### CLI 工具 (Python)
+### CLI 工具 (Python) — 开发
 
 ```bash
 cd thunder-subtitle-py
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
-# 搜索并显示结果
-python3 cli.py search "电影名称"
+# 安装后直接使用
+thunder-subtitle search "电影名称" -c -d 2h --all
 
 # 按序号下载（1-based，支持逗号/范围）
 python3 cli.py search "电影名称" -i 1
