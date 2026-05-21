@@ -1,0 +1,34 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+venv
+.venv
+*.egg
+
+# Node.js
+node_modules
+.next
+.cache
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude / AI
+.claude
+.opencode
+.spec-workflow
+.trellis
