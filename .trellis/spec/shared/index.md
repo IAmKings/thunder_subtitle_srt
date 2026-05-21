@@ -52,6 +52,23 @@ File System (media paths, config JSON, subtitle files)
 
 ---
 
+## Git 提交规则（MANDATORY）
+
+| 规则 | 说明 |
+| --- | --- |
+| **禁止直接提交** | AI 禁止在未经用户确认的情况下直接执行 `git commit`，必须先展示变更内容并等待用户批准 |
+| **中文提交信息** | 所有 `git commit` 的提交信息必须使用中文填写 |
+| **Conventional Commits** | 提交信息格式：`<type>: <中文描述>`，type 可选 `feat`/`fix`/`docs`/`chore`/`refactor` |
+
+### 提交确认流程
+
+1. AI 分析所有待提交文件，按逻辑分组
+2. AI 向用户展示分组方案和提交信息
+3. 用户确认（回复 `ok`/`行`）后，AI 方可执行 `git commit`
+4. 用户拒绝（回复 `不行`/`我自己来`）时，AI 立即停止，不自行提交
+
+---
+
 ## Before Every Commit
 
 - [ ] Backend: `ruff check .` + `ruff format --check .` — 0 errors
