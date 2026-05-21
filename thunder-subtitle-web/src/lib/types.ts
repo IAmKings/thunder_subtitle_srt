@@ -56,6 +56,7 @@ export interface TaskResponse {
   params: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  results?: ScanResultItem[];
 }
 
 // ---- Config types ----
@@ -99,4 +100,13 @@ export interface NfoInfo {
   duration_seconds: number;
   has_chinese_subtitle: boolean;
   release_date: string;
+}
+
+// ---- Scan Result types ----
+
+export interface ScanResultItem {
+  movie_name: string;
+  status: "downloaded" | "skipped" | "no_match" | "error";
+  reason: string;
+  filename: string;
 }

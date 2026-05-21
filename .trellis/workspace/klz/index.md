@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 13
+- **Total Sessions**: 14
 - **Last Active**: 2026-05-21
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~449 | Active |
+| `journal-1.md` | ~482 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 14 | 2026-05-21 | 扫描模式分段控件 + 关键词过滤修复 + 扫描结果展示PRD | `a969f03` | `master` |
 | 13 | 2026-05-21 | Docker构建修复、PyPI发布、Web前端多项优化、扫描器路径配置统一 | `7c79838`, `9a680b8`, `c6a6e51`, `49b0442`, `893f7b8`, `2c9f34a`, `ea48dc7`, `26e5720`, `feb564c`, `e80002d`, `c500f7d`, `c680f4b` | `master` |
 | 12 | 2026-05-21 | Docker 构建修复：pnpm v11 兼容、Alpine musl 适配、Python 模块名冲突、Release 工作流 | `e80002d`, `c500f7d`, `c680f4b` | `master` |
 | 11 | 2026-05-19 | Web UI deployment docs + verification checklist | `8a47d62` | `master` |

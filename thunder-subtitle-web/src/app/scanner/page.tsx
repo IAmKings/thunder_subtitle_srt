@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Play,
   RefreshCw as SyncIcon,
@@ -8,7 +8,6 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
-  FileVideo,
   Film,
   CheckCircle,
   XCircle,
@@ -17,16 +16,9 @@ import {
 import { useTranslations } from "@/lib/i18n";
 import { fastApiClient, ProgressWebSocket } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
-import type { TaskResponse, MediaDirectory, AppConfig } from "@/lib/types";
-
-// ---- Types ----
-
-interface ScanFinding {
-  path: string;
-  name: string;
-  type: "movie" | "tv_show";
-  status: "downloaded" | "skipped" | "no_match" | "error";
-}
+import { useScannerState, useScannerActions } from "@/lib/scanner-state";
+import type { ScanMode } from "@/lib/scanner-state";
+import type { TaskResponse, MediaDirectory, AppConfig, ScanResultItem } from "@/lib/types";
 
 // ---- Helpers ----
 
@@ -47,31 +39,34 @@ function getStatusIcon(status: string) {
 
 function ScannerPage() {
   const t = useTranslations();
-  const [mediaDirs, setMediaDirs] = useState<MediaDirectory[]>([]);
-  const [activeTask, setActiveTask] = useState<TaskResponse | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [isLoadingDirs, setIsLoadingDirs] = useState(true);
-  const [isStartingScan, setIsStartingScan] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [findings] = useState<ScanFinding[]>([]);
 
-  // Path editing state
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  // Persistent state (Context — survives tab switches)
+  const {
+    mediaDirs, config, activeTask, progress, findings,
+    scanMode, filterKeywords, isLoadingDirs, isStartingScan,
+  } = useScannerState();
+  const {
+    setMediaDirs, setConfig, setActiveTask, setProgress, setFindings,
+    setScanMode, setFilterKeywords, setIsLoadingDirs, setIsStartingScan,
+  } = useScannerActions();
+
+  // Local state (page-only)
+  const [error, setError] = useState<string | null>(null);
   const [mediaPathsInput, setMediaPathsInput] = useState("");
   const [isEditingPaths, setIsEditingPaths] = useState(false);
   const [isSavingPaths, setIsSavingPaths] = useState(false);
   const [savePathsError, setSavePathsError] = useState<string | null>(null);
 
-  // Filter keywords
-  const [filterKeywords, setFilterKeywords] = useState("");
-
-  // Scan mode
-  const [scanMode, setScanMode] = useState<"scan" | "dry_run" | "dump" | "dump_force">("scan");
-
   // Path carousel state
   const pathScrollRef = useRef<HTMLDivElement>(null);
   const [pathScrollIdx, setPathScrollIdx] = useState(0);
   const CARDS_PER_VIEW = 2;
+
+  // Results table pagination
+  const RESULTS_PER_PAGE = 10;
+  const [resultsPage, setResultsPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const statusFilterOptions = [null, "downloaded", "skipped", "no_match", "error"] as const;
 
   // Load media directories + config
   useEffect(() => {
@@ -139,15 +134,35 @@ function ScannerPage() {
     // Also connect WebSocket for real-time updates
     const ws = new ProgressWebSocket();
     ws.connect(taskId, (data: unknown) => {
-      const update = data as { progress?: number; message?: string; status?: string };
+      const update = data as {
+        progress?: number;
+        message?: string;
+        status?: string;
+        result?: ScanResultItem;
+      };
       if (update.progress !== undefined) {
         setProgress(update.progress);
       }
+      // Append per-movie result for progressive display
+      if (update.result && update.status !== "completed") {
+        setFindings((prev) => {
+          // Avoid duplicates by movie_name
+          if (prev.some((f) => f.movie_name === update.result!.movie_name)) {
+            return prev;
+          }
+          return [update.result!, ...prev];
+        });
+      }
       if (update.status === "completed" || update.status === "failed" || update.status === "cancelled") {
-        // Final state — do a final poll
+        // Final state — do a final poll to get all results
         fastApiClient.getTask(taskId).then((task) => {
           setActiveTask(task);
           setProgress(task.progress);
+          // If task has stored results, use those (more complete than WebSocket stream)
+          if (task.results && Array.isArray(task.results)) {
+            const results = task.results as ScanResultItem[];
+            setFindings(results);
+          }
         }).catch(() => {});
         ws.disconnect();
       }
@@ -187,6 +202,9 @@ function ScannerPage() {
     if (isStartingScan) return;
     setIsStartingScan(true);
     setError(null);
+    setFindings([]);
+    setResultsPage(0);
+    setFindings([]);
 
     try {
       // Pass ALL configured paths + optional keyword filters
@@ -231,6 +249,38 @@ function ScannerPage() {
 
   const isRunning = activeTask?.status === "running" || activeTask?.status === "pending";
   const totalFiles = mediaDirs.reduce((sum, d) => sum + d.movie_count, 0);
+
+  // Sort findings: error first, then no_match, skipped, downloaded
+  const statusOrder: Record<string, number> = {
+    error: 0,
+    no_match: 1,
+    skipped: 2,
+    downloaded: 3,
+  };
+  const sortedFindings = useMemo(() => {
+    let list = [...findings].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+    if (statusFilter) {
+      list = list.filter((f) => f.status === statusFilter);
+    }
+    return list;
+  }, [findings, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedFindings.length / RESULTS_PER_PAGE));
+  const paginatedFindings = useMemo(
+    () => sortedFindings.slice(resultsPage * RESULTS_PER_PAGE, (resultsPage + 1) * RESULTS_PER_PAGE),
+    [sortedFindings, resultsPage]
+  );
+
+  // Summary counts from scan results
+  const scanSummary = useMemo(() => {
+    const counts = { downloaded: 0, skipped: 0, no_match: 0, error: 0 };
+    for (const f of findings) {
+      if (f.status in counts) {
+        counts[f.status as keyof typeof counts]++;
+      }
+    }
+    return counts;
+  }, [findings]);
 
   const scrollPaths = useCallback((dir: "left" | "right") => {
     const el = pathScrollRef.current;
@@ -335,12 +385,36 @@ function ScannerPage() {
           </div>
           <div className="ghost-border rounded-xl bg-surface-container p-6">
             <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-              {t("missing_subs")}
+              {t("scan_results")}
             </p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-tertiary">—</span>
-              <span className="text-sm text-on-surface-variant">—%</span>
-            </div>
+            {findings.length > 0 ? (
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <span className="flex items-center gap-1 text-sm">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  <span className="text-green-400">{t("status_downloaded")}</span>
+                  <span className="font-bold text-on-surface">{scanSummary.downloaded}</span>
+                </span>
+                <span className="flex items-center gap-1 text-sm">
+                  <span className="h-2 w-2 rounded-full bg-tertiary" />
+                  <span className="text-tertiary">{t("status_skipped")}</span>
+                  <span className="font-bold text-on-surface">{scanSummary.skipped}</span>
+                </span>
+                <span className="flex items-center gap-1 text-sm">
+                  <span className="h-2 w-2 rounded-full bg-on-surface-variant" />
+                  <span className="text-on-surface-variant">{t("status_no_match")}</span>
+                  <span className="font-bold text-on-surface">{scanSummary.no_match}</span>
+                </span>
+                <span className="flex items-center gap-1 text-sm">
+                  <span className="h-2 w-2 rounded-full bg-error" />
+                  <span className="text-error">{t("status_error")}</span>
+                  <span className="font-bold text-on-surface">{scanSummary.error}</span>
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-on-surface-variant/50">—</span>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -460,14 +534,14 @@ function ScannerPage() {
           </div>
 
           {/* Filter keywords input (desktop) */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden flex-1 min-w-0 md:block">
             <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
             <input
               type="text"
               value={filterKeywords}
               onChange={(e) => setFilterKeywords(e.target.value)}
               placeholder={t("filter_placeholder")}
-              className="w-48 rounded-lg border border-outline-variant bg-surface-container-low py-2 pl-8 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-low py-2 pl-8 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
               disabled={isRunning}
             />
           </div>
@@ -527,14 +601,25 @@ function ScannerPage() {
       <section className="ghost-border overflow-hidden rounded-xl bg-surface-container">
         <div className="flex items-center justify-between bg-surface-container-high px-6 py-4">
           <h4 className="text-lg font-bold">{t("recent_findings")}</h4>
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-1 text-sm text-on-surface-variant transition-colors hover:bg-surface-container-highest"
-            style={{ WebkitTapHighlightColor: "transparent" }}
-          >
-            <Filter size={16} />
-            <span>{t("all_status")}</span>
-          </button>
+          {findings.length > 0 && (
+            <div className="flex rounded-lg border border-outline-variant/30 bg-surface-container p-1">
+              {statusFilterOptions.map((opt) => (
+                <button
+                  key={opt ?? "all"}
+                  type="button"
+                  onClick={() => { setStatusFilter(opt); setResultsPage(0); }}
+                  className={`rounded-md px-3 py-1 text-xs font-bold transition-all ${
+                    statusFilter === opt
+                      ? "bg-primary text-on-primary"
+                      : "text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  {opt === null ? t("all_status") : opt === "downloaded" ? t("status_downloaded") : opt === "skipped" ? t("status_skipped") : opt === "no_match" ? t("status_no_match") : t("status_error")}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -543,13 +628,13 @@ function ScannerPage() {
               <tr>
                 <th className="px-6 py-4">{t("media_file")}</th>
                 <th className="px-6 py-4">{t("type")}</th>
-                <th className="px-6 py-4">{t("resolution")}</th>
-                <th className="px-6 py-4">{t("status")}</th>
+                <th className="px-6 py-4">{t("subtitle_file")}</th>
+                <th className="px-6 py-4">{t("reason")}</th>
                 <th className="px-6 py-4 text-right">{t("action")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20">
-              {findings.length === 0 ? (
+              {paginatedFindings.length === 0 ? (
                 <tr>
                   <td className="px-6 py-8 text-center text-sm text-on-surface-variant" colSpan={5}>
                     {activeTask?.status === "running"
@@ -558,36 +643,38 @@ function ScannerPage() {
                   </td>
                 </tr>
               ) : (
-                findings.map((finding) => (
-                  <tr key={finding.path} className="transition-colors hover:bg-surface-container-high">
+                paginatedFindings.map((finding, idx) => (
+                  <tr key={`${finding.movie_name}-${idx}`} className="transition-colors hover:bg-surface-container-high">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {finding.type === "movie" ? <Film size={16} className="text-primary" /> : <FileVideo size={16} className="text-secondary" />}
-                        <span className="truncate font-medium">{finding.name}</span>
+                        <Film size={16} className="text-primary" />
+                        <span className="truncate font-medium">{finding.movie_name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        finding.type === "movie"
-                          ? "bg-primary/15 text-primary"
-                          : "bg-secondary/15 text-secondary"
-                      }`}>
-                        {finding.type === "movie" ? t("movie") : t("tv_show")}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-on-surface-variant">—</td>
-                    <td className="px-6 py-4">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                         finding.status === "downloaded"
                           ? "bg-green-500/15 text-green-400"
                           : finding.status === "skipped"
                           ? "bg-tertiary/15 text-tertiary"
                           : finding.status === "no_match"
-                          ? "bg-error/15 text-error"
-                          : "bg-on-surface-variant/15 text-on-surface-variant"
+                          ? "bg-on-surface-variant/15 text-on-surface-variant"
+                          : "bg-error/15 text-error"
                       }`}>
-                        {finding.status}
+                        {finding.status === "downloaded"
+                          ? t("status_downloaded")
+                          : finding.status === "skipped"
+                          ? t("status_skipped")
+                          : finding.status === "no_match"
+                          ? t("status_no_match")
+                          : t("status_error")}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-on-surface-variant max-w-[200px] truncate" title={finding.filename}>
+                      {finding.filename || "—"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-on-surface-variant max-w-[240px] truncate" title={finding.reason}>
+                      {finding.reason === "dry-run" ? t("scan_mode_dry_run") : (finding.reason || "—")}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
@@ -605,15 +692,32 @@ function ScannerPage() {
           </table>
         </div>
         <div className="flex items-center justify-between bg-surface-container-low px-6 py-4 text-sm text-on-surface-variant">
-          <span>{t("x_results").replace("{x}", String(findings.length))}</span>
-          <div className="flex gap-2">
-            <button type="button" className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high">
-              <ChevronLeft size={16} />
-            </button>
-            <button type="button" className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high">
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          <span>
+            {sortedFindings.length > 0
+              ? `${resultsPage * RESULTS_PER_PAGE + 1}-${Math.min((resultsPage + 1) * RESULTS_PER_PAGE, sortedFindings.length)} / ${sortedFindings.length}`
+              : t("x_results").replace("{x}", "0")}
+          </span>
+          {sortedFindings.length > RESULTS_PER_PAGE && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setResultsPage((p) => Math.max(0, p - 1))}
+                disabled={resultsPage === 0}
+                className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="px-2 tabular-nums">{resultsPage + 1} / {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setResultsPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={resultsPage >= totalPages - 1}
+                className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>

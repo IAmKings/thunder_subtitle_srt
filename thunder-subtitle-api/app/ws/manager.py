@@ -1,7 +1,6 @@
 """WebSocket connection manager for real-time task progress."""
 
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -73,7 +72,7 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
     try:
         while True:
             # Keep the connection alive; client can send pings
-            data = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         pass
     finally:

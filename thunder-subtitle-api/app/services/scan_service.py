@@ -10,6 +10,7 @@ from uuid import uuid4
 from app.models.schemas import (
     MediaDirectory,
     NfoInfoResponse,
+    ScanResultItem,
     TaskCreate,
     TaskProgressUpdate,
     TaskResponse,
@@ -175,6 +176,7 @@ class ScanService:
 
         config = Config.load()
         processed = 0
+        all_results: list[dict] = []
 
         for path in paths:
             if not os.path.isdir(path):
@@ -216,9 +218,44 @@ class ScanService:
                     config=config,
                     **scan_kwargs,
                 )
+
+                # Accumulate results across all paths
+                batch_results = [
+                    {
+                        "movie_name": r.movie_name,
+                        "status": r.status,
+                        "reason": r.reason,
+                        "filename": r.filename,
+                    }
+                    for r in results
+                ]
+                all_results.extend(batch_results)
+
+                # Broadcast each result via WebSocket for progressive display
+                for r in results:
+                    await ws_manager.broadcast(
+                        task.id,
+                        TaskProgressUpdate(
+                            task_id=task.id,
+                            progress=task.progress,
+                            message=f"{r.movie_name}: {r.status}",
+                            status=TaskStatus.RUNNING,
+                            result=ScanResultItem(
+                                movie_name=r.movie_name,
+                                status=r.status,
+                                reason=r.reason,
+                                filename=r.filename,
+                            ),
+                        ).model_dump(),
+                    )
+                    await asyncio.sleep(0.05)
+
                 processed += len(results)
             except Exception as e:
                 logger.warning("Failed to process %s: %s", path, e)
+
+        # Store all accumulated results
+        task.results = all_results
 
         task.status = TaskStatus.COMPLETED
         task.progress = 100.0

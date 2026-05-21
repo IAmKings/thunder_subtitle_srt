@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SearchStateProvider } from "@/lib/search-state";
+import { ScannerStateProvider } from "@/lib/scanner-state";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -21,7 +22,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <SearchStateProvider>
-              <AppShell>{children}</AppShell>
+              <ScannerStateProvider>
+                <AppShell>{children}</AppShell>
+              </ScannerStateProvider>
             </SearchStateProvider>
           </AuthProvider>
         </ThemeProvider>

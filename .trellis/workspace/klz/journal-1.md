@@ -447,3 +447,36 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: 扫描模式分段控件 + 关键词过滤修复 + 扫描结果展示PRD
+
+**Date**: 2026-05-21
+**Task**: 扫描模式分段控件 + 关键词过滤修复 + 扫描结果展示PRD
+**Branch**: `master`
+
+### Summary
+
+前端新增scan/dry-run/dump/dump-force四种模式分段控件，后端_execute_scan根据params.mode映射参数。修复process_scanned_movies per-path调用解决关键词过滤不匹配问题。生成扫描结果渐进式展示PRD。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a969f03` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

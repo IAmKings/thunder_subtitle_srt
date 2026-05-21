@@ -5,7 +5,6 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-
 # ---- Enums ----
 
 
@@ -88,6 +87,13 @@ class TaskCreate(BaseModel):
     params: dict = Field(default_factory=dict)
 
 
+class ScanResultItem(BaseModel):
+    movie_name: str
+    status: str
+    reason: str = ""
+    filename: str = ""
+
+
 class TaskResponse(BaseModel):
     id: str
     type: TaskType
@@ -97,6 +103,7 @@ class TaskResponse(BaseModel):
     params: dict = Field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""
+    results: Optional[list[dict]] = None
 
 
 class TaskListResponse(BaseModel):
@@ -111,6 +118,7 @@ class TaskProgressUpdate(BaseModel):
     progress: float = 0.0
     message: str = ""
     status: TaskStatus = TaskStatus.RUNNING
+    result: Optional[ScanResultItem] = None
 
 
 # ---- Media ----

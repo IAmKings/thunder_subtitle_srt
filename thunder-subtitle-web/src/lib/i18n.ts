@@ -161,10 +161,23 @@ const translations: Record<Language, Record<string, string>> = {
     save_paths: "Save Paths",
     cancel_edit: "Cancel",
     filter_keywords: "Filter Keywords",
-    filter_placeholder: "Space/comma separated keywords (empty = scan all)",
+    filter_placeholder: "Filter keywords, e.g. Star Wars",
     paths_saved: "Paths saved successfully",
     failed_save_paths: "Failed to save paths",
     scanning_all_paths: "Scanning all configured directories",
+
+    // Scan result statuses
+    status_downloaded: "Downloaded",
+    status_skipped: "Skipped",
+    status_no_match: "No Match",
+    status_error: "Error",
+    scan_results: "Scan Results",
+    downloaded_count: "Downloaded: {x}",
+    skipped_count: "Skipped: {x}",
+    no_match_count: "No Match: {x}",
+    error_count: "Error: {x}",
+    subtitle_file: "Subtitle File",
+    reason: "Reason",
 
     // Scan mode labels
     scan_mode_scan: "Scan",
@@ -346,10 +359,23 @@ const translations: Record<Language, Record<string, string>> = {
     save_paths: "保存路径",
     cancel_edit: "取消",
     filter_keywords: "关键词过滤",
-    filter_placeholder: "空格/逗号分隔的关键词（留空=全部扫描）",
+    filter_placeholder: "关键词过滤，如：星球大战",
     paths_saved: "路径保存成功",
     failed_save_paths: "保存路径失败",
     scanning_all_paths: "扫描所有配置的目录",
+
+    // Scan result statuses
+    status_downloaded: "已下载",
+    status_skipped: "已跳过",
+    status_no_match: "无匹配",
+    status_error: "错误",
+    scan_results: "扫描结果",
+    downloaded_count: "已下载：{x}",
+    skipped_count: "已跳过：{x}",
+    no_match_count: "无匹配：{x}",
+    error_count: "错误：{x}",
+    subtitle_file: "字幕文件",
+    reason: "原因",
 
     // Scan mode labels
     scan_mode_scan: "扫描下载",
