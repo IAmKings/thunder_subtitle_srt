@@ -7,7 +7,7 @@ import re
 import requests
 
 from .exceptions import ApiError, NetworkError
-from .types import Subtitle, SearchResult
+from .models import Subtitle, SearchResult
 from .utils import CJK_RE
 
 API_BASE_URL = "https://api-shoulei-ssl.xunlei.com/oracle"

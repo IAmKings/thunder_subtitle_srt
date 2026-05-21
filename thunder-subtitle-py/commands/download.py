@@ -1,7 +1,7 @@
 """download 命令：通过 URL 下载字幕"""
 
 from src.exceptions import CLIExit
-from src.types import Subtitle
+from src.models import Subtitle
 from src.ui import display_error, display_success
 from src.download import download_subtitle, get_default_download_dir
 

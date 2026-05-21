@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from ..scanner import scan_movie_dirs
-from ..types import ReviewState, ReviewQuality
+from ..models import ReviewState, ReviewQuality
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, CYAN
 from ..utils import matches
 

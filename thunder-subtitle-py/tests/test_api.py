@@ -6,7 +6,7 @@ import pytest
 
 from src.api import SubtitleApiClient
 from src.exceptions import ApiError, NetworkError
-from src.types import Subtitle
+from src.models import Subtitle
 
 
 class TestApiClientInit:

@@ -5,7 +5,7 @@ import os
 from unittest.mock import Mock, patch
 
 from src.download import _sanitize_filename, download_subtitle, dump_subtitles, DumpResult
-from src.types import Subtitle
+from src.models import Subtitle
 
 
 class TestSanitizeFilename:

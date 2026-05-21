@@ -9,7 +9,7 @@ from src.reviewer._srt import _parse_srt_entries, _ts_to_ms
 from src.reviewer._encoding import _detect_encoding, _calc_cn_ratio
 from src.reviewer._output import _human_size
 from src.reviewer._review import _review_one_file, ReviewItem, MIN_FILE_SIZE
-from src.types import ReviewQuality
+from src.models import ReviewQuality
 
 
 class TestTsToMs:

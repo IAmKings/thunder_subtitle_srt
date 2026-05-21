@@ -4,7 +4,7 @@ Terminal output formatting for Thunder Subtitle Python CLI
 
 import sys
 
-from .types import Subtitle
+from .models import Subtitle
 from .utils import CJK_RE, format_duration
 
 # ANSI color codes

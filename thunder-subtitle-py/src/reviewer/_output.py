@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 
-from ..types import ReviewQuality, ReviewState
+from ..models import ReviewQuality, ReviewState
 from ..ui import BOLD, CYAN, DIM, GREEN, RED, RESET, YELLOW
 from ._review import ReviewItem
 

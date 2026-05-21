@@ -4,7 +4,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 
-from ..types import ReviewQuality
+from ..models import ReviewQuality
 from ._encoding import _detect_encoding, _calc_cn_ratio
 from ._srt import _parse_srt_entries, _check_srt_quality
 

@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime
 
-from ..types import ScanStatus, DryState
+from ..models import ScanStatus, DryState
 from ..ui import DIM, GREEN, RED, RESET, YELLOW
 
 logger = logging.getLogger(__name__)

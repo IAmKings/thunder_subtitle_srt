@@ -47,7 +47,7 @@ def _ts_to_ms(ts: str) -> int:
 
 def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> None:
     """SRT 质量深度检测"""
-    from ..types import ReviewState
+    from ..models import ReviewState
 
     gaps = 0
     missing = 0

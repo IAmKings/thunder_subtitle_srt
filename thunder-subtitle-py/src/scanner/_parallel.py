@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from ..exceptions import ThunderSubtitleError
 from ..config import Config
 from ..api import SubtitleApiClient
-from ..types import ScanStatus
+from ..models import ScanStatus
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, BOLD_CYAN
 from ..utils import matches
 

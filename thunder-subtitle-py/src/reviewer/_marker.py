@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime
 
-from ..types import ReviewState, ReviewQuality
+from ..models import ReviewState, ReviewQuality
 from ..ui import BOLD, GREEN, RED, RESET, YELLOW
 
 logger = logging.getLogger(__name__)

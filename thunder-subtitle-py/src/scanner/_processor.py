@@ -11,7 +11,7 @@ from ..exceptions import ThunderSubtitleError
 from ..api import SubtitleApiClient
 from ..config import Config
 from ..download import download_subtitle, dump_subtitles
-from ..types import ScanStatus
+from ..models import ScanStatus
 from ..ui import DIM, GREEN, RED, RESET
 from ..utils import NfoInfo, clear_file, filter_by_duration, matches, parse_nfo, seconds_to_duration_str
 from ._skip import _ZH_PREFIX, _check_skip

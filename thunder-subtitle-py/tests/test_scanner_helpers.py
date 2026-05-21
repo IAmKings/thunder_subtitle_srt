@@ -10,7 +10,7 @@ from src.scanner._skip import (
     _check_fail_skip, _check_nfo_skip, _check_release_age, _check_existing_skip,
     _check_skip,
 )
-from src.types import DryState, Subtitle, SearchResult
+from src.models import DryState, Subtitle, SearchResult
 from src.utils import NfoInfo, parse_nfo
 
 

@@ -12,7 +12,7 @@ from typing import Optional
 
 import requests
 
-from .types import Subtitle, DownloadResult
+from .models import Subtitle, DownloadResult
 from .ui import DIM, RESET, YELLOW, display_download_progress, display_download_complete
 
 logger = logging.getLogger(__name__)
