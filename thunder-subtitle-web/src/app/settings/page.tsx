@@ -23,6 +23,7 @@ function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showApiSchema, setShowApiSchema] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Form fields
@@ -197,8 +198,12 @@ function SettingsPage() {
                 type="text"
                 value={savePath}
                 onChange={(e) => setSavePath(e.target.value)}
-                className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
+                placeholder={t("save_path_placeholder") ?? "留空则下载到当前目录"}
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none"
               />
+              <p className="text-[10px] text-on-surface-variant/50">
+                {t("save_path_hint") ?? "留空则字幕下载到当前工作目录"}
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -317,7 +322,10 @@ function SettingsPage() {
         <section className="ghost-border rounded-xl bg-surface-container p-6">
           <div className="mb-6 flex items-center gap-2 border-b border-outline-variant/20 pb-2">
             <ExternalLink className="text-secondary" size={20} />
-            <h3 className="text-lg font-bold">{t("subtitle_sources")}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold">{t("subtitle_sources")}</h3>
+              <span className="rounded-full bg-tertiary/15 px-2 py-0.5 text-[9px] font-bold text-tertiary">仅展示</span>
+            </div>
           </div>
           <div className="space-y-4">
             <div className="ghost-border flex items-center justify-between rounded-lg bg-surface-container-low p-4 transition-colors hover:bg-surface-container">
@@ -334,6 +342,7 @@ function SettingsPage() {
               </div>
               <button
                 type="button"
+                onClick={() => setShowApiSchema(true)}
                 className="rounded-lg border border-outline-variant px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
@@ -347,7 +356,10 @@ function SettingsPage() {
         <section className="ghost-border rounded-xl bg-surface-container p-6">
           <div className="mb-6 flex items-center gap-2 border-b border-outline-variant/20 pb-2">
             <ScannerIcon className="text-primary" size={20} />
-            <h3 className="text-lg font-bold">{t("automation")}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold">{t("automation")}</h3>
+              <span className="rounded-full bg-tertiary/15 px-2 py-0.5 text-[9px] font-bold text-tertiary">未实现</span>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-x-12 gap-y-8 md:grid-cols-2">
             {[
@@ -470,6 +482,49 @@ function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* API Schema Dialog */}
+      {showApiSchema && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowApiSchema(false)}>
+          <div className="mx-4 w-full max-w-lg rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-lg font-bold">迅雷字幕 API 接口格式</h3>
+            <pre className="max-h-96 overflow-y-auto rounded bg-black/30 p-4 font-mono text-xs leading-relaxed text-on-surface">
+{`GET https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name={keyword}
+
+Response:
+{
+  "code": 0,
+  "msg": "success",
+  "data": [
+    {
+      "gcid": "abc123",           // 全局字幕ID
+      "cid": "def456",            // 字幕ID
+      "url": "https://...",       // 下载地址
+      "ext": "srt",               // 文件扩展名
+      "name": "字幕名称",          // 字幕名称
+      "duration": 7500000,        // 时长(毫秒)
+      "languages": ["Chinese"],   // 语言列表
+      "source": 1,                // 来源
+      "score": 85.5,              // 评分
+      "fingerprintf_score": 90.0, // 指纹评分
+      "extra_name": "附加信息",   // 额外名称
+      "mt": 0                     // 机器翻译标记
+    }
+  ]
+}`}
+            </pre>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowApiSchema(false)}
+                className="rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container hover:brightness-110"
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
