@@ -42,8 +42,8 @@ function getMovieName(filePath: string): string {
 
 function VerificationPage() {
   const t = useTranslations();
-  const { items, isLoading, error } = useVerificationState();
-  const { setItems, setIsLoading, setError } = useVerificationActions();
+  const { items, isLoading, error, selectedMovie } = useVerificationState();
+  const { setItems, setIsLoading, setError, setSelectedMovie } = useVerificationActions();
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [markingPath, setMarkingPath] = useState<string | null>(null);
   const [baseDir, setBaseDir] = useState("");
@@ -51,12 +51,13 @@ function VerificationPage() {
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewLines, setPreviewLines] = useState(0);
   const [previewEncoding, setPreviewEncoding] = useState("");
+  const PREVIEW_CHUNK = 200;
+  const [previewPart, setPreviewPart] = useState(0); // 0=first, 1=20%, 2=40%, 3=60%, 4=last
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // ---- Two-level state ----
-  const [selectedMovie, setSelectedMovie] = useState<string | null>(null);
+  const [confirmRename, setConfirmRename] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameError, setRenameError] = useState("");
 
   // ---- Filter state ----
   const [searchQuery, setSearchQuery] = useState("");
@@ -140,6 +141,8 @@ function VerificationPage() {
 
   // ---- Batch mark for current movie ----
   const [isBatchMarking, setIsBatchMarking] = useState(false);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const handleBatchMark = useCallback(
     async (status: "ok" | "fail") => {
@@ -168,30 +171,96 @@ function VerificationPage() {
     [selectedMovie, baseDir, items, setError, setItems, t]
   );
 
-  // ---- Delete subtitle file ----
-  const handleDelete = useCallback(async () => {
-    if (!selectedItem) return;
-    setIsDeleting(true);
+  // ---- Delete all subtitles for current movie ----
+  const handleDeleteAll = useCallback(async () => {
+    if (!selectedMovie) return;
+    setIsDeletingAll(true);
     try {
-      const subtitlePath = `${selectedItem.file_path}/${selectedItem.file_name}`;
-      await fastApiClient.deleteSubtitleFile(subtitlePath);
-      setItems((prev) => prev.filter(
-        (i) => !(i.file_path === selectedItem.file_path && i.file_name === selectedItem.file_name)
-      ));
+      const movieItems = items.filter((i) => i.file_path === selectedMovie);
+      for (const item of movieItems) {
+        const subtitlePath = `${item.file_path}/${item.file_name}`;
+        await fastApiClient.deleteSubtitleFile(subtitlePath);
+      }
+      setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
       setSelectedItem(null);
-      setConfirmDelete(false);
+      setSelectedMovie(null);
+      setConfirmDeleteAll(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "删除失败");
     } finally {
-      setIsDeleting(false);
+      setIsDeletingAll(false);
     }
-  }, [selectedItem, setItems, setError]);
+  }, [selectedMovie, items, setItems, setError]);
+
+  // ---- Unified reject: delete file, optionally mark fail, jump to next ----
+  const [confirmReject, setConfirmReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState<"off_sync" | "wrong_lang" | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
+
+  const handleReject = useCallback(async () => {
+    if (!selectedItem || !selectedMovie) return;
+    setIsRejecting(true);
+    const deletedFile = selectedItem.file_name;
+    try {
+      const subtitlePath = `${selectedItem.file_path}/${selectedItem.file_name}`;
+      await fastApiClient.deleteSubtitleFile(subtitlePath);
+
+      // Remove from items
+      const remaining = items.filter(
+        (i) => !(i.file_path === selectedMovie && i.file_name === deletedFile)
+      );
+
+      // Find next/prev in current movie after removal
+      const movieItems = remaining.filter((i) => i.file_path === selectedMovie);
+      const nextItem = movieItems.length > 0 ? movieItems[0] : null;
+
+      if (movieItems.length === 0) {
+        // Last subtitle: mark fail if rejected, go back to movie list
+        if (rejectReason !== null && baseDir) {
+          await fastApiClient.markReview(baseDir, selectedMovie, "fail");
+        }
+        setItems(remaining);
+        setSelectedMovie(null);
+      } else {
+        setItems(remaining);
+        setSelectedItem(nextItem);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setIsRejecting(false);
+      setConfirmReject(false);
+    }
+  }, [selectedItem, selectedMovie, baseDir, rejectReason, items, setItems, setError]);
+
+  // ---- Rename subtitle file ----
+  const handleRename = useCallback(async () => {
+    if (!selectedItem || !newName.trim()) return;
+    setIsRenaming(true);
+    setRenameError("");
+    try {
+      const subtitlePath = `${selectedItem.file_path}/${selectedItem.file_name}`;
+      const result = await fastApiClient.renameSubtitleFile(subtitlePath, newName.trim());
+      setItems((prev) => prev.map((i) =>
+        i.file_path === selectedItem.file_path && i.file_name === selectedItem.file_name
+          ? { ...i, file_name: newName.trim() }
+          : i
+      ));
+      setSelectedItem((prev) => prev ? { ...prev, file_name: newName.trim() } : null);
+      setConfirmRename(false);
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : "重命名失败");
+    } finally {
+      setIsRenaming(false);
+    }
+  }, [selectedItem, newName, setItems]);
 
   // ---- Preview loading ----
   useEffect(() => {
     if (!selectedItem) {
       setPreviewContent(null);
       setPreviewLines(0);
+      setPreviewPart(0);
       setPreviewEncoding("");
       setPreviewLoading(false);
       return;
@@ -423,6 +492,16 @@ function VerificationPage() {
               {isBatchMarking ? <Loader2 size={12} className="animate-spin" /> : <Timer size={12} />}
               {t("all_fail")}
             </button>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteAll(true)}
+              disabled={isBatchMarking}
+              className="flex items-center gap-1.5 rounded-lg bg-error/10 px-3 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error/20 active:scale-95 disabled:opacity-50"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              <Trash2 size={12} /> 全部删除
+            </button>
           </div>
         )}
 
@@ -608,15 +687,30 @@ function VerificationPage() {
           </div>
           <div className="flex gap-2">
             {selectedItem && (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                className="rounded p-1 text-error transition-colors hover:bg-error/10"
-                title="删除字幕文件"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-              >
-                <Trash2 size={18} />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewName(getMovieName(selectedItem.file_path) + ".zh.srt");
+                    setRenameError("");
+                    setConfirmRename(true);
+                  }}
+                  className="rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container-highest"
+                  title="重命名"
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  <FileText size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setRejectReason(null); setConfirmReject(true); }}
+                  className="rounded p-1 text-error transition-colors hover:bg-error/10"
+                  title="删除字幕文件"
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -664,16 +758,43 @@ function VerificationPage() {
               </div>
             )}
 
-            {selectedItem && !previewLoading && previewContent !== null && (
+            {selectedItem && !previewLoading && previewContent !== null && (() => {
+              const allLines = previewContent.split("\n");
+              const total = allLines.length;
+              let start = 0;
+              if (previewPart === 1) start = Math.floor(total * 0.2);
+              else if (previewPart === 2) start = Math.floor(total * 0.4);
+              else if (previewPart === 3) start = Math.floor(total * 0.6);
+              else if (previewPart === 4) start = Math.max(0, total - PREVIEW_CHUNK);
+              const chunkLines = allLines.slice(start, start + PREVIEW_CHUNK);
+              const currentCount = chunkLines.length;
+              return (
               <div className="flex flex-1 flex-col">
-                <pre className="overflow-y-auto rounded bg-black/20 p-3 font-mono text-xs text-on-surface leading-relaxed" style={{ maxHeight: "35vh" }}>
-                  {previewContent}
+                <div className="flex flex-wrap gap-1 pb-2">
+                  {[0, 1, 2, 3, 4].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPreviewPart(p)}
+                      className={`rounded px-2 py-0.5 text-[10px] font-bold transition-all ${
+                        previewPart === p
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-high text-on-surface-variant hover:bg-outline-variant"
+                      }`}
+                    >
+                      Part {p + 1}
+                    </button>
+                  ))}
+                </div>
+                <pre className="min-h-0 flex-1 overflow-y-auto rounded bg-black/20 p-3 font-mono text-xs text-on-surface leading-relaxed" style={{ maxHeight: "30vh" }}>
+                  {chunkLines.join("\n") || " "}
                 </pre>
                 <p className="mt-2 text-right text-[10px] text-on-surface-variant">
-                  {t("preview_lines").replace("{current}", String(Math.min(50, previewLines))).replace("{total}", String(previewLines))}
+                  {start + 1}-{start + currentCount} / {total}
                 </p>
               </div>
-            )}
+              );
+            })()}
 
             {selectedItem && !previewLoading && previewContent === null && (
               <div className="flex flex-1 items-center justify-center font-mono">
@@ -707,18 +828,8 @@ function VerificationPage() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => handleMark("ok")}
-                disabled={!selectedItem || markingPath !== null}
-                className="flex items-center gap-2 rounded-lg border border-outline-variant/50 bg-surface-container-highest px-4 py-2 text-sm font-bold text-on-surface transition-all hover:border-primary active:scale-95 disabled:opacity-50"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-              >
-                {markingPath === `${selectedItem?.file_path}/${selectedItem?.file_name}` ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                {t("correct")}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMark("fail")}
-                disabled={!selectedItem || markingPath !== null}
+                onClick={() => { setRejectReason("off_sync"); setConfirmReject(true); }}
+                disabled={!selectedItem || isRejecting}
                 className="flex items-center gap-2 rounded-lg border border-outline-variant/50 bg-surface-container-highest px-4 py-2 text-sm font-bold text-on-surface transition-all hover:border-tertiary active:scale-95 disabled:opacity-50"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
@@ -726,8 +837,8 @@ function VerificationPage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleMark("fail")}
-                disabled={!selectedItem || markingPath !== null}
+                onClick={() => { setRejectReason("wrong_lang"); setConfirmReject(true); }}
+                disabled={!selectedItem || isRejecting}
                 className="flex items-center gap-2 rounded-lg border border-outline-variant/50 bg-surface-container-highest px-4 py-2 text-sm font-bold text-on-surface transition-all hover:border-error active:scale-95 disabled:opacity-50"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
@@ -737,7 +848,7 @@ function VerificationPage() {
             <button
               type="button"
               onClick={() => handleMark("ok")}
-              disabled={!selectedItem || markingPath !== null}
+              disabled={!selectedItem || isRejecting}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-8 py-3 font-bold text-white shadow-[0_4px_12px_rgba(0,164,220,0.4)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 sm:w-auto"
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
@@ -763,30 +874,106 @@ function VerificationPage() {
         </div>
       </section>
 
-      {/* Delete Confirmation Dialog */}
-      {confirmDelete && selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmDelete(false)}>
+      {/* Unified Reject / Delete Confirmation */}
+      {confirmReject && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmReject(false)}>
           <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold">确认删除</h3>
+            <h3 className="text-lg font-bold">
+              {!rejectReason ? "确认删除" : rejectReason === "off_sync" ? "画音不同步" : "语言错误"}
+            </h3>
             <p className="mt-2 text-sm text-on-surface-variant">
-              确定要删除 <span className="font-bold text-on-surface">{selectedItem.file_name}</span> 吗？此操作不可撤销。
+              {!rejectReason
+                ? `确定要删除 ${selectedItem.file_name} 吗？`
+                : `确定标记 ${selectedItem.file_name} 为${rejectReason === "off_sync" ? "画音不同步" : "语言错误"}并删除吗？`}
             </p>
+            <p className="mt-1 text-xs text-error">此操作不可撤销。</p>
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setConfirmDelete(false)}
-                disabled={isDeleting}
+                onClick={() => setConfirmReject(false)}
+                disabled={isRejecting}
                 className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
               >
                 {t("cancel")}
               </button>
               <button
                 type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
+                onClick={handleReject}
+                disabled={isRejecting}
                 className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
               >
-                {isDeleting ? t("loading") : "删除"}
+                {isRejecting ? t("loading") : !rejectReason ? "删除" : "确认"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Confirmation */}
+      {confirmDeleteAll && selectedMovie && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmDeleteAll(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold">删除全部字幕</h3>
+            <p className="mt-2 text-sm text-on-surface-variant">
+              确定要删除 <span className="font-bold text-on-surface">{getMovieName(selectedMovie)}</span> 的全部字幕文件吗？此操作不可撤销。
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteAll(false)}
+                disabled={isDeletingAll}
+                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAll}
+                disabled={isDeletingAll}
+                className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {isDeletingAll ? t("loading") : "全部删除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Dialog */}
+      {confirmRename && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmRename(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold">重命名</h3>
+            <p className="mt-1 text-xs text-on-surface-variant">
+              当前: {selectedItem.file_name}
+            </p>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => { setNewName(e.target.value); setRenameError(""); }}
+              className="mt-3 w-full rounded-lg border border-outline-variant bg-surface-container-low p-2 text-sm text-on-surface focus:border-primary focus:outline-none"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && handleRename()}
+            />
+            {renameError && (
+              <p className="mt-2 text-xs text-error">{renameError}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmRename(false)}
+                disabled={isRenaming}
+                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleRename}
+                disabled={isRenaming || !newName.trim()}
+                className="rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {isRenaming ? t("loading") : "确认"}
               </button>
             </div>
           </div>

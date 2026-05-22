@@ -3,6 +3,8 @@
 import os
 from typing import Optional
 
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.dependencies import get_current_user
@@ -43,8 +45,7 @@ def _detect_and_read_preview(file_path: str) -> tuple[str, str, int]:
 
     lines = content.splitlines()
     total_lines = len(lines)
-    preview_lines = lines[:50]
-    preview_content = "\n".join(preview_lines)
+    preview_content = content  # return full content, frontend paginates
 
     return preview_content, used_encoding, total_lines
 
@@ -122,5 +123,28 @@ async def delete_subtitle_file(
     try:
         os.remove(path)
         return {"success": True}
+    except OSError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+class RenameRequest(BaseModel):
+    path: str  # current full path
+    new_name: str
+
+
+@router.post("/rename")
+async def rename_subtitle_file(
+    body: RenameRequest,
+    _user: str = Depends(get_current_user),
+):
+    """Rename a subtitle file. Returns error if target exists."""
+    if not os.path.isfile(body.path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    new_path = os.path.join(os.path.dirname(body.path), body.new_name)
+    if os.path.exists(new_path):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Target file already exists")
+    try:
+        os.rename(body.path, new_path)
+        return {"success": True, "new_path": new_path}
     except OSError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

@@ -309,6 +309,13 @@ export class FastApiClient {
       { method: "DELETE" }
     );
   }
+
+  async renameSubtitleFile(path: string, newName: string): Promise<{ success: boolean; new_path: string }> {
+    return fastApiFetch<{ success: boolean; new_path: string }>(
+      "/api/review/rename",
+      { method: "POST", body: JSON.stringify({ path, new_name: newName }) }
+    );
+  }
 }
 
 // ---- WebSocket Client ----

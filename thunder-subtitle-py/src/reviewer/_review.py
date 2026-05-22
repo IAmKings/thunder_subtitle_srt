@@ -118,13 +118,12 @@ def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: 
             _check_srt_quality(item, entries)
 
     # ---- 中文内容检查 ----
-    if _ZH_PREFIX in filename:
-        item.cn_ratio = _calc_cn_ratio(text)
-        if item.cn_ratio < MIN_CN_RATIO:
-            item.score -= 20
-            item.deductions.append(f"中文占比过低({item.cn_ratio:.0%}) -20")
-        else:
-            item.checks.append("cn_content")
+    item.cn_ratio = _calc_cn_ratio(text)
+    if _ZH_PREFIX in filename and item.cn_ratio < MIN_CN_RATIO:
+        item.score -= 20
+        item.deductions.append(f"中文占比过低({item.cn_ratio:.0%}) -20")
+    elif item.cn_ratio >= MIN_CN_RATIO:
+        item.checks.append("cn_content")
 
     # 扣分上限保护
     item.score = max(0, item.score)

@@ -7,12 +7,14 @@ interface VerificationState {
   items: ReviewItem[];
   isLoading: boolean;
   error: string | null;
+  selectedMovie: string | null;
 }
 
 interface VerificationActions {
   setItems: (items: ReviewItem[] | ((prev: ReviewItem[]) => ReviewItem[])) => void;
   setIsLoading: (v: boolean) => void;
   setError: (e: string | null) => void;
+  setSelectedMovie: (path: string | null) => void;
 }
 
 const VerificationStateContext = createContext<VerificationState | null>(null);
@@ -22,14 +24,15 @@ export function VerificationStateProvider({ children }: { children: ReactNode })
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMovie, setSelectedMovie] = useState<string | null>(null);
 
   const state = useMemo<VerificationState>(
-    () => ({ items, isLoading, error }),
-    [items, isLoading, error]
+    () => ({ items, isLoading, error, selectedMovie }),
+    [items, isLoading, error, selectedMovie]
   );
 
   const actions = useMemo<VerificationActions>(
-    () => ({ setItems, setIsLoading, setError }),
+    () => ({ setItems, setIsLoading, setError, setSelectedMovie }),
     []
   );
 
