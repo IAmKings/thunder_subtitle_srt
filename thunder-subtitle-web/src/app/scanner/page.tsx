@@ -240,7 +240,7 @@ function ScannerPage() {
     } finally {
       setIsStartingScan(false);
     }
-  }, [isStartingScan, mediaDirs, filterKeywords, scanMode, t]);
+  }, [isStartingScan, mediaDirs, filterKeywords, scanMode, disabledPaths, t]);
 
   const handleCancelTask = useCallback(async () => {
     if (!activeTask) return;

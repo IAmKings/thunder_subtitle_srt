@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
 import type { MediaDirectory, TaskResponse, AppConfig } from "@/lib/types";
 import type { ScanResultItem } from "@/lib/types";
 
@@ -47,7 +47,13 @@ export function ScannerStateProvider({ children }: { children: ReactNode }) {
   const [filterKeywords, setFilterKeywords] = useState("");
   const [isLoadingDirs, setIsLoadingDirs] = useState(true);
   const [isStartingScan, setIsStartingScan] = useState(false);
-  const [disabledPaths, setDisabledPaths] = useState<Set<string>>(new Set());
+  const [disabledPaths, setDisabledPaths] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem("thunder-disabled-paths");
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
 
   const togglePathDisabled = useCallback((path: string) => {
     setDisabledPaths((prev) => {
@@ -57,6 +63,7 @@ export function ScannerStateProvider({ children }: { children: ReactNode }) {
       } else {
         next.add(path);
       }
+      try { localStorage.setItem("thunder-disabled-paths", JSON.stringify([...next])); } catch { /* ignore */ }
       return next;
     });
   }, []);
