@@ -135,15 +135,19 @@ class ScanService:
             self._task_handles.pop(task_id, None)
 
     async def _execute_scan(self, task: TaskResponse) -> None:
-        """Execute a scan task using the CLI scanner."""
+        """Execute a scan task — process movies one by one for real-time progress."""
         try:
+            from src.api import SubtitleApiClient
             from src.config import Config
-            from src.scanner import process_scanned_movies
+            from src.scanner import scan_movie_dirs
+            from src.scanner._processor import _process_one_movie
         except ImportError:
             try:
+                from thunder_subtitle.api import SubtitleApiClient  # type: ignore[import-untyped]
                 from thunder_subtitle.config import Config  # type: ignore[import-untyped]
-                from thunder_subtitle.scanner import (  # type: ignore[import-untyped]
-                    process_scanned_movies,
+                from thunder_subtitle.scanner import scan_movie_dirs  # type: ignore[import-untyped]
+                from thunder_subtitle.scanner._processor import (
+                    _process_one_movie,  # type: ignore[import-untyped]
                 )
             except ImportError:
                 raise RuntimeError("Scanner module not available")
@@ -157,7 +161,6 @@ class ScanService:
             if scan_path:
                 paths = [scan_path]
             else:
-                # Use all configured media paths (env var > JSON)
                 paths = _get_media_paths()
 
         if not paths:
@@ -168,98 +171,103 @@ class ScanService:
         # Extract optional keyword filters
         filters: list[str] = task.params.get("filters", [])
         if isinstance(filters, str):
-            # Split by space or comma
             import re
-
             filters = [f.strip() for f in re.split(r"[ ,]+", filters) if f.strip()]
         filters = filters if filters else None
 
+        # Determine scan mode
+        mode = task.params.get("mode", "scan")
+        dry_run = mode == "dry_run"
+        dump_mode = mode in ("dump", "dump_force")
+        force = mode == "dump_force"
+
         config = Config.load()
-        processed = 0
+        client = SubtitleApiClient(timeout=config.timeout)
         all_results: list[dict] = []
 
-        for path in paths:
-            if not os.path.isdir(path):
-                continue
+        try:
+            # Pre-scan all paths → collect movie directories
+            all_movie_dirs: list[str] = []
+            for path in paths:
+                if not os.path.isdir(path):
+                    continue
+                movie_dirs = await asyncio.to_thread(scan_movie_dirs, path)
+                all_movie_dirs.extend(movie_dirs)
 
-            task.message = f"Scanning: {path}"
-            task.updated_at = datetime.now(timezone.utc).isoformat()
+            # Apply name filters
+            if filters:
+                try:
+                    from src.utils import matches
+                except ImportError:
+                    from thunder_subtitle.utils import (  # type: ignore[import-untyped,no-reimport]
+                        matches,
+                    )
+                all_movie_dirs = [
+                    d for d in all_movie_dirs
+                    if any(matches(f, os.path.basename(d)) for f in filters)
+                ]
 
-            await ws_manager.broadcast(
-                task.id,
-                TaskProgressUpdate(
-                    task_id=task.id,
-                    progress=task.progress,
-                    message=task.message,
-                    status=TaskStatus.RUNNING,
-                ).model_dump(),
-            )
+            total_movies = len(all_movie_dirs)
+            if total_movies == 0:
+                task.status = TaskStatus.COMPLETED
+                task.progress = 100.0
+                task.message = "No movies found matching filters"
+                return
 
-            try:
-                # Determine scan mode from params
-                mode = task.params.get("mode", "scan")
-                scan_kwargs: dict[str, object] = {}
-                if mode == "dry_run":
-                    scan_kwargs["dry_run"] = True
-                elif mode == "dump":
-                    scan_kwargs["dump_mode"] = True
-                elif mode == "dump_force":
-                    scan_kwargs["dump_mode"] = True
-                    scan_kwargs["force"] = True
-                else:  # "scan" (default)
-                    scan_kwargs["dry_run"] = False
-                    scan_kwargs["dump_mode"] = False
+            task.message = f"Found {total_movies} movie(s) to process"
 
-                # process_scanned_movies handles scan_movie_dirs + filter internally
-                results = await asyncio.to_thread(
-                    process_scanned_movies,
-                    path,
-                    name_filters=filters,
+            # Process each movie one by one — real-time progress
+            for i, movie_path in enumerate(all_movie_dirs):
+                movie_name = os.path.basename(movie_path)
+                pct = ((i + 1) / max(total_movies, 1)) * 100
+                task.progress = pct
+                task.message = f"Processing: {movie_name}"
+                task.updated_at = datetime.now(timezone.utc).isoformat()
+
+                # Process single movie in thread
+                result = await asyncio.to_thread(
+                    _process_one_movie,
+                    movie_path, movie_name,
+                    dry_run=bool(dry_run),
+                    client=client,
                     config=config,
-                    **scan_kwargs,
+                    has_queried=False,
+                    dump_mode=bool(dump_mode),
+                    force=bool(force),
                 )
 
-                # Accumulate results across all paths
-                batch_results = [
-                    {
-                        "movie_name": r.movie_name,
-                        "status": r.status,
-                        "reason": r.reason,
-                        "filename": r.filename,
-                    }
-                    for r in results
-                ]
-                all_results.extend(batch_results)
+                all_results.append({
+                    "movie_name": result.movie_name,
+                    "status": result.status,
+                    "reason": result.reason,
+                    "filename": result.filename,
+                })
 
-                # Broadcast each result via WebSocket for progressive display
-                for r in results:
-                    await ws_manager.broadcast(
-                        task.id,
-                        TaskProgressUpdate(
-                            task_id=task.id,
-                            progress=task.progress,
-                            message=f"{r.movie_name}: {r.status}",
-                            status=TaskStatus.RUNNING,
-                            result=ScanResultItem(
-                                movie_name=r.movie_name,
-                                status=r.status,
-                                reason=r.reason,
-                                filename=r.filename,
-                            ),
-                        ).model_dump(),
-                    )
-                    await asyncio.sleep(0.05)
+                # Broadcast result immediately
+                await ws_manager.broadcast(
+                    task.id,
+                    TaskProgressUpdate(
+                        task_id=task.id,
+                        progress=min(pct, 100.0),
+                        message=f"{result.movie_name}: {result.status}",
+                        status=TaskStatus.RUNNING,
+                        result=ScanResultItem(
+                            movie_name=result.movie_name,
+                            status=result.status,
+                            reason=result.reason,
+                            filename=result.filename,
+                        ),
+                    ).model_dump(),
+                )
+                await asyncio.sleep(0.05)
 
-                processed += len(results)
-            except Exception as e:
-                logger.warning("Failed to process %s: %s", path, e)
+            task.results = all_results
+            task.status = TaskStatus.COMPLETED
+            task.progress = 100.0
+            task.message = f"Scan completed. Processed {len(all_results)} movies."
+        finally:
+            client.close()
 
-        # Store all accumulated results
-        task.results = all_results
-
-        task.status = TaskStatus.COMPLETED
-        task.progress = 100.0
-        task.message = f"Scan completed. Processed {processed} movies."
         task.updated_at = datetime.now(timezone.utc).isoformat()
 
     async def _execute_review(self, task: TaskResponse) -> None:

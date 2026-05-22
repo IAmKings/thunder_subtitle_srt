@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Film,
   CheckCircle,
+  X,
   XCircle,
   AlertTriangle,
 } from "lucide-react";
@@ -67,6 +68,7 @@ function ScannerPage() {
   const [resultsPage, setResultsPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const statusFilterOptions = [null, "downloaded", "skipped", "no_match", "error"] as const;
+  const [detailItem, setDetailItem] = useState<ScanResultItem | null>(null);
 
   // Load media directories + config
   useEffect(() => {
@@ -679,6 +681,7 @@ function ScannerPage() {
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
+                        onClick={() => setDetailItem(finding)}
                         className="text-xs text-primary hover:underline"
                         style={{ WebkitTapHighlightColor: "transparent" }}
                       >
@@ -720,6 +723,61 @@ function ScannerPage() {
           )}
         </div>
       </section>
+
+      {/* Detail Dialog */}
+      {detailItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDetailItem(null)}>
+          <div className="mx-4 w-full max-w-lg rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold">{t("view")}: {detailItem.movie_name}</h3>
+              <button
+                type="button"
+                onClick={() => setDetailItem(null)}
+                className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="font-bold text-on-surface-variant">{t("type")}: </span>
+                <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                  detailItem.status === "downloaded" ? "bg-green-500/15 text-green-400"
+                  : detailItem.status === "skipped" ? "bg-tertiary/15 text-tertiary"
+                  : detailItem.status === "no_match" ? "bg-on-surface-variant/15 text-on-surface-variant"
+                  : "bg-error/15 text-error"
+                }`}>
+                  {detailItem.status === "downloaded" ? t("status_downloaded")
+                    : detailItem.status === "skipped" ? t("status_skipped")
+                    : detailItem.status === "no_match" ? t("status_no_match")
+                    : t("status_error")}
+                </span>
+              </div>
+              {detailItem.filename && (
+                <div>
+                  <span className="font-bold text-on-surface-variant">{t("subtitle_file")}: </span>
+                  <span className="select-all text-on-surface">{detailItem.filename}</span>
+                </div>
+              )}
+              <div>
+                <span className="font-bold text-on-surface-variant">{t("reason")}: </span>
+                <p className="mt-1 select-all whitespace-pre-wrap break-all rounded-lg bg-surface-container p-3 text-on-surface">
+                  {detailItem.reason === "dry-run" ? t("scan_mode_dry_run") : (detailItem.reason || "—")}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDetailItem(null)}
+                className="rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container hover:brightness-110"
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
