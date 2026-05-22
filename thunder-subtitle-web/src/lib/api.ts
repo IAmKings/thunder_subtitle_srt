@@ -302,6 +302,13 @@ export class FastApiClient {
       { signal }
     );
   }
+
+  async deleteSubtitleFile(path: string): Promise<{ success: boolean }> {
+    return fastApiFetch<{ success: boolean }>(
+      `/api/review/file?path=${encodeURIComponent(path)}`,
+      { method: "DELETE" }
+    );
+  }
 }
 
 // ---- WebSocket Client ----

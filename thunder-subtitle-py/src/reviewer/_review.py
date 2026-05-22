@@ -45,6 +45,7 @@ def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str
                 base == movie_name
                 or base.startswith(movie_name + ".")
                 or base.startswith(movie_name + "-")
+                or base.isdigit()  # dump 数字命名: 1.srt, 2.ass
             )
             if valid and ext.lower() in sub_exts:
                 result.append((os.path.join(movie_path, fname), fname))

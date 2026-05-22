@@ -480,3 +480,40 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: 扫描结果展示、验证模块UX重构、字幕预览
+
+**Date**: 2026-05-22
+**Task**: 扫描结果展示、验证模块UX重构、字幕预览
+**Branch**: `master`
+
+### Summary
+
+扫描模块：渐进式结果展示+分页+状态筛选+dry_state+路径开关+逐电影进度+详情弹窗。验证模块：电影→字幕两级选择流+内容预览+评分+大小排序+批量操作+多仓库加载+状态持久化。修复：dump绕过duration过滤、进度后计算、on/off闭包过期、verification多仓库。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d7f841` | (see git log) |
+| `ab5289e` | (see git log) |
+| `dce1497` | (see git log) |
+| `029d602` | (see git log) |
+| `e0da5f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useMemo, startTransition } from "react";
 import {
   CheckSquare as VerificationIcon,
-  Download,
-  MoreVertical,
   CheckCircle,
   Timer,
   Languages,
@@ -15,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
 import { fastApiClient } from "@/lib/api";
@@ -53,6 +52,8 @@ function VerificationPage() {
   const [previewLines, setPreviewLines] = useState(0);
   const [previewEncoding, setPreviewEncoding] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ---- Two-level state ----
   const [selectedMovie, setSelectedMovie] = useState<string | null>(null);
@@ -61,7 +62,8 @@ function VerificationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [listPage, setListPage] = useState(0);
-  const [sortBySize, setSortBySize] = useState(false);
+  // null = no sort, "desc" = largest first, "asc" = smallest first
+  const [sortBySize, setSortBySize] = useState<null | "desc" | "asc">(null);
   const PER_PAGE = 10;
 
   // Load disabled paths from localStorage
@@ -166,6 +168,25 @@ function VerificationPage() {
     [selectedMovie, baseDir, items, setError, setItems, t]
   );
 
+  // ---- Delete subtitle file ----
+  const handleDelete = useCallback(async () => {
+    if (!selectedItem) return;
+    setIsDeleting(true);
+    try {
+      const subtitlePath = `${selectedItem.file_path}/${selectedItem.file_name}`;
+      await fastApiClient.deleteSubtitleFile(subtitlePath);
+      setItems((prev) => prev.filter(
+        (i) => !(i.file_path === selectedItem.file_path && i.file_name === selectedItem.file_name)
+      ));
+      setSelectedItem(null);
+      setConfirmDelete(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedItem, setItems, setError]);
+
   // ---- Preview loading ----
   useEffect(() => {
     if (!selectedItem) {
@@ -227,8 +248,10 @@ function VerificationPage() {
     if (statusFilter) {
       list = list.filter((i) => i.review_status === statusFilter);
     }
-    if (sortBySize) {
+    if (sortBySize === "desc") {
       list = [...list].sort((a, b) => b.size_bytes - a.size_bytes);
+    } else if (sortBySize === "asc") {
+      list = [...list].sort((a, b) => a.size_bytes - b.size_bytes);
     }
     return list;
   }, [items, selectedMovie, statusFilter, sortBySize]);
@@ -259,7 +282,7 @@ function VerificationPage() {
     setSelectedMovie(null);
     setSelectedItem(null);
     setStatusFilter(null);
-    setSortBySize(false);
+    setSortBySize(null);
     setSearchQuery("");
     setListPage(0);
   }, []);
@@ -269,7 +292,7 @@ function VerificationPage() {
     setSelectedMovie(filePath);
     setSelectedItem(null);
     setStatusFilter(null);
-    setSortBySize(false);
+    setSortBySize(null);
     setSearchQuery("");
     setListPage(0);
   }, []);
@@ -336,13 +359,13 @@ function VerificationPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => { setSortBySize(!sortBySize); setListPage(0); }}
+              onClick={() => { setSortBySize(sortBySize === null ? "desc" : sortBySize === "desc" ? "asc" : null); setListPage(0); }}
               className={`rounded-lg px-2 py-1 text-[10px] font-bold transition-all ${
-                sortBySize ? "bg-primary text-on-primary" : "bg-surface-container-high text-on-surface-variant hover:bg-outline-variant"
+                sortBySize !== null ? "bg-primary text-on-primary" : "bg-surface-container-high text-on-surface-variant hover:bg-outline-variant"
               }`}
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
-              {t("size")}{sortBySize ? " ↓" : ""}
+              {t("size")}{sortBySize === "desc" ? " ↓" : sortBySize === "asc" ? " ↑" : ""}
             </button>
             <div className="flex flex-wrap gap-1 text-[10px] font-bold">
               <button
@@ -584,20 +607,17 @@ function VerificationPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button
-              type="button"
-              className="rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container-highest"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              <Download size={18} />
-            </button>
-            <button
-              type="button"
-              className="rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container-highest"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              <MoreVertical size={18} />
-            </button>
+            {selectedItem && (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="rounded p-1 text-error transition-colors hover:bg-error/10"
+                title="删除字幕文件"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -742,6 +762,36 @@ function VerificationPage() {
           </div>
         </div>
       </section>
+
+      {/* Delete Confirmation Dialog */}
+      {confirmDelete && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmDelete(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold">确认删除</h3>
+            <p className="mt-2 text-sm text-on-surface-variant">
+              确定要删除 <span className="font-bold text-on-surface">{selectedItem.file_name}</span> 吗？此操作不可撤销。
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                disabled={isDeleting}
+                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {isDeleting ? t("loading") : "删除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

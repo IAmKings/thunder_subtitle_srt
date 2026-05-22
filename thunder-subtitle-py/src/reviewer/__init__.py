@@ -9,6 +9,9 @@ from ..models import ReviewState, ReviewQuality
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, CYAN
 from ..utils import matches
 
+from ..scanner._skip import _existing_subtitle_file
+from ..utils import parse_nfo
+
 from ._marker import _batch_mark, _is_reviewed
 from ._review import _find_all_subtitle_files, _review_one_file, ReviewItem
 from ._output import _print_review_item, _print_review_summary, _write_review_log, _write_review_summary
@@ -112,6 +115,28 @@ def review_directory(
         actor_name = os.path.basename(os.path.dirname(movie_path))
         label = f"{actor_name}/{movie_name}"
         print(f"{YELLOW}  [{i}/{len(movie_dirs)}]{RESET} {BOLD}{label}{RESET}")
+
+        # 轻量 dry_state 检查：无字幕或已审查通过 → 跳过
+        try:
+            nfo = parse_nfo(os.path.join(movie_path, "movie.nfo"))
+            has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
+        except Exception:
+            has_sub = bool(_existing_subtitle_file(movie_path, movie_name))
+
+        if not has_sub:
+            print(f"{DIM}    (no subtitle files found){RESET}")
+            continue
+
+        # 已审查通过 → 跳过
+        reviewed_file = os.path.join(movie_path, ".reviewed")
+        if os.path.isfile(reviewed_file):
+            try:
+                with open(reviewed_file, "r", encoding="utf-8") as f:
+                    if f.read().strip().lower() != "fail":
+                        print(f"{DIM}    ✓ Already reviewed — skip{RESET}")
+                        continue
+            except OSError:
+                pass
 
         sub_files = _find_all_subtitle_files(movie_path, movie_name)
         if not sub_files:

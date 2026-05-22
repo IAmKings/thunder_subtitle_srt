@@ -109,3 +109,18 @@ async def preview_subtitle(
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.delete("/file")
+async def delete_subtitle_file(
+    path: str = Query(..., description="Full path to subtitle file"),
+    _user: str = Depends(get_current_user),
+):
+    """Delete a subtitle file from disk."""
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    try:
+        os.remove(path)
+        return {"success": True}
+    except OSError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
