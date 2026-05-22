@@ -92,6 +92,7 @@ class ScanResultItem(BaseModel):
     status: str
     reason: str = ""
     filename: str = ""
+    dry_state: str = ""
 
 
 class TaskResponse(BaseModel):

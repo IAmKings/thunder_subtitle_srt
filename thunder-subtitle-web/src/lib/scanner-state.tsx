@@ -30,6 +30,8 @@ interface ScannerActions {
   setFilterKeywords: (k: string) => void;
   setIsLoadingDirs: (v: boolean) => void;
   setIsStartingScan: (v: boolean) => void;
+  disabledPaths: Set<string>;
+  togglePathDisabled: (path: string) => void;
 }
 
 const ScannerStateContext = createContext<ScannerState | null>(null);
@@ -45,6 +47,19 @@ export function ScannerStateProvider({ children }: { children: ReactNode }) {
   const [filterKeywords, setFilterKeywords] = useState("");
   const [isLoadingDirs, setIsLoadingDirs] = useState(true);
   const [isStartingScan, setIsStartingScan] = useState(false);
+  const [disabledPaths, setDisabledPaths] = useState<Set<string>>(new Set());
+
+  const togglePathDisabled = useCallback((path: string) => {
+    setDisabledPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
 
   const state = useMemo<ScannerState>(
     () => ({
@@ -59,8 +74,9 @@ export function ScannerStateProvider({ children }: { children: ReactNode }) {
       setMediaDirs, setConfig, setActiveTask, setProgress,
       setFindings, setScanMode, setFilterKeywords,
       setIsLoadingDirs, setIsStartingScan,
+      disabledPaths, togglePathDisabled,
     }),
-    []
+    [disabledPaths, togglePathDisabled]
   );
 
   return (

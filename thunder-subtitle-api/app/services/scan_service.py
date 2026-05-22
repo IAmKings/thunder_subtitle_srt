@@ -241,6 +241,7 @@ class ScanService:
                     "status": result.status,
                     "reason": result.reason,
                     "filename": result.filename,
+                    "dry_state": getattr(result, "dry_state", ""),
                 })
 
                 # Broadcast result immediately
@@ -256,6 +257,7 @@ class ScanService:
                             status=result.status,
                             reason=result.reason,
                             filename=result.filename,
+                            dry_state=getattr(result, "dry_state", ""),
                         ),
                     ).model_dump(),
                 )

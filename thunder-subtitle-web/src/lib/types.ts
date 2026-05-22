@@ -109,4 +109,5 @@ export interface ScanResultItem {
   status: "downloaded" | "skipped" | "no_match" | "error";
   reason: string;
   filename: string;
+  dry_state: string;
 }

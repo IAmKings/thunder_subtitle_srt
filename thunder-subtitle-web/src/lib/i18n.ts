@@ -184,6 +184,12 @@ const translations: Record<Language, Record<string, string>> = {
     scan_mode_dry_run: "Preview",
     scan_mode_dump: "Dump",
     scan_mode_force: "Force Dump",
+    dry_state: "State",
+    dry_need_download: "Need Download",
+    dry_need_review: "Need Review",
+    dry_reviewed_ok: "Reviewed OK",
+    dry_reviewed_fail: "Reviewed FAIL",
+    dry_skipped: "Skipped",
 
     // Verification (additional)
     loading_reviews: "Loading reviews...",
@@ -382,6 +388,12 @@ const translations: Record<Language, Record<string, string>> = {
     scan_mode_dry_run: "仅预览",
     scan_mode_dump: "暴力下载",
     scan_mode_force: "暴力刷新",
+    dry_state: "状态",
+    dry_need_download: "需下载",
+    dry_need_review: "待审查",
+    dry_reviewed_ok: "审查通过",
+    dry_reviewed_fail: "审查失败",
+    dry_skipped: "已跳过",
 
     // Verification (additional)
     loading_reviews: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u4e2d...",

@@ -49,6 +49,7 @@ function ScannerPage() {
   const {
     setMediaDirs, setConfig, setActiveTask, setProgress, setFindings,
     setScanMode, setFilterKeywords, setIsLoadingDirs, setIsStartingScan,
+    disabledPaths, togglePathDisabled,
   } = useScannerActions();
 
   // Local state (page-only)
@@ -210,7 +211,9 @@ function ScannerPage() {
 
     try {
       // Pass ALL configured paths + optional keyword filters
-      const allPaths = mediaDirs.map((d) => d.path);
+      const allPaths = mediaDirs
+        .filter((d) => !disabledPaths.has(d.path))
+        .map((d) => d.path);
       const filters = filterKeywords.trim();
       const params: Record<string, unknown> = { mode: scanMode };
       if (allPaths.length > 0) {
@@ -326,16 +329,32 @@ function ScannerPage() {
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                       {t("library_path")}
                     </p>
-                    <h2 className="truncate text-lg font-bold" title={dir.path}>{dir.path}</h2>
+                    <h2 className={`truncate text-lg font-bold ${disabledPaths.has(dir.path) ? "text-on-surface-variant/40 line-through" : ""}`} title={dir.path}>{dir.path}</h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingPaths(true)}
-                    className="ml-3 flex-shrink-0 rounded-lg bg-surface-container-high px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-outline-variant"
-                    title={t("edit_paths")}
-                  >
-                    {t("edit_paths")}
-                  </button>
+                  <div className="ml-2 flex flex-shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => togglePathDisabled(dir.path)}
+                      disabled={isRunning}
+                      className={`rounded-lg px-2 py-2 text-xs font-bold transition-all ${
+                        disabledPaths.has(dir.path)
+                          ? "bg-surface-container-high text-on-surface-variant/50"
+                          : "bg-green-500/15 text-green-400"
+                      } disabled:cursor-not-allowed`}
+                      title={disabledPaths.has(dir.path) ? "启用" : "禁用"}
+                      style={{ WebkitTapHighlightColor: "transparent" }}
+                    >
+                      {disabledPaths.has(dir.path) ? "OFF" : "ON"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingPaths(true)}
+                      className="rounded-lg bg-surface-container-high px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-outline-variant"
+                      title={t("edit_paths")}
+                    >
+                      {t("edit_paths")}
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (
@@ -571,20 +590,21 @@ function ScannerPage() {
                   <>
                     {getStatusIcon(activeTask.status)}{" "}
                     <span className={activeTask.status === "running" ? "font-medium text-primary" : ""}>
-                      {activeTask.message}
+                      {isRunning ? findings.length > 0 ? t("scanning") : t("starting") : activeTask.message}
                     </span>
                   </>
                 ) : (
                   <span className="text-on-surface-variant">{t("starting")}</span>
                 )}
               </span>
-              <span className="font-bold">
-                {Math.round(progress)}% {t("complete")}
+              <span className="font-bold tabular-nums">
+                {findings.length} {t("items")}
+                {isRunning && <span className="ml-2 font-normal text-on-surface-variant">— {t("scanning")}</span>}
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-highest">
               <div
-                className="h-full bg-primary-container transition-all duration-500"
+                className={`h-full bg-primary-container transition-all duration-500 ${isRunning ? "animate-pulse" : ""}`}
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -677,6 +697,15 @@ function ScannerPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-on-surface-variant max-w-[240px] truncate" title={finding.reason}>
                       {finding.reason === "dry-run" ? t("scan_mode_dry_run") : (finding.reason || "—")}
+                      {finding.dry_state && (
+                        <span className="ml-2 inline-block rounded-full bg-tertiary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-tertiary">
+                          {finding.dry_state === "need_download" ? t("dry_need_download")
+                            : finding.dry_state === "need_review" ? t("dry_need_review")
+                            : finding.dry_state === "reviewed_ok" ? t("dry_reviewed_ok")
+                            : finding.dry_state === "reviewed_fail" ? t("dry_reviewed_fail")
+                            : finding.dry_state}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
@@ -757,6 +786,19 @@ function ScannerPage() {
                 <div>
                   <span className="font-bold text-on-surface-variant">{t("subtitle_file")}: </span>
                   <span className="select-all text-on-surface">{detailItem.filename}</span>
+                </div>
+              )}
+              {detailItem.dry_state && (
+                <div>
+                  <span className="font-bold text-on-surface-variant">{t("dry_state")}: </span>
+                  <span className="rounded-full bg-tertiary/15 px-2 py-0.5 text-xs font-bold uppercase text-tertiary">
+                    {detailItem.dry_state === "need_download" ? t("dry_need_download")
+                      : detailItem.dry_state === "need_review" ? t("dry_need_review")
+                      : detailItem.dry_state === "reviewed_ok" ? t("dry_reviewed_ok")
+                      : detailItem.dry_state === "reviewed_fail" ? t("dry_reviewed_fail")
+                      : detailItem.dry_state === "skipped" ? t("dry_skipped")
+                      : detailItem.dry_state}
+                  </span>
                 </div>
               )}
               <div>
