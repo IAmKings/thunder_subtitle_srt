@@ -316,7 +316,7 @@ export default function SearchPage() {
                   <div className="flex justify-center pt-6">
                     <button
                       type="button"
-                      onClick={() => setCurrentPage((p) => p + 1)}
+                      onClick={() => setCurrentPage(currentPage + 1)}
                       className="rounded-lg border border-outline-variant/50 bg-surface-container px-8 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-high"
                       style={{ WebkitTapHighlightColor: "transparent" }}
                     >

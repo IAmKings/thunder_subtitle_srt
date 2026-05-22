@@ -70,6 +70,7 @@ function ScannerPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const statusFilterOptions = [null, "downloaded", "skipped", "no_match", "error"] as const;
   const [detailItem, setDetailItem] = useState<ScanResultItem | null>(null);
+  const [scanTotal, setScanTotal] = useState(0);
 
   // Load media directories + config
   useEffect(() => {
@@ -142,7 +143,11 @@ function ScannerPage() {
         message?: string;
         status?: string;
         result?: ScanResultItem;
+        total?: number;
       };
+      if (update.total !== undefined && update.total > 0) {
+        setScanTotal(update.total);
+      }
       if (update.progress !== undefined) {
         setProgress(update.progress);
       }
@@ -207,6 +212,7 @@ function ScannerPage() {
     setError(null);
     setFindings([]);
     setResultsPage(0);
+    setScanTotal(0);
     setFindings([]);
 
     try {
@@ -320,9 +326,9 @@ function ScannerPage() {
             className="flex flex-1 gap-4 overflow-hidden"
           >
             {mediaDirs.length > 0 ? (
-              mediaDirs.map((dir) => (
+              mediaDirs.map((dir, i) => (
                 <div
-                  key={dir.path}
+                  key={`${i}-${dir.path}`}
                   className="ghost-border flex w-[calc(50%-0.5rem)] flex-shrink-0 items-center justify-between rounded-xl bg-surface-container p-6"
                 >
                   <div className="min-w-0 flex-1">
@@ -598,7 +604,9 @@ function ScannerPage() {
                 )}
               </span>
               <span className="font-bold tabular-nums">
-                {findings.length} {t("items")}
+                {isRunning && scanTotal > 0
+                  ? `${findings.length} / ${scanTotal} ${t("items")}`
+                  : `${findings.length} ${t("items")}`}
                 {isRunning && <span className="ml-2 font-normal text-on-surface-variant">— {t("scanning")}</span>}
               </span>
             </div>
@@ -666,7 +674,7 @@ function ScannerPage() {
                 </tr>
               ) : (
                 paginatedFindings.map((finding, idx) => (
-                  <tr key={`${finding.movie_name}-${idx}`} className="transition-colors hover:bg-surface-container-high">
+                  <tr key={`result-${idx}-${finding.movie_name}`} className="transition-colors hover:bg-surface-container-high">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <Film size={16} className="text-primary" />

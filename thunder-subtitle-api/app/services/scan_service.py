@@ -214,17 +214,18 @@ class ScanService:
                 task.message = "No movies found matching filters"
                 return
 
-            task.message = f"Found {total_movies} movie(s) to process"
+            total_movies_count = total_movies
+            task.message = f"Found {total_movies_count} movie(s) to process"
+
+            processed = 0
 
             # Process each movie one by one — real-time progress
             for i, movie_path in enumerate(all_movie_dirs):
                 movie_name = os.path.basename(movie_path)
-                pct = ((i + 1) / max(total_movies, 1)) * 100
-                task.progress = pct
                 task.message = f"Processing: {movie_name}"
                 task.updated_at = datetime.now(timezone.utc).isoformat()
 
-                # Process single movie in thread
+                # Process single movie in thread (blocking)
                 result = await asyncio.to_thread(
                     _process_one_movie,
                     movie_path, movie_name,
@@ -236,6 +237,7 @@ class ScanService:
                     force=bool(force),
                 )
 
+                processed += 1
                 all_results.append({
                     "movie_name": result.movie_name,
                     "status": result.status,
@@ -243,6 +245,10 @@ class ScanService:
                     "filename": result.filename,
                     "dry_state": getattr(result, "dry_state", ""),
                 })
+
+                # Calculate progress AFTER download completes
+                pct = (processed / max(total_movies_count, 1)) * 100
+                task.progress = pct
 
                 # Broadcast result immediately
                 await ws_manager.broadcast(
@@ -252,6 +258,7 @@ class ScanService:
                         progress=min(pct, 100.0),
                         message=f"{result.movie_name}: {result.status}",
                         status=TaskStatus.RUNNING,
+                        total=total_movies_count,
                         result=ScanResultItem(
                             movie_name=result.movie_name,
                             status=result.status,
@@ -262,6 +269,9 @@ class ScanService:
                     ).model_dump(),
                 )
                 await asyncio.sleep(0.05)
+
+            # Small delay to ensure all WebSocket results arrive before COMPLETED
+            await asyncio.sleep(0.2)
 
             task.results = all_results
             task.status = TaskStatus.COMPLETED

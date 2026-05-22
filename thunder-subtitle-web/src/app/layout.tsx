@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SearchStateProvider } from "@/lib/search-state";
 import { ScannerStateProvider } from "@/lib/scanner-state";
+import { VerificationStateProvider } from "@/lib/verification-state";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -23,7 +24,9 @@ export default function RootLayout({
           <AuthProvider>
             <SearchStateProvider>
               <ScannerStateProvider>
-                <AppShell>{children}</AppShell>
+                <VerificationStateProvider>
+                  <AppShell>{children}</AppShell>
+                </VerificationStateProvider>
               </ScannerStateProvider>
             </SearchStateProvider>
           </AuthProvider>

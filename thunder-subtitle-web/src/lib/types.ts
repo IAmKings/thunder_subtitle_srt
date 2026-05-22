@@ -81,6 +81,8 @@ export interface ReviewItem {
   file_path: string;
   file_name: string;
   quality: string;
+  score: number;
+  size_bytes: number;
   chinese_ratio: number;
   encoding: string;
   review_status: ReviewState;

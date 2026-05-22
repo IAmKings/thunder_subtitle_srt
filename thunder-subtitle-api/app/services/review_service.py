@@ -26,11 +26,11 @@ class ReviewService:
 
         try:
             from src.reviewer import review_directory
-            from src.scanner import scan_movie_dirs
         except ImportError:
             try:
-                from thunder_subtitle.reviewer import review_directory  # type: ignore[import-untyped]
-                from thunder_subtitle.scanner import scan_movie_dirs  # type: ignore[import-untyped]
+                from thunder_subtitle.reviewer import (
+                    review_directory,  # type: ignore[import-untyped]
+                )
             except ImportError:
                 logger.warning("Reviewer module not available")
                 return ReviewListResponse(items=[], total=0)
@@ -50,7 +50,9 @@ class ReviewService:
                         from src.reviewer._marker import _is_reviewed
                     except ImportError:
                         try:
-                            from thunder_subtitle.reviewer._marker import _is_reviewed  # type: ignore[import-untyped]
+                            from thunder_subtitle.reviewer._marker import (
+                                _is_reviewed,  # type: ignore[import-untyped]
+                            )
                         except ImportError:
                             _is_reviewed = None
 
@@ -70,6 +72,8 @@ class ReviewService:
                         file_path=item.movie_path,
                         file_name=item.filename,
                         quality=quality_display,
+                        score=getattr(item, "score", 0),
+                        size_bytes=getattr(item, "size_bytes", 0),
                         chinese_ratio=item.cn_ratio,
                         encoding=item.encoding,
                         review_status=review_status,
@@ -78,7 +82,7 @@ class ReviewService:
                 )
 
             return ReviewListResponse(items=response_items, total=len(response_items))
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to list reviews for %s", base_dir)
             return ReviewListResponse(items=[], total=0)
 

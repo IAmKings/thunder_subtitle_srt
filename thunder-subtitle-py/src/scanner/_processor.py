@@ -131,17 +131,17 @@ def _search_and_download(
         _print_status("✗", "No subtitles found")
         return ScanResult(movie_path, movie_name, ScanStatus.no_match, "No subtitles found")
 
-    # 按时长筛选：有时长的在前，duration=0 的保留在后
+    # ---- dump 模式：全量下载 + 内容去重（不按时长筛选） ----
+    if dump_mode:
+        return _dump_all_subtitles(movie_path, movie_name, result.subtitles)
+
+    # 按时长筛选：有时长的在前，duration=0 的保留在后（仅 scan 模式）
     max_duration_ms = nfo.duration_seconds * 1000
     subtitles = filter_by_duration(result.subtitles, max_duration_ms, client.filter_by_max_duration)
 
     if not subtitles:
         _print_status("✗", "No subtitles found")
         return ScanResult(movie_path, movie_name, ScanStatus.no_match, "No subtitles within duration")
-
-    # ---- dump 模式：全量下载 + 内容去重 ----
-    if dump_mode:
-        return _dump_all_subtitles(movie_path, movie_name, subtitles)
 
     # ---- 选择主力+备选 ----
     preferred = config.preferred_groups_list

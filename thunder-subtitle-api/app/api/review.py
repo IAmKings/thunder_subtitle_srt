@@ -1,19 +1,52 @@
 """Review operations endpoints — mark subtitle quality, browse review state."""
 
+import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import (
-    ReviewListRequest,
     ReviewListResponse,
     ReviewMarkRequest,
     ReviewMarkResponse,
+    SubtitlePreviewResponse,
 )
 from app.services.review_service import ReviewService
 
 router = APIRouter()
+
+
+def _detect_and_read_preview(file_path: str) -> tuple[str, str, int]:
+    """Read subtitle file with encoding detection. Returns (content, encoding, total_lines).
+
+    Tries utf-8, gbk, utf-16 in order; falls back to latin-1 (which never fails)
+    but reports encoding as "unknown".
+    """
+    encodings_to_try = ["utf-8", "gbk", "utf-16"]
+    content = None
+    used_encoding = "utf-8"
+    for enc in encodings_to_try:
+        try:
+            with open(file_path, "r", encoding=enc) as f:
+                content = f.read()
+            used_encoding = enc
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+
+    if content is None:
+        # Fallback: read as latin-1 (never fails) but report as unknown
+        with open(file_path, "r", encoding="latin-1") as f:
+            content = f.read()
+        used_encoding = "unknown"
+
+    lines = content.splitlines()
+    total_lines = len(lines)
+    preview_lines = lines[:50]
+    preview_content = "\n".join(preview_lines)
+
+    return preview_content, used_encoding, total_lines
 
 
 def get_review_service() -> ReviewService:
@@ -33,7 +66,7 @@ async def list_reviews(
         result = service.list_reviews(base_dir=base_dir, name_filter=name_filter)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/mark", response_model=ReviewMarkResponse)
@@ -51,6 +84,28 @@ async def mark_review(
         )
         return result
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Directory not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Directory not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/preview", response_model=SubtitlePreviewResponse)
+async def preview_subtitle(
+    path: str = Query(..., description="Full path to subtitle file"),
+    _user: str = Depends(get_current_user),
+):
+    """Preview first 50 lines of a subtitle file."""
+    if not os.path.exists(path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subtitle file not found")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Path is not a file")
+
+    try:
+        content, encoding, total_lines = _detect_and_read_preview(path)
+        return SubtitlePreviewResponse(
+            content=content,
+            encoding=encoding,
+            total_lines=total_lines,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

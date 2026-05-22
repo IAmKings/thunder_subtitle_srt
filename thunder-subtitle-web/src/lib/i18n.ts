@@ -37,17 +37,18 @@ const translations: Record<Language, Record<string, string>> = {
     status: "Status",
     action: "Action",
     showing_x_of_y: "Showing {x} of {y} files",
+    files: "files",
     movie: "Movie",
     tv_show: "TV Show",
 
     // Verification
     pending_verification: "Pending Verification",
-    files: "Files",
     untagged: "Untagged",
     ai_flagged: "AI-Flagged",
     sync_error: "Sync-Error",
     manual_required: "Manual-Required",
-    match: "MATCH",
+    match: "Chinese Ratio",
+    size: "Size",
     dur: "DUR",
     format_encoding: "Format: {format} \u2022 Encoding: {encoding}",
     correct: "Correct",
@@ -123,6 +124,7 @@ const translations: Record<Language, Record<string, string>> = {
     save_changes: "Save Changes",
 
     // Common
+    refresh: "Refresh",
     loading: "Loading...",
     cancel: "Cancel",
     starting: "Starting...",
@@ -150,7 +152,11 @@ const translations: Record<Language, Record<string, string>> = {
     configuration_reset: "Configuration reset to defaults",
     review_list_error: "Failed to load reviews",
     mark_error: "Failed to mark review",
-    format_encoding_short: "Format: {format} • Enc: {encoding}",
+    format_encoding_short: "Encoding",
+    reviewing: "Reviewing",
+    back: "Back",
+    all_pass: "Mark All OK",
+    all_fail: "Mark All Fail",
 
     // Scanner (additional)
     failed_load_dirs: "Failed to load media directories",
@@ -202,6 +208,7 @@ const translations: Record<Language, Record<string, string>> = {
     chinese_content_ratio: "Chinese content ratio:",
     quality_score: "Quality score:",
     subtitle_preview_here: "Subtitle content preview will appear here",
+    preview_lines: "Preview: {current} / {total} lines",
 
     // Settings (additional)
     failed_load_config: "Failed to load configuration",
@@ -241,17 +248,18 @@ const translations: Record<Language, Record<string, string>> = {
     status: "\u72b6\u6001",
     action: "\u64cd\u4f5c",
     showing_x_of_y: "\u663e\u793a {y} \u4e2a\u6587\u4ef6\u4e2d\u7684 {x} \u4e2a",
+    files: "个文件",
     movie: "\u7535\u5f71",
     tv_show: "\u5267\u96c6",
 
     // Verification
     pending_verification: "\u7b49\u5f85\u9a8c\u8bc1",
-    files: "\u4e2a\u6587\u4ef6",
     untagged: "\u672a\u6807\u8bb0",
     ai_flagged: "AI \u6807\u8bb0",
     sync_error: "\u540c\u6b65\u9519\u8bef",
     manual_required: "\u9700\u8981\u4eba\u5de5",
-    match: "\u5339\u914d\u5ea6",
+    match: "中文占比",
+    size: "大小",
     dur: "\u65f6\u957f",
     format_encoding: "\u683c\u5f0f: {format} \u2022 \u7f16\u7801: {encoding}",
     correct: "\u6b63\u786e",
@@ -327,6 +335,7 @@ const translations: Record<Language, Record<string, string>> = {
     save_changes: "\u4fdd\u5b58\u66f4\u6539",
 
     // Common
+    refresh: "\u5237\u65b0",
     loading: "\u52a0\u8f7d\u4e2d...",
     cancel: "\u53d6\u6d88",
     starting: "\u542f\u52a8\u4e2d...",
@@ -354,7 +363,11 @@ const translations: Record<Language, Record<string, string>> = {
     configuration_reset: "\u914d\u7f6e\u5df2\u91cd\u7f6e\u4e3a\u9ed8\u8ba4\u503c",
     review_list_error: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u5931\u8d25",
     mark_error: "\u6807\u8bb0\u5ba1\u67e5\u7ed3\u679c\u5931\u8d25",
-    format_encoding_short: "\u683c\u5f0f: {format} \u2022 \u7f16\u7801: {encoding}",
+    format_encoding_short: "编码",
+    reviewing: "审核中",
+    back: "返回",
+    all_pass: "全部通过",
+    all_fail: "全部失败",
 
     // Scanner (additional)
     failed_load_dirs: "\u52a0\u8f7d\u5a92\u4f53\u76ee\u5f55\u5931\u8d25",
@@ -405,7 +418,8 @@ const translations: Record<Language, Record<string, string>> = {
     select_file_panel: "\u4ece\u5de6\u4fa7\u9762\u677f\u9009\u62e9\u6587\u4ef6",
     chinese_content_ratio: "\u4e2d\u6587\u5185\u5bb9\u6bd4\u4f8b\uff1a",
     quality_score: "\u8d28\u91cf\u8bc4\u5206\uff1a",
-    subtitle_preview_here: "\u5b57\u5e55\u5185\u5bb9\u9884\u89c8\u5c06\u5728\u6b64\u663e\u793a",
+    subtitle_preview_here: "字幕内容预览将在此显示",
+    preview_lines: "预览：{current} / {total} 行",
 
     // Settings (additional)
     failed_load_config: "\u52a0\u8f7d\u914d\u7f6e\u5931\u8d25",

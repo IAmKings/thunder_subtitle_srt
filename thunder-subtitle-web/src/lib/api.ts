@@ -295,6 +295,13 @@ export class FastApiClient {
       body: JSON.stringify({ base_dir: baseDir, path, status }),
     });
   }
+
+  async getSubtitlePreview(path: string, signal?: AbortSignal): Promise<{ content: string; encoding: string; total_lines: number }> {
+    return fastApiFetch<{ content: string; encoding: string; total_lines: number }>(
+      `/api/review/preview?path=${encodeURIComponent(path)}`,
+      { signal }
+    );
+  }
 }
 
 // ---- WebSocket Client ----

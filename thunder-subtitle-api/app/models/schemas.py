@@ -120,6 +120,7 @@ class TaskProgressUpdate(BaseModel):
     message: str = ""
     status: TaskStatus = TaskStatus.RUNNING
     result: Optional[ScanResultItem] = None
+    total: int = 0
 
 
 # ---- Media ----
@@ -150,6 +151,8 @@ class ReviewItemResponse(BaseModel):
     file_path: str
     file_name: str
     quality: str = "unknown"
+    score: int = 0
+    size_bytes: int = 0
     chinese_ratio: float = 0.0
     encoding: str = ""
     review_status: ReviewState = ReviewState.not_reviewed
@@ -170,3 +173,9 @@ class ReviewMarkRequest(BaseModel):
 class ReviewMarkResponse(BaseModel):
     success: bool
     message: str = ""
+
+
+class SubtitlePreviewResponse(BaseModel):
+    content: str
+    encoding: str
+    total_lines: int
