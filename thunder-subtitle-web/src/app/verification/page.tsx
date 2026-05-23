@@ -101,13 +101,20 @@ function VerificationPage() {
     }
   }, [setItems, setIsLoading, setError, t]);
 
-  // Load on mount (only once -- state persists across tabs)
+  // Load on mount and always set baseDir from enabled dirs
   useEffect(() => {
-    if (items.length === 0 && isLoading) {
-      startTransition(() => {
-        loadReviews();
-      });
-    }
+    fastApiClient.listMediaDirectories().then((dirs) => {
+      const disabled = getDisabledPaths();
+      const enabledDirs = dirs.filter((d) => !disabled.has(d.path));
+      if (enabledDirs.length > 0) {
+        setBaseDir(enabledDirs[0].path);
+      }
+      if (items.length === 0 && isLoading) {
+        startTransition(() => {
+          loadReviews();
+        });
+      }
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

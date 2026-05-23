@@ -10,12 +10,11 @@ class ConfigService:
 
     @staticmethod
     def _effective_media_paths(config: object) -> str:
-        """Return media_paths with env var priority.
-
-        MEDIA_PATHS env var > JSON file value.
-        """
-        env_val = os.environ.get("MEDIA_PATHS", "").strip()
-        return env_val if env_val else config.media_paths  # type: ignore[attr-defined]
+        """Return media_paths: JSON priority, env var as fallback seed."""
+        json_val = config.media_paths.strip()  # type: ignore[attr-defined]
+        if json_val:
+            return json_val
+        return os.environ.get("MEDIA_PATHS", "").strip()
 
     def get_config(self) -> AppConfig:
         """Load current configuration."""

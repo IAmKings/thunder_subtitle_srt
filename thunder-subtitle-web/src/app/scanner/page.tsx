@@ -706,7 +706,13 @@ function ScannerPage() {
                     <td className="px-6 py-4 text-sm text-on-surface-variant max-w-[240px] truncate" title={finding.reason}>
                       {finding.reason === "dry-run" ? t("scan_mode_dry_run") : (finding.reason || "—")}
                       {finding.dry_state && (
-                        <span className="ml-2 inline-block rounded-full bg-tertiary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-tertiary">
+                        <span className={`ml-2 inline-block rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                          finding.dry_state === "need_download" ? "bg-primary/15 text-primary"
+                          : finding.dry_state === "need_review" ? "bg-tertiary/15 text-tertiary"
+                          : finding.dry_state === "reviewed_ok" ? "bg-green-500/15 text-green-400"
+                          : finding.dry_state === "reviewed_fail" ? "bg-error/15 text-error"
+                          : "bg-tertiary/15 text-tertiary"
+                        }`}>
                           {finding.dry_state === "need_download" ? t("dry_need_download")
                             : finding.dry_state === "need_review" ? t("dry_need_review")
                             : finding.dry_state === "reviewed_ok" ? t("dry_reviewed_ok")
@@ -799,7 +805,13 @@ function ScannerPage() {
               {detailItem.dry_state && (
                 <div>
                   <span className="font-bold text-on-surface-variant">{t("dry_state")}: </span>
-                  <span className="rounded-full bg-tertiary/15 px-2 py-0.5 text-xs font-bold uppercase text-tertiary">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
+                    detailItem.dry_state === "need_download" ? "bg-primary/15 text-primary"
+                    : detailItem.dry_state === "need_review" ? "bg-tertiary/15 text-tertiary"
+                    : detailItem.dry_state === "reviewed_ok" ? "bg-green-500/15 text-green-400"
+                    : detailItem.dry_state === "reviewed_fail" ? "bg-error/15 text-error"
+                    : "bg-tertiary/15 text-tertiary"
+                  }`}>
                     {detailItem.dry_state === "need_download" ? t("dry_need_download")
                       : detailItem.dry_state === "need_review" ? t("dry_need_review")
                       : detailItem.dry_state === "reviewed_ok" ? t("dry_reviewed_ok")

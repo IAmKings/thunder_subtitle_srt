@@ -40,12 +40,12 @@ class Config:
     def media_paths_list(self) -> list[str]:
         """返回媒体库路径列表，过滤不存在的路径。
 
-        MEDIA_PATHS 环境变量优先 > JSON 文件配置值。
+        JSON 配置值优先，env var 仅作初始种子。
         """
-        raw = os.environ.get("MEDIA_PATHS", "").strip()
+        raw = self.media_paths.strip()
         if not raw:
-            raw = self.media_paths
-        if not raw.strip():
+            raw = os.environ.get("MEDIA_PATHS", "").strip()
+        if not raw:
             return []
         return [
             p.strip() for p in raw.split(",") if p.strip() and os.path.isdir(p.strip())

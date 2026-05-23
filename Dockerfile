@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --target=/install -r requirements.txt
 FROM node:22-alpine AS runtime
 
 # Install supervisord
-RUN apk add --no-cache supervisor python3
+RUN apk add --no-cache supervisor python3 py3-pip
 
 # Copy Python packages from builder (--target flat install)
 COPY --from=backend-builder /install /app/deps
@@ -40,11 +40,12 @@ WORKDIR /app/api
 COPY thunder-subtitle-api/app/ ./app/
 COPY thunder-subtitle-api/requirements.txt .
 
-# Copy CLI source (shared modules)
-COPY thunder-subtitle-py/src/ /app/thunder_subtitle_py_src/
+# Copy + install CLI package (shared modules)
+COPY thunder-subtitle-py/ /app/thunder-subtitle-py/
+RUN cd /app/thunder-subtitle-py && pip install --no-cache-dir --target=/app/deps .
 
-# Set Python path: deps + CLI modules
-ENV PYTHONPATH="/app/deps:/app/thunder_subtitle_py_src"
+# Set Python path: deps
+ENV PYTHONPATH="/app/deps"
 ENV PATH="/app/deps/bin:${PATH}"
 
 # Environment variables with defaults
