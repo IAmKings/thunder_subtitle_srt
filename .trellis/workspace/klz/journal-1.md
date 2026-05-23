@@ -517,3 +517,79 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: 验证模块深度优化：Pin+删除未选中+mark fail统一+自动跳转+设置页改进+Docker修复
+
+**Date**: 2026-05-23
+**Task**: 验证模块深度优化：Pin+删除未选中+mark fail统一+自动跳转+设置页改进+Docker修复
+**Branch**: `master`
+
+### Summary
+
+验证模块：Pin固定字幕持久化、删除未选中批量操作、mark fail统一匹配CLI(.reviewed+.rejected)、删除后自动跳转保持视觉位置、确认验证后直接移除电影。设置页：保存路径提示、字幕组偏好修正、API格式弹窗、自动化未实现标注、Web版本号1.0.1动态读取。修复：baseDir始终设置、dry_state颜色区分、媒体路径JSON优先、Docker pip安装CLI、CI ruff E402忽略、审查列表dry_state过滤+dump文件支持、cn_ratio对所有文件计算。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e9c3087` | (see git log) |
+| `d73c95d` | (see git log) |
+| `f24bf7c` | (see git log) |
+| `229c2a8` | (see git log) |
+| `8bc15b1` | (see git log) |
+| `9f8628c` | (see git log) |
+| `61655ac` | (see git log) |
+| `723a0f3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 17: 1.0.1 版本发布代码审查与深度重构
+
+**Date**: 2026-05-23
+**Task**: 1.0.1 版本发布代码审查与深度重构
+**Branch**: `master`
+
+### Summary
+
+代码审查与深度重构：抽取7个共享组件(ConfirmDialog/StatusBadge/SubtitlePreview/MovieList/VerificationSubtitleList/VerificationFilterBar/VerificationStats)、修复handleMark闭包bug、scanner颜色映射去重、Pin状态localStorage持久化、settings/verification状态useReducer改造、i18n清理49个未使用键、backend ruff format统一格式化、更新3个前端spec文件(components/quality/state-management)
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2c3bc2f` | (see git log) |
+| `8d5fa5f` | (see git log) |
+| `714bd95` | (see git log) |
+| `346b89f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -19,8 +19,8 @@ import { useSearchState, useSearchActions, type FilterMode, type SortMode, type 
 
 // ---- Helpers ----
 
-function formatDuration(ms: number): string {
-  if (ms <= 0) return "Unknown";
+function formatDuration(ms: number, unknownLabel = "Unknown"): string {
+  if (ms <= 0) return unknownLabel;
   const totalSeconds = Math.round(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -149,9 +149,9 @@ export default function SearchPage() {
               <div className="flex rounded-lg border border-outline-variant/30 bg-surface-container p-1">
                 {(
                   [
-                    { mode: "all" as FilterMode, label: "All" },
-                    { mode: "chinese_only" as FilterMode, label: "Chinese Only" },
-                    { mode: "chinese_first" as FilterMode, label: "Chinese First" },
+                    { mode: "all" as FilterMode, label: t("filter_mode_all") },
+                    { mode: "chinese_only" as FilterMode, label: t("filter_mode_chinese_only") },
+                    { mode: "chinese_first" as FilterMode, label: t("filter_mode_chinese_first") },
                   ] as const
                 ).map(({ mode, label }) => (
                   <button
@@ -210,7 +210,7 @@ export default function SearchPage() {
               <div className="py-16 text-center text-on-surface-variant">
                 {error
                   ? t("search_failed")
-                  : "No subtitles found. Try a different keyword or adjust filters."}
+                  : t("no_results_try_again")}
               </div>
             ) : (
               <>
@@ -276,7 +276,7 @@ export default function SearchPage() {
                             </h4>
                             <p className="text-xs text-on-surface-variant">
                               {sub.ext.toUpperCase()} &bull;{" "}
-                              {sub.duration > 0 ? formatDuration(sub.duration) : "Unknown duration"}
+                              {sub.duration > 0 ? formatDuration(sub.duration) : t("unknown_duration")}
                               {sub.score > 0 && (
                                 <> &bull; {t("score_label")}: {sub.score.toFixed(1)}</>
                               )}

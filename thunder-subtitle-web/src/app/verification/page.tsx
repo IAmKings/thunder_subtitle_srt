@@ -124,7 +124,7 @@ function VerificationPage() {
   const [isKeepingOnly, setIsKeepingOnly] = useState(false);
   function getDisabledPaths(): Set<string> {
     try {
-      const raw = localStorage.getItem("thunder-disabled-paths");
+      const raw = localStorage.getItem("thunder-subtitle-disabled-paths");
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch { return new Set(); }
   }
@@ -466,7 +466,7 @@ function VerificationPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => dispatchFilter({ type: "SET_SEARCH_QUERY", payload: e.target.value })}
-              placeholder={t("search_placeholder") ?? t("search_placeholder")}
+              placeholder={t("search_placeholder")}
               className="w-full rounded-lg border border-outline-variant bg-surface-container-low py-2.5 pl-3 pr-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
             />
           </div>

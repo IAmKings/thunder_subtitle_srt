@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 15
-- **Last Active**: 2026-05-22
+- **Total Sessions**: 17
+- **Last Active**: 2026-05-23
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~519 | Active |
+| `journal-1.md` | ~595 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-05-23 | 1.0.1 版本发布代码审查与深度重构 | `2c3bc2f`, `8d5fa5f`, `714bd95`, `346b89f` | `master` |
+| 16 | 2026-05-23 | 验证模块深度优化：Pin+删除未选中+mark fail统一+自动跳转+设置页改进+Docker修复 | `e9c3087`, `d73c95d`, `f24bf7c`, `229c2a8`, `8bc15b1`, `9f8628c`, `61655ac`, `723a0f3` | `master` |
 | 15 | 2026-05-22 | 扫描结果展示、验证模块UX重构、字幕预览 | `1d7f841`, `ab5289e`, `dce1497`, `029d602`, `e0da5f8` | `master` |
 | 14 | 2026-05-21 | 扫描模式分段控件 + 关键词过滤修复 + 扫描结果展示PRD | `a969f03` | `master` |
 | 13 | 2026-05-21 | Docker构建修复、PyPI发布、Web前端多项优化、扫描器路径配置统一 | `7c79838`, `9a680b8`, `c6a6e51`, `49b0442`, `893f7b8`, `2c9f34a`, `ea48dc7`, `26e5720`, `feb564c`, `e80002d`, `c500f7d`, `c680f4b` | `master` |

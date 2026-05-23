@@ -1,6 +1,6 @@
 """Configuration CRUD endpoints."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import AppConfig, AppConfigUpdate
@@ -20,8 +20,14 @@ async def get_config(
     _user: str = Depends(get_current_user),
 ):
     """Get current application configuration."""
-    config = service.get_config()
-    return config
+    try:
+        config = service.get_config()
+        return config
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load configuration: {e}",
+        )
 
 
 @router.put("", response_model=AppConfig)
@@ -31,8 +37,16 @@ async def update_config(
     _user: str = Depends(get_current_user),
 ):
     """Update application configuration."""
-    config = service.update_config(body)
-    return config
+    try:
+        config = service.update_config(body)
+        return config
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update configuration: {e}",
+        )
 
 
 @router.post("/reload", response_model=AppConfig)
@@ -41,5 +55,11 @@ async def reload_config(
     _user: str = Depends(get_current_user),
 ):
     """Hot-reload configuration from disk."""
-    config = service.reload_config()
-    return config
+    try:
+        config = service.reload_config()
+        return config
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reload configuration: {e}",
+        )

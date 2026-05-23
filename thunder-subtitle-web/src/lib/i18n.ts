@@ -188,6 +188,19 @@ const translations: Record<Language, Record<string, string>> = {
     xunlei_subtitle_api: "Xunlei Subtitle API",
     active_default_source: "Active \u2022 Default Source",
     changing: "Changing...",
+
+    // Scanner — path toggle (was hardcoded Chinese)
+    path_enabled: "Enabled",
+    path_disabled: "Disabled",
+
+    // Search — duration / empty (was hardcoded English)
+    unknown_duration: "Unknown duration",
+    no_results_try_again: "No subtitles found. Try a different keyword or adjust filters.",
+
+    // Search — filter labels (were hardcoded English strings)
+    filter_mode_all: "All",
+    filter_mode_chinese_only: "Chinese Only",
+    filter_mode_chinese_first: "Chinese First",
   },
   zh: {
     // Nav
@@ -368,6 +381,19 @@ const translations: Record<Language, Record<string, string>> = {
     xunlei_subtitle_api: "\u8fc5\u96f7\u5b57\u5e55 API",
     active_default_source: "\u6d3b\u8dc3 \u2022 \u9ed8\u8ba4\u6765\u6e90",
     changing: "\u4fee\u6539\u4e2d...",
+
+    // Scanner — path toggle (was hardcoded Chinese)
+    path_enabled: "\u5df2\u542f\u7528",
+    path_disabled: "\u5df2\u7981\u7528",
+
+    // Search — duration / empty (was hardcoded English)
+    unknown_duration: "\u672a\u77e5\u65f6\u957f",
+    no_results_try_again: "\u672a\u627e\u5230\u5b57\u5e55\uff0c\u8bf7\u5c1d\u8bd5\u5176\u4ed6\u5173\u952e\u8bcd\u6216\u8c03\u6574\u7b5b\u9009\u6761\u4ef6\u3002",
+
+    // Search — filter labels (were hardcoded English strings)
+    filter_mode_all: "\u5168\u90e8",
+    filter_mode_chinese_only: "\u4ec5\u4e2d\u6587",
+    filter_mode_chinese_first: "\u4e2d\u6587\u4f18\u5148",
   },
 };
 

@@ -50,7 +50,7 @@ export function ScannerStateProvider({ children }: { children: ReactNode }) {
   const [disabledPaths, setDisabledPaths] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
-      const raw = localStorage.getItem("thunder-disabled-paths");
+      const raw = localStorage.getItem("thunder-subtitle-disabled-paths");
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch { return new Set(); }
   });
@@ -63,7 +63,7 @@ export function ScannerStateProvider({ children }: { children: ReactNode }) {
       } else {
         next.add(path);
       }
-      try { localStorage.setItem("thunder-disabled-paths", JSON.stringify([...next])); } catch { /* ignore */ }
+      try { localStorage.setItem("thunder-subtitle-disabled-paths", JSON.stringify([...next])); } catch { /* ignore */ }
       return next;
     });
   }, []);

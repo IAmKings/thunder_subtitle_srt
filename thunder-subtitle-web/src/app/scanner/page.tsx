@@ -365,7 +365,7 @@ function ScannerPage() {
                           ? "bg-surface-container-high text-on-surface-variant/50"
                           : "bg-green-500/15 text-green-400"
                       } disabled:cursor-not-allowed`}
-                      title={disabledPaths.has(dir.path) ? "启用" : "禁用"}
+                      title={disabledPaths.has(dir.path) ? t("path_disabled") : t("path_enabled")}
                       style={{ WebkitTapHighlightColor: "transparent" }}
                     >
                       {disabledPaths.has(dir.path) ? "OFF" : "ON"}

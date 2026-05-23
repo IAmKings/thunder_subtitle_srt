@@ -268,11 +268,11 @@ function SettingsPage() {
                 type="text"
                 value={savePath}
                 onChange={(e) => dispatch({ type: "SET_FIELD", field: "savePath", value: e.target.value })}
-                placeholder={t("save_path_placeholder") ?? "留空则下载到当前目录"}
+                placeholder={t("save_path_placeholder")}
                 className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none"
               />
               <p className="text-[10px] text-on-surface-variant/50">
-                {t("save_path_hint") ?? "留空则字幕下载到当前工作目录"}
+                {t("save_path_hint")}
               </p>
             </div>
             <div className="space-y-2">
