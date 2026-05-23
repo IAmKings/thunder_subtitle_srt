@@ -100,10 +100,8 @@ export default function SearchPage() {
 
   const handleDownload = useCallback(
     (sub: Subtitle) => {
-      const fastApiUrl = `${
-        process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
-      }/api/subtitle/download?url=${encodeURIComponent(sub.url)}`;
-      window.open(fastApiUrl, "_blank");
+      const downloadUrl = `/api/subtitle/download?url=${encodeURIComponent(sub.url)}`;
+      window.open(downloadUrl, "_blank");
     },
     []
   );

@@ -17,7 +17,7 @@ import type {
 
 export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem };
 
-const FASTAPI_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const FASTAPI_BASE_URL = "";  // Relative path, proxied via Nginx
 const NEXTJS_API_BASE_URL = "/api";
 const DEFAULT_TIMEOUT = 30000;
 

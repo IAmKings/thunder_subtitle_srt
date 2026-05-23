@@ -20,12 +20,10 @@ class Settings(BaseSettings):
     # Config path (empty = use default ~/.thunder-subtitle.json)
     config_path: str = ""
 
-    # CORS
+    # CORS (browser requests go through Nginx on :3000)
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
     ]
 
     # Tasks

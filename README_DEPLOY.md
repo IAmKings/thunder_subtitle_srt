@@ -55,70 +55,76 @@ pnpm dev
 | `MEDIA_PATHS` | 后端 | `/media` | 逗号分隔的媒体库路径 |
 | `CONFIG_PATH` | 后端 | `""` | 配置文件路径（空=默认） |
 | `CORS_ORIGINS` | 后端 | `["http://localhost:3000", ...]` | CORS 允许源 |
-| `NEXT_PUBLIC_API_URL` | 前端 | `http://localhost:8000` | FastAPI 后端地址 |
-| `FASTAPI_URL` | 前端（SSR） | `http://localhost:8000` | 服务端代理地址 |
+| `NEXT_PUBLIC_API_URL` | 前端（已弃用） | `""`（相对路径） | 已弃用，Nginx 自动代理 `/api/*` |
+| `FASTAPI_URL` | 前端（SSR） | `http://localhost:8000` | 服务端代理地址（仅在 next.config.ts 中使用） |
 
 ---
 
-## 2. Docker 构建
+## 2. Docker 部署
 
-### 构建镜像
+### 用户端：拉取镜像运行（推荐）
 
-```bash
-# 在项目根目录
-docker build -t thunder-subtitle .
+创建 `docker-compose.yml`（复制以下内容，修改 volumes 路径和密码）：
 
-# 或使用 docker-compose
-docker compose build
+```yaml
+services:
+  thunder-subtitle:
+    image: ghcr.io/iamkings/thunder_subtitle_srt:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - /path/to/your/media:/media
+    environment:
+      - ADMIN_PASSWORD=changeme
+      - MEDIA_PATHS=/media
+      - JWT_SECRET=change-me-in-production
 ```
 
-### 运行容器
-
 ```bash
-# 直接运行
-docker run -d \
-  -p 3000:3000 \
-  -p 8000:8000 \
-  -e ADMIN_PASSWORD=your-password \
-  -e JWT_SECRET=your-secret \
-  -e MEDIA_PATHS=/media \
-  -v /path/to/your/media:/media \
-  thunder-subtitle
-
-# 或使用 docker-compose
-# 修改 docker-compose.yml 中的 volumes 和 environment
+# 拉取并启动
 docker compose up -d
 ```
+
+访问 http://localhost:3000 进入 WebApp。
+
+> 镜像地址：`ghcr.io/iamkings/thunder_subtitle_srt:latest`
+
+### 开发端：本地构建
+
+项目根目录的 `docker-compose.yml` 用于本地开发构建，走 `build:` 方式。用户部署请使用上方 `image:` 版本。
 
 ### Docker 架构
 
 ```
-┌─────────────────────────────────────────┐
-│  Thunder Subtitle Container              │
-│                                          │
-│  ┌─────────────┐  ┌──────────────────┐  │
-│  │  Next.js     │  │  FastAPI          │  │
-│  │  :3000       │  │  :8000            │  │
-│  │  (frontend)  │  │  (backend)         │  │
-│  └─────────────┘  └──────────────────┘  │
-│                                          │
-│  ┌─────────────────────────────────────┐  │
-│  │  supervisord                        │  │
-│  │  (进程管理器)                        │  │
-│  └─────────────────────────────────────┘  │
-│                                          │
-│  /media ← Docker volume 挂载             │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Thunder Subtitle Container                  │
+│                                              │
+│  ┌────────────────────────────────────────┐ │
+│  │            Nginx (:3000)               │ │
+│  │           (反向代理入口)                 │ │
+│  └──────┬─────────────────────┬──────────┘ │
+│         │                     │              │
+│  ┌──────┴──────┐    ┌────────┴───────┐     │
+│  │  Next.js    │    │  FastAPI       │     │
+│  │  :3001      │    │  :8000         │     │
+│  │  (前端)      │    │  (后端)         │     │
+│  └─────────────┘    └────────────────┘     │
+│                                              │
+│  ┌────────────────────────────────────────┐ │
+│  │  supervisord (进程管理器)               │ │
+│  └────────────────────────────────────────┘ │
+│                                              │
+│  /media ← Docker volume 挂载                 │
+└─────────────────────────────────────────────┘
 ```
 
 ### 端口说明
 
 | 端口 | 服务 | 说明 |
 |------|------|------|
-| 3000 | Next.js | 前端 Web UI |
-| 8000 | FastAPI | 后端 API |
+| 3000 | Nginx | 统一入口（转发前端/后端/WebSocket） |
 
-> **注意**：`NEXT_PUBLIC_API_URL` 是构建时环境变量，在 `docker build` 时注入。如需在浏览器中直接访问 FastAPI（非 Next.js 代理），确保该值指向浏览器可达的地址（如 `http://your-server:8000`），而非容器内部地址。
+> 用户只需访问 `http://localhost:3000`，无需关心后端端口。Nginx 自动将 `/api/*` 和 `/ws/*` 转发到 FastAPI，其余请求转发到 Next.js。
 
 ---
 
@@ -162,9 +168,10 @@ docker compose up -d
 
 - [x] `docker compose up -d` 启动无报错
 - [x] `docker compose logs` 中 FastAPI 日志显示 `Uvicorn running on http://0.0.0.0:8000`
-- [x] `docker compose logs` 中 Next.js 日志显示 `Ready on http://0.0.0.0:3000`
-- [x] 访问 http://localhost:3000 显示登录页面
-- [x] 访问 http://localhost:8000/docs 显示 Swagger UI
+- [x] `docker compose logs` 中 Next.js 日志显示 `Ready on http://0.0.0.0:3001`
+- [x] `docker compose logs` 中 Nginx 日志显示启动成功
+- [x] 访问 http://localhost:3000 显示登录页面（通过 Nginx 代理）
+- [x] 访问 http://localhost:3000/api/health 返回健康状态（通过 Nginx 代理到 FastAPI）
 
 ### 4.3 认证流程验证
 
@@ -203,20 +210,20 @@ docker compose up -d
 
 - [ ] 页面加载后填充当前配置值
 - [ ] 修改配置字段后 Save Changes 按钮可点击
-- [ ] 保存后显示成功提示
+- [x] 保存后显示成功提示
 - [ ] Reset Defaults 按钮恢复默认配置
-- [ ] 密码修改表单：输入旧密码 + 新密码可提交
-- [ ] 旧密码错误时显示错误提示
+- [x] 密码修改表单：输入旧密码 + 新密码可提交
+- [x] 旧密码错误时显示错误提示
 
 ### 4.8 深色主题 / 视觉验证
 
-- [ ] 页面背景色为 #0f1417
-- [ ] 侧边栏背景色为 #171c20
-- [ ] 主色调为 Electric Blue (#7bd0ff)
-- [ ] 按钮有 hover 态变化
-- [ ] 字体为 Inter
-- [ ] 间距以 8px 为基准
-- [ ] 卡片圆角为 8-12px
+- [x] 页面背景色为 #0f1417
+- [x] 侧边栏背景色为 #171c20
+- [x] 主色调为 Electric Blue (#7bd0ff)
+- [x] 按钮有 hover 态变化
+- [x] 字体为 Inter
+- [x] 间距以 8px 为基准
+- [x] 卡片圆角为 8-12px
 
 ### 4.9 API 认证中间件验证
 
@@ -242,7 +249,7 @@ docker compose up -d
 | 登录后 401 | JWT_SECRET 不匹配 | 确保前后端使用相同的 JWT_SECRET |
 | 搜索无结果 | 迅雷 API 不可达 | 检查网络连接，确认不是在国内受限环境 |
 | 扫描无进度 | CLI 模块导入失败 | 检查 PYTHONPATH，确认 `from src.api import SubtitleApiClient` 可用 |
-| 页面空白 | Next.js 构建失败 | 检查 `NEXT_PUBLIC_API_URL` 是否正确设置 |
+| 页面空白 | Next.js 构建失败 | 检查构建日志 |
 | CORS 错误 | CORS 配置不包含前端地址 | 在后端 Settings.cors_origins 中添加前端地址 |
 
 ### 日志查看

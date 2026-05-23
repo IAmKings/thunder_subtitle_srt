@@ -1,8 +1,6 @@
 # ---- Stage 1: Build Next.js Frontend ----
 FROM node:22-alpine AS frontend-builder
 
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV CI=true
 
 WORKDIR /app/web
@@ -24,8 +22,8 @@ RUN pip install --no-cache-dir --target=/install -r requirements.txt
 # ---- Stage 3: Runtime ----
 FROM node:22-alpine AS runtime
 
-# Install supervisord
-RUN apk add --no-cache supervisor python3 py3-pip
+# Install supervisord and nginx
+RUN apk add --no-cache supervisor python3 py3-pip nginx
 
 # Copy Python packages from builder (--target flat install)
 COPY --from=backend-builder /install /app/deps
@@ -52,13 +50,16 @@ ENV PATH="/app/deps/bin:${PATH}"
 ENV NODE_ENV=production
 ENV MEDIA_PATHS=/media
 
+# Copy nginx config
+COPY nginx.conf /etc/nginx/http.d/default.conf
+
 # Copy supervisord config
 COPY supervisord.conf /etc/supervisord/supervisord.conf
 
-EXPOSE 3000 8000
+EXPOSE 3000
 
-# Health check
+# Health check (via Nginx proxy covers both frontend and backend)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000/ || wget -qO- http://localhost:8000/api/health || exit 1
+  CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord/supervisord.conf", "-n"]
