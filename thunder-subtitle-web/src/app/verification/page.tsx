@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ArrowLeft,
   Trash2,
+  Star,
 } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
 import { fastApiClient } from "@/lib/api";
@@ -42,8 +43,8 @@ function getMovieName(filePath: string): string {
 
 function VerificationPage() {
   const t = useTranslations();
-  const { items, isLoading, error, selectedMovie } = useVerificationState();
-  const { setItems, setIsLoading, setError, setSelectedMovie } = useVerificationActions();
+  const { items, isLoading, error, selectedMovie, pinnedItems: pinnedKeys } = useVerificationState();
+  const { setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems } = useVerificationActions();
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [markingPath, setMarkingPath] = useState<string | null>(null);
   const [baseDir, setBaseDir] = useState("");
@@ -188,6 +189,9 @@ function VerificationPage() {
         const subtitlePath = `${item.file_path}/${item.file_name}`;
         await fastApiClient.deleteSubtitleFile(subtitlePath);
       }
+      if (baseDir) {
+        await fastApiClient.markReview(baseDir, selectedMovie, "fail");
+      }
       setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
       setSelectedItem(null);
       setSelectedMovie(null);
@@ -203,6 +207,43 @@ function VerificationPage() {
   const [confirmReject, setConfirmReject] = useState(false);
   const [rejectReason, setRejectReason] = useState<"off_sync" | "wrong_lang" | null>(null);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [confirmKeepOnly, setConfirmKeepOnly] = useState(false);
+  const [isKeepingOnly, setIsKeepingOnly] = useState(false);
+
+  const handleKeepOnly = useCallback(async () => {
+    if (!selectedMovie || pinnedKeys.length === 0) return;
+    setIsKeepingOnly(true);
+    const toDelete = items.filter(
+      (i) => i.file_path === selectedMovie && !pinnedKeys.includes(`${i.file_path}/${i.file_name}`)
+    );
+    try {
+      for (const item of toDelete) {
+        await fastApiClient.deleteSubtitleFile(`${item.file_path}/${item.file_name}`);
+      }
+      setItems((prev) =>
+        prev.filter((i) => !toDelete.some((d) => d.file_path === i.file_path && d.file_name === i.file_name))
+      );
+      setSelectedItem(null);
+      setConfirmKeepOnly(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setIsKeepingOnly(false);
+    }
+  }, [selectedMovie, pinnedKeys, items, setItems, setError]);
+
+  function togglePin(item: ReviewItem) {
+    const key = `${item.file_path}/${item.file_name}`;
+    setPinnedItems((prev) => {
+      const set = new Set(prev);
+      if (set.has(key)) set.delete(key); else set.add(key);
+      return [...set];
+    });
+  }
+
+  function isPinned(item: ReviewItem) {
+    return pinnedKeys.includes(`${item.file_path}/${item.file_name}`);
+  }
 
   const handleReject = useCallback(async () => {
     if (!selectedItem || !selectedMovie) return;
@@ -217,20 +258,35 @@ function VerificationPage() {
         (i) => !(i.file_path === selectedMovie && i.file_name === deletedFile)
       );
 
-      // Find next/prev in current movie after removal
-      const movieItems = remaining.filter((i) => i.file_path === selectedMovie);
-      const nextItem = movieItems.length > 0 ? movieItems[0] : null;
+      // Find next item at deleted position (respect sort + filter)
+      let movieItems = remaining.filter((i) => i.file_path === selectedMovie);
+      if (statusFilter) {
+        movieItems = movieItems.filter((i) => i.review_status === statusFilter);
+      }
+      // Same sort order as movieSubtitleItems
+      const sorter = sortBySize === "desc" ? (a: ReviewItem, b: ReviewItem) => b.size_bytes - a.size_bytes
+              : sortBySize === "asc" ? (a: ReviewItem, b: ReviewItem) => a.size_bytes - b.size_bytes
+              : null;
+      const sorted = sorter ? [...movieItems].sort(sorter) : movieItems;
+      // Find the deleted item's position in the FULL sorted list (before deletion)
+      const fullSorted = sorter ? [...items.filter(i => i.file_path === selectedMovie && (!statusFilter || i.review_status === statusFilter))].sort(sorter)
+                                : items.filter(i => i.file_path === selectedMovie && (!statusFilter || i.review_status === statusFilter));
+      const delIdx = fullSorted.findIndex(i => i.file_name === deletedFile);
+      // Pick item at same position (which is the "next" after deletion)
+      const nextItem = sorted[Math.min(delIdx, sorted.length - 1)] || null;
 
       if (movieItems.length === 0) {
-        // Last subtitle: mark fail if rejected, go back to movie list
-        if (rejectReason !== null && baseDir) {
+        // Last subtitle: always mark fail
+        if (baseDir) {
           await fastApiClient.markReview(baseDir, selectedMovie, "fail");
         }
         setItems(remaining);
+        setSelectedItem(null);
         setSelectedMovie(null);
       } else {
         setItems(remaining);
         setSelectedItem(nextItem);
+        setListPage(0);  // jump to first page to show selected item
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "删除失败");
@@ -238,7 +294,7 @@ function VerificationPage() {
       setIsRejecting(false);
       setConfirmReject(false);
     }
-  }, [selectedItem, selectedMovie, baseDir, rejectReason, items, setItems, setError]);
+  }, [selectedItem, selectedMovie, baseDir, rejectReason, items, sortBySize, statusFilter, setItems, setError]);
 
   // ---- Rename subtitle file ----
   const handleRename = useCallback(async () => {
@@ -367,6 +423,7 @@ function VerificationPage() {
   const handleSelectMovie = useCallback((filePath: string) => {
     setSelectedMovie(filePath);
     setSelectedItem(null);
+    setPinnedItems([]);
     setStatusFilter(null);
     setSortBySize(null);
     setSearchQuery("");
@@ -479,26 +536,17 @@ function VerificationPage() {
         {/* Level 2: Batch action bar */}
         {selectedMovie && (
           <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-2">
-            <button
-              type="button"
-              onClick={() => handleBatchMark("ok")}
-              disabled={isBatchMarking}
-              className="flex items-center gap-1.5 rounded-lg bg-green-500/15 px-3 py-1.5 text-[10px] font-bold text-green-400 transition-all hover:bg-green-500/25 active:scale-95 disabled:opacity-50"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              {isBatchMarking ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
-              {t("all_pass")}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleBatchMark("fail")}
-              disabled={isBatchMarking}
-              className="flex items-center gap-1.5 rounded-lg bg-error/15 px-3 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error/25 active:scale-95 disabled:opacity-50"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              {isBatchMarking ? <Loader2 size={12} className="animate-spin" /> : <Timer size={12} />}
-              {t("all_fail")}
-            </button>
+            {pinnedKeys.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setConfirmKeepOnly(true)}
+                disabled={isKeepingOnly}
+                className="flex items-center gap-1.5 rounded-lg bg-error/15 px-3 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error/25 active:scale-95 disabled:opacity-50"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <Trash2 size={12} /> 删除未选中
+              </button>
+            )}
             <div className="flex-1" />
             <button
               type="button"
@@ -564,7 +612,10 @@ function VerificationPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold">{item.file_name}</p>
+                      <p className="flex items-center gap-1 truncate text-sm font-bold">
+                        {isPinned(item) && <Star size={12} className="flex-shrink-0 text-amber-400" fill="currentColor" />}
+                        <span className="truncate">{item.file_name}</span>
+                      </p>
                       <p className="mt-1 truncate text-[10px] text-on-surface-variant">{item.file_path}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -695,6 +746,19 @@ function VerificationPage() {
           <div className="flex gap-2">
             {selectedItem && (
               <>
+                <button
+                  type="button"
+                  onClick={() => selectedItem && togglePin(selectedItem)}
+                  className={`rounded p-1 transition-colors ${
+                    selectedItem && isPinned(selectedItem)
+                      ? "text-amber-400 bg-amber-400/10"
+                      : "text-on-surface-variant hover:bg-surface-container-highest"
+                  }`}
+                  title={selectedItem && isPinned(selectedItem) ? "取消固定" : "固定"}
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  <Star size={18} fill={selectedItem && isPinned(selectedItem) ? "currentColor" : "none"} />
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -940,6 +1004,43 @@ function VerificationPage() {
                 className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
               >
                 {isDeletingAll ? t("loading") : "全部删除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keep Only Dialog */}
+      {confirmKeepOnly && selectedMovie && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmKeepOnly(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold">删除未选中字幕</h3>
+            <p className="mt-2 text-sm text-on-surface-variant">
+              确定删除「{getMovieName(selectedMovie)}」下未固定的{" "}
+              <span className="font-bold text-error">
+                {items.filter(i => i.file_path === selectedMovie && !pinnedKeys.includes(`${i.file_path}/${i.file_name}`)).length}
+              </span>{" "}
+              个字幕文件吗？保留固定的{" "}
+              <span className="font-bold text-primary">{pinnedKeys.length}</span>{" "}
+              个。
+            </p>
+            <p className="mt-1 text-xs text-error">此操作不可撤销。</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmKeepOnly(false)}
+                disabled={isKeepingOnly}
+                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleKeepOnly}
+                disabled={isKeepingOnly}
+                className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {isKeepingOnly ? t("loading") : "确认删除"}
               </button>
             </div>
           </div>

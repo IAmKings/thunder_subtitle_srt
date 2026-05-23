@@ -99,10 +99,10 @@ class ReviewService:
                 return ReviewMarkResponse(success=False, message="Review module not available")
 
         try:
-            if status == "ok":
+            if status == "fail":
+                mark_directory(base_dir, mark_fail_path=path)  # 写 .reviewed=fail + .rejected
+            elif status == "ok":
                 mark_directory(base_dir, mark_path=path)
-            elif status == "fail":
-                mark_directory(base_dir, mark_fail_path=path)
             else:
                 return ReviewMarkResponse(success=False, message=f"Invalid status: {status}")
 

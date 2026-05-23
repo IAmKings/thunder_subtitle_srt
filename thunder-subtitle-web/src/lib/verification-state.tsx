@@ -8,6 +8,7 @@ interface VerificationState {
   isLoading: boolean;
   error: string | null;
   selectedMovie: string | null;
+  pinnedItems: string[];
 }
 
 interface VerificationActions {
@@ -15,6 +16,7 @@ interface VerificationActions {
   setIsLoading: (v: boolean) => void;
   setError: (e: string | null) => void;
   setSelectedMovie: (path: string | null) => void;
+  setPinnedItems: (keys: string[] | ((prev: string[]) => string[])) => void;
 }
 
 const VerificationStateContext = createContext<VerificationState | null>(null);
@@ -25,14 +27,15 @@ export function VerificationStateProvider({ children }: { children: ReactNode })
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMovie, setSelectedMovie] = useState<string | null>(null);
+  const [pinnedItems, setPinnedItems] = useState<string[]>([]);
 
   const state = useMemo<VerificationState>(
-    () => ({ items, isLoading, error, selectedMovie }),
-    [items, isLoading, error, selectedMovie]
+    () => ({ items, isLoading, error, selectedMovie, pinnedItems }),
+    [items, isLoading, error, selectedMovie, pinnedItems]
   );
 
   const actions = useMemo<VerificationActions>(
-    () => ({ setItems, setIsLoading, setError, setSelectedMovie }),
+    () => ({ setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems }),
     []
   );
 
