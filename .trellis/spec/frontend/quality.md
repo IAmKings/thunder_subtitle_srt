@@ -36,6 +36,14 @@ Complete this checklist before committing frontend code changes.
 - [ ] No React Query or SWR — use `FastApiClient` directly
 - [ ] LocalStorage keys prefixed with `thunder-subtitle-`
 - [ ] `typeof window !== 'undefined'` guards for SSR safety
+- [ ] `setState(null)` values saved to local variable before use in callbacks (closure risk)
+
+## Component Size
+
+- [ ] Page components ≤ ~800 lines; extract sub-components if exceeded
+- [ ] Single handler functions ≤ ~50 lines; extract utility functions if exceeded
+- [ ] No duplicate color-mapping logic — use `StatusBadge`/`DryStateBadge` or utility functions
+- [ ] No ad-hoc modal dialogs — use `ConfirmDialog` component
 
 ## CSS & Layout
 
@@ -110,4 +118,29 @@ const res = await fetch('/api/something');
 
 // Good: FastApiClient
 const data = await fastApiClient.searchSubtitles(name);
+```
+
+### React setState Closure Bug
+```typescript
+// Bad: setState(null) then use the state variable in callback
+setSelectedMovie(null);
+setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
+// selectedMovie is already null! Filter removes nothing!
+
+// Good: Save to local variable first
+const movieToRemove = selectedMovie;
+setSelectedMovie(null);
+setItems((prev) => prev.filter((i) => i.file_path !== movieToRemove));
+```
+
+**Rule**: Before calling `setState(null)` on a value you'll use in the same handler, save it to a local variable first. React's batching means the state update may not be visible in closures.
+
+### Duplicate Color Mapping
+```typescript
+// Bad: Inline color mapping duplicated across 3+ locations
+<span className={finding.status === "downloaded" ? "bg-green-500/15 text-green-400" : ...}>
+
+// Good: Use shared utility or component
+import { StatusBadge } from '@/components/StatusBadge';
+<StatusBadge status={finding.status} label={t("status_downloaded")} />
 ```

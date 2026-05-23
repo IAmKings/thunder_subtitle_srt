@@ -151,6 +151,67 @@ if (isLoading) {
 }
 ```
 
+## Shared Components
+
+### ConfirmDialog
+
+Generic confirmation dialog used across multiple pages. Consolidates overlay backdrop, centered card, title, message, confirm/cancel buttons into one reusable component.
+
+```typescript
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+
+<ConfirmDialog
+  open={confirmDelete}
+  onClose={() => setConfirmDelete(false)}
+  title="删除全部字幕"
+  message="确定要删除全部字幕文件吗？此操作不可撤销。"
+  confirmLabel="全部删除"
+  cancelLabel={t("cancel")}
+  loadingLabel={t("loading")}
+  variant="danger"  // "danger" = red confirm button, "default" = blue
+  isLoading={isDeleting}
+  onConfirm={handleDelete}
+>
+  {/* Optional children for extra content (inputs, warnings, etc.) */}
+</ConfirmDialog>
+```
+
+Key rules:
+- `variant="danger"` for destructive actions (red button), `variant="default"` otherwise
+- All text props accept translated strings via `t()`
+- Backdrop click closes the dialog, card click does not propagate
+- Use `WebkitTapHighlightColor: "transparent"` on all buttons
+
+### StatusBadge / DryStateBadge
+
+Unified badge components for scan result statuses and dry_run states. Eliminates duplicated color-mapping logic.
+
+```typescript
+import { StatusBadge, DryStateBadge, getStatusColor } from '@/components/StatusBadge';
+
+// As component
+<StatusBadge status="downloaded" label={t("status_downloaded")} />
+<DryStateBadge dryState="need_review" label={t("dry_need_review")} />
+
+// As utility function (for inline styling)
+<span className={getStatusColor(finding.status)}>{label}</span>
+```
+
+**Rule**: Never write inline status/dry_state color mapping. Always use `StatusBadge`, `DryStateBadge`, or the utility functions.
+
+## Component Size Limits
+
+| Component Type | Max Lines | Action if Exceeded |
+|---------------|-----------|-------------------|
+| Page component | ~800 | Extract sub-components to `components/` |
+| Single function/handler | ~50 | Extract to utility function or custom hook |
+| Dialog/modal content | ~50 | Extract to dedicated dialog component |
+
+**Why**: The verification page grew to 1098 lines before refactoring, causing:
+- Hard-to-spot closure bugs (`setState(null)` then using stale value in callback)
+- Duplicated dialog patterns (5 inline modals)
+- Difficult maintenance
+
 ## Best Practices
 
 1. **Use design tokens** — Always use `bg-surface`, `text-primary`, etc., never raw hex
@@ -160,3 +221,6 @@ if (isLoading) {
 5. **lucide-react for icons** — Import from `lucide-react`
 6. **Touch-friendly** — Disable tap highlight, ensure 44px minimum targets
 7. **Type props** — Always define TypeScript interfaces for component props
+8. **Extract before 800 lines** — Pages exceeding ~800 lines must be split into sub-components
+9. **No duplicate color maps** — Use `StatusBadge`/`DryStateBadge` instead of inline status color logic
+10. **Use `ConfirmDialog` for modals** — Never create ad-hoc modal dialogs with overlay backdrop
