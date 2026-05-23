@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 class ReviewService:
     """Service that wraps the CLI reviewer for review operations."""
 
-    def list_reviews(
-        self, base_dir: str, name_filter: Optional[str] = None
-    ) -> ReviewListResponse:
+    def list_reviews(self, base_dir: str, name_filter: Optional[str] = None) -> ReviewListResponse:
         """List review items for a directory."""
         if not base_dir or not os.path.isdir(base_dir):
             return ReviewListResponse(items=[], total=0)
@@ -86,9 +84,7 @@ class ReviewService:
             logger.exception("Failed to list reviews for %s", base_dir)
             return ReviewListResponse(items=[], total=0)
 
-    def mark_review(
-        self, base_dir: str, path: str, status: str
-    ) -> ReviewMarkResponse:
+    def mark_review(self, base_dir: str, path: str, status: str) -> ReviewMarkResponse:
         """Mark a directory as reviewed (ok/fail)."""
         try:
             from src.reviewer import mark_directory
