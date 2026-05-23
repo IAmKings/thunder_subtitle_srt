@@ -3,9 +3,8 @@
 import os
 from typing import Optional
 
-from pydantic import BaseModel
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import (
@@ -142,7 +141,9 @@ async def rename_subtitle_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
     new_path = os.path.join(os.path.dirname(body.path), body.new_name)
     if os.path.exists(new_path):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Target file already exists")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Target file already exists"
+        )
     try:
         os.rename(body.path, new_path)
         return {"success": True, "new_path": new_path}

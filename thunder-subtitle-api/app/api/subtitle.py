@@ -1,13 +1,13 @@
 """Subtitle search proxy endpoint — wraps the Xunlei API."""
 
-import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import RedirectResponse
 from typing import Optional
 
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from app.models.schemas import (
-    SubtitleSearchResponse,
     SubtitleDetail,
+    SubtitleSearchResponse,
 )
 from app.services.subtitle_service import SubtitleService
 
@@ -24,14 +24,17 @@ async def search_subtitles(
     name: str = Query(..., min_length=1, description="Search keyword"),
     chinese_only: bool = Query(False, description="Filter Chinese subtitles only"),
     chinese_first: bool = Query(False, description="Sort Chinese subtitles first"),
-    max_duration: Optional[str] = Query(
-        None, description="Max duration filter (e.g. 2h30m)"
-    ),
+    max_duration: Optional[str] = Query(None, description="Max duration filter (e.g. 2h30m)"),
     service: SubtitleService = Depends(get_subtitle_service),
 ):
     """Search subtitles by name keyword."""
     try:
-        result = service.search(name=name, chinese_only=chinese_only, chinese_first=chinese_first, max_duration=max_duration)
+        result = service.search(
+            name=name,
+            chinese_only=chinese_only,
+            chinese_first=chinese_first,
+            max_duration=max_duration,
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -80,7 +83,7 @@ async def download_subtitle(
             # Try to extract filename from Content-Disposition header
             cd = response.headers.get("content-disposition", "")
             if "filename=" in cd:
-                filename = cd.split("filename=")[-1].strip('"\'')
+                filename = cd.split("filename=")[-1].strip("\"'")
             else:
                 # Generate a filename based on content type
                 ext_map = {
@@ -94,12 +97,11 @@ async def download_subtitle(
 
         # Return the file content
         from fastapi.responses import Response
+
         return Response(
             content=response.content,
             media_type=content_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
     except httpx.HTTPStatusError as e:
         raise HTTPException(

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import MediaDirectory, NfoInfoResponse
-from app.services.scan_service import ScanService, scan_service
+from app.services.scan_service import scan_service
 
 router = APIRouter()
 

@@ -1,6 +1,6 @@
 """JWT authentication — dependency for protecting FastAPI routes."""
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 
 from app.auth.router import extract_token_from_request, verify_access_token
 

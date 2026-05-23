@@ -1,6 +1,6 @@
 import sys
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,12 +41,12 @@ app.add_middleware(
 )
 
 # Register routers
-from app.auth.router import router as auth_router  # noqa: E402
-from app.api.subtitle import router as subtitle_router  # noqa: E402
 from app.api.config import router as config_router  # noqa: E402
-from app.api.tasks import router as tasks_router  # noqa: E402
 from app.api.media import router as media_router  # noqa: E402
 from app.api.review import router as review_router  # noqa: E402
+from app.api.subtitle import router as subtitle_router  # noqa: E402
+from app.api.tasks import router as tasks_router  # noqa: E402
+from app.auth.router import router as auth_router  # noqa: E402
 from app.ws.manager import router as ws_router  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])

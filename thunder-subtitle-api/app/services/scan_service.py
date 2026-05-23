@@ -172,6 +172,7 @@ class ScanService:
         filters: list[str] = task.params.get("filters", [])
         if isinstance(filters, str):
             import re
+
             filters = [f.strip() for f in re.split(r"[ ,]+", filters) if f.strip()]
         filters = filters if filters else None
 
@@ -203,7 +204,8 @@ class ScanService:
                         matches,
                     )
                 all_movie_dirs = [
-                    d for d in all_movie_dirs
+                    d
+                    for d in all_movie_dirs
                     if any(matches(f, os.path.basename(d)) for f in filters)
                 ]
 
@@ -228,7 +230,8 @@ class ScanService:
                 # Process single movie in thread (blocking)
                 result = await asyncio.to_thread(
                     _process_one_movie,
-                    movie_path, movie_name,
+                    movie_path,
+                    movie_name,
                     dry_run=bool(dry_run),
                     client=client,
                     config=config,
@@ -238,13 +241,15 @@ class ScanService:
                 )
 
                 processed += 1
-                all_results.append({
-                    "movie_name": result.movie_name,
-                    "status": result.status,
-                    "reason": result.reason,
-                    "filename": result.filename,
-                    "dry_state": getattr(result, "dry_state", ""),
-                })
+                all_results.append(
+                    {
+                        "movie_name": result.movie_name,
+                        "status": result.status,
+                        "reason": result.reason,
+                        "filename": result.filename,
+                        "dry_state": getattr(result, "dry_state", ""),
+                    }
+                )
 
                 # Calculate progress AFTER download completes
                 pct = (processed / max(total_movies_count, 1)) * 100

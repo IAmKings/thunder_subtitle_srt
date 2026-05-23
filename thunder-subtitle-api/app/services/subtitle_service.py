@@ -1,7 +1,6 @@
 """Subtitle search service — wraps the CLI SubtitleApiClient."""
 
 import logging
-from dataclasses import asdict
 from typing import Optional
 
 from app.models.schemas import SubtitleDetail, SubtitleSearchResponse
@@ -29,14 +28,17 @@ class SubtitleService:
         """Parse duration string (e.g. '1h30m') to milliseconds."""
         try:
             from src.utils import parse_duration
+
             return parse_duration(duration_str)
         except ImportError:
             try:
                 from thunder_subtitle.utils import parse_duration  # type: ignore[import-untyped]
+
                 return parse_duration(duration_str)
             except ImportError:
                 # Fallback: simple parser
                 import re
+
                 trimmed = duration_str.strip().lower()
                 if not trimmed:
                     raise ValueError("Duration string cannot be empty")
@@ -69,23 +71,27 @@ class SubtitleService:
         try:
             from src.api import SubtitleApiClient
             from src.utils import filter_by_duration
+
             client = SubtitleApiClient()
             return filter_by_duration(subtitles, max_duration_ms, client.filter_by_max_duration)
         except ImportError:
             try:
                 from thunder_subtitle.api import SubtitleApiClient  # type: ignore[import-untyped]
-                from thunder_subtitle.utils import filter_by_duration  # type: ignore[import-untyped]
+                from thunder_subtitle.utils import (
+                    filter_by_duration,  # type: ignore[import-untyped]
+                )
+
                 client = SubtitleApiClient()
                 return filter_by_duration(subtitles, max_duration_ms, client.filter_by_max_duration)
             except ImportError:
                 # Fallback: simple filter
                 filtered = [
-                    sub for sub in subtitles
-                    if hasattr(sub, 'duration') and 0 < sub.duration <= max_duration_ms
+                    sub
+                    for sub in subtitles
+                    if hasattr(sub, "duration") and 0 < sub.duration <= max_duration_ms
                 ]
                 no_dur = [
-                    sub for sub in subtitles
-                    if hasattr(sub, 'duration') and sub.duration == 0
+                    sub for sub in subtitles if hasattr(sub, "duration") and sub.duration == 0
                 ]
                 return filtered + no_dur
 

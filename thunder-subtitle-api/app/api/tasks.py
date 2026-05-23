@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.auth.dependencies import get_current_user
 from app.models.schemas import (
     TaskCreate,
-    TaskResponse,
     TaskListResponse,
     TaskProgressUpdate,
+    TaskResponse,
 )
 from app.services.scan_service import scan_service
 
@@ -25,9 +25,7 @@ async def list_tasks(
     _user: str = Depends(get_current_user),
 ):
     """List all tasks with optional status filter."""
-    tasks, total = scan_service.list_tasks(
-        status_filter=status_filter, limit=limit, offset=offset
-    )
+    tasks, total = scan_service.list_tasks(status_filter=status_filter, limit=limit, offset=offset)
     return TaskListResponse(tasks=tasks, total=total, limit=limit, offset=offset)
 
 

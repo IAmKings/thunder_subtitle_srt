@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, Field
 from jose import JWTError, jwt
+from pydantic import BaseModel, Field
 
 from app.config import settings
 
@@ -57,9 +57,7 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
 def verify_access_token(token: str) -> Optional[dict]:
     """Verify and decode a JWT token. Returns payload or None."""
     try:
-        payload = jwt.decode(
-            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
-        )
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         return payload
     except JWTError:
         return None
