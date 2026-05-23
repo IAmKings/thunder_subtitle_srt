@@ -143,8 +143,12 @@ function VerificationPage() {
       } finally {
         setMarkingPath(null);
       }
+      // Move back to movie list (remove verified movie from local state)
+      setSelectedMovie(null);
+      setSelectedItem(null);
+      setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
     },
-    [selectedItem, baseDir, setError, setItems, t]
+    [selectedItem, selectedMovie, baseDir, setError, setItems, t]
   );
 
   // ---- Batch mark for current movie ----
