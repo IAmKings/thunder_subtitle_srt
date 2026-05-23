@@ -18,8 +18,8 @@ import { useTranslations } from "@/lib/i18n";
 import { fastApiClient, ProgressWebSocket } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
 import { useScannerState, useScannerActions } from "@/lib/scanner-state";
-import type { ScanMode } from "@/lib/scanner-state";
-import type { TaskResponse, MediaDirectory, AppConfig, ScanResultItem } from "@/lib/types";
+import type { ScanResultItem } from "@/lib/types";
+import { StatusBadge, DryStateBadge, getStatusColor, getDryStateColor } from "@/components/StatusBadge";
 
 // ---- Helpers ----
 
@@ -35,6 +35,25 @@ function getStatusIcon(status: string) {
       return <AlertTriangle size={16} className="text-tertiary" />;
     default:
       return <AlertTriangle size={16} className="text-on-surface-variant" />;
+  }
+}
+
+function statusLabel(status: string, t: (key: string) => string): string {
+  switch (status) {
+    case "downloaded": return t("status_downloaded");
+    case "skipped": return t("status_skipped");
+    case "no_match": return t("status_no_match");
+    default: return t("status_error");
+  }
+}
+
+function dryStateLabel(dryState: string, t: (key: string) => string): string {
+  switch (dryState) {
+    case "need_download": return t("dry_need_download");
+    case "need_review": return t("dry_need_review");
+    case "reviewed_ok": return t("dry_reviewed_ok");
+    case "reviewed_fail": return t("dry_reviewed_fail");
+    default: return dryState;
   }
 }
 
@@ -213,7 +232,6 @@ function ScannerPage() {
     setFindings([]);
     setResultsPage(0);
     setScanTotal(0);
-    setFindings([]);
 
     try {
       // Pass ALL configured paths + optional keyword filters
@@ -682,23 +700,7 @@ function ScannerPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        finding.status === "downloaded"
-                          ? "bg-green-500/15 text-green-400"
-                          : finding.status === "skipped"
-                          ? "bg-tertiary/15 text-tertiary"
-                          : finding.status === "no_match"
-                          ? "bg-on-surface-variant/15 text-on-surface-variant"
-                          : "bg-error/15 text-error"
-                      }`}>
-                        {finding.status === "downloaded"
-                          ? t("status_downloaded")
-                          : finding.status === "skipped"
-                          ? t("status_skipped")
-                          : finding.status === "no_match"
-                          ? t("status_no_match")
-                          : t("status_error")}
-                      </span>
+                      <StatusBadge status={finding.status} label={statusLabel(finding.status, t)} />
                     </td>
                     <td className="px-6 py-4 text-sm text-on-surface-variant max-w-[200px] truncate" title={finding.filename}>
                       {finding.filename || "—"}
@@ -706,19 +708,7 @@ function ScannerPage() {
                     <td className="px-6 py-4 text-sm text-on-surface-variant max-w-[240px] truncate" title={finding.reason}>
                       {finding.reason === "dry-run" ? t("scan_mode_dry_run") : (finding.reason || "—")}
                       {finding.dry_state && (
-                        <span className={`ml-2 inline-block rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                          finding.dry_state === "need_download" ? "bg-primary/15 text-primary"
-                          : finding.dry_state === "need_review" ? "bg-tertiary/15 text-tertiary"
-                          : finding.dry_state === "reviewed_ok" ? "bg-green-500/15 text-green-400"
-                          : finding.dry_state === "reviewed_fail" ? "bg-error/15 text-error"
-                          : "bg-tertiary/15 text-tertiary"
-                        }`}>
-                          {finding.dry_state === "need_download" ? t("dry_need_download")
-                            : finding.dry_state === "need_review" ? t("dry_need_review")
-                            : finding.dry_state === "reviewed_ok" ? t("dry_reviewed_ok")
-                            : finding.dry_state === "reviewed_fail" ? t("dry_reviewed_fail")
-                            : finding.dry_state}
-                        </span>
+                        <DryStateBadge dryState={finding.dry_state} label={dryStateLabel(finding.dry_state, t)} />
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -784,16 +774,8 @@ function ScannerPage() {
             <div className="space-y-3 text-sm">
               <div>
                 <span className="font-bold text-on-surface-variant">{t("type")}: </span>
-                <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                  detailItem.status === "downloaded" ? "bg-green-500/15 text-green-400"
-                  : detailItem.status === "skipped" ? "bg-tertiary/15 text-tertiary"
-                  : detailItem.status === "no_match" ? "bg-on-surface-variant/15 text-on-surface-variant"
-                  : "bg-error/15 text-error"
-                }`}>
-                  {detailItem.status === "downloaded" ? t("status_downloaded")
-                    : detailItem.status === "skipped" ? t("status_skipped")
-                    : detailItem.status === "no_match" ? t("status_no_match")
-                    : t("status_error")}
+                <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${getStatusColor(detailItem.status)}`}>
+                  {statusLabel(detailItem.status, t)}
                 </span>
               </div>
               {detailItem.filename && (
@@ -805,19 +787,8 @@ function ScannerPage() {
               {detailItem.dry_state && (
                 <div>
                   <span className="font-bold text-on-surface-variant">{t("dry_state")}: </span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
-                    detailItem.dry_state === "need_download" ? "bg-primary/15 text-primary"
-                    : detailItem.dry_state === "need_review" ? "bg-tertiary/15 text-tertiary"
-                    : detailItem.dry_state === "reviewed_ok" ? "bg-green-500/15 text-green-400"
-                    : detailItem.dry_state === "reviewed_fail" ? "bg-error/15 text-error"
-                    : "bg-tertiary/15 text-tertiary"
-                  }`}>
-                    {detailItem.dry_state === "need_download" ? t("dry_need_download")
-                      : detailItem.dry_state === "need_review" ? t("dry_need_review")
-                      : detailItem.dry_state === "reviewed_ok" ? t("dry_reviewed_ok")
-                      : detailItem.dry_state === "reviewed_fail" ? t("dry_reviewed_fail")
-                      : detailItem.dry_state === "skipped" ? t("dry_skipped")
-                      : detailItem.dry_state}
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${getDryStateColor(detailItem.dry_state)}`}>
+                    {dryStateLabel(detailItem.dry_state, t)}
                   </span>
                 </div>
               )}

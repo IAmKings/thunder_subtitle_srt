@@ -1,7 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from "react";
 import type { ReviewItem } from "@/lib/types";
+
+const PINNED_KEY = "thunder-subtitle-pinned-items";
 
 interface VerificationState {
   items: ReviewItem[];
@@ -27,7 +29,24 @@ export function VerificationStateProvider({ children }: { children: ReactNode })
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMovie, setSelectedMovie] = useState<string | null>(null);
-  const [pinnedItems, setPinnedItems] = useState<string[]>([]);
+  const [pinnedItems, setPinnedItems] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(PINNED_KEY);
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch { return []; }
+  });
+
+  // Sync pinnedItems to localStorage on every change
+  useEffect(() => {
+    try {
+      if (pinnedItems.length > 0) {
+        localStorage.setItem(PINNED_KEY, JSON.stringify(pinnedItems));
+      } else {
+        localStorage.removeItem(PINNED_KEY);
+      }
+    } catch { /* ignore */ }
+  }, [pinnedItems]);
 
   const state = useMemo<VerificationState>(
     () => ({ items, isLoading, error, selectedMovie, pinnedItems }),

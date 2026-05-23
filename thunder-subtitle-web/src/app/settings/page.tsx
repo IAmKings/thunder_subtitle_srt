@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useReducer } from "react";
 import {
   Settings as SettingsIcon,
   ExternalLink,
@@ -13,31 +13,119 @@ import {
 import { useTranslations } from "@/lib/i18n";
 import { fastApiClient } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { AppConfig } from "@/lib/types";
+
+// ---- Reducer ----
+
+interface SettingsState {
+  config: AppConfig | null;
+  savePath: string;
+  timeout: number;
+  downloadTimeout: number;
+  chunkSize: number;
+  rateLimit: number;
+  retryCount: number;
+  retryDelay: number;
+  preferredGroups: string;
+  mediaPaths: string;
+  isLoading: boolean;
+  isSaving: boolean;
+  error: string | null;
+  success: string | null;
+}
+
+type SettingsAction =
+  | { type: "SET_CONFIG"; payload: AppConfig }
+  | { type: "SET_FIELD"; field: "savePath" | "preferredGroups" | "mediaPaths"; value: string }
+  | { type: "SET_FIELD"; field: "timeout" | "downloadTimeout" | "chunkSize" | "rateLimit" | "retryCount" | "retryDelay"; value: number }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_SAVING"; payload: boolean }
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "SET_SUCCESS"; payload: string | null }
+  | { type: "RESET_FORM"; payload: AppConfig };
+
+function settingsReducer(state: SettingsState, action: SettingsAction): SettingsState {
+  switch (action.type) {
+    case "SET_CONFIG": {
+      const cfg = action.payload;
+      return {
+        ...state,
+        config: cfg,
+        savePath: cfg.output_dir,
+        timeout: cfg.timeout,
+        downloadTimeout: cfg.download_timeout,
+        chunkSize: cfg.chunk_size,
+        rateLimit: cfg.rate_limit,
+        retryCount: cfg.retry_count,
+        retryDelay: cfg.retry_delay,
+        preferredGroups: cfg.preferred_groups,
+        mediaPaths: cfg.media_paths,
+      };
+    }
+    case "SET_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_LOADING":
+      return { ...state, isLoading: action.payload };
+    case "SET_SAVING":
+      return { ...state, isSaving: action.payload };
+    case "SET_ERROR":
+      return { ...state, error: action.payload };
+    case "SET_SUCCESS":
+      return { ...state, success: action.payload };
+    case "RESET_FORM": {
+      const cfg = action.payload;
+      return {
+        ...state,
+        config: cfg,
+        savePath: cfg.output_dir,
+        timeout: cfg.timeout,
+        downloadTimeout: cfg.download_timeout,
+        chunkSize: cfg.chunk_size,
+        rateLimit: cfg.rate_limit,
+        retryCount: cfg.retry_count,
+        retryDelay: cfg.retry_delay,
+        preferredGroups: cfg.preferred_groups,
+        mediaPaths: cfg.media_paths,
+        isSaving: false,
+        error: null,
+        success: null,
+      };
+    }
+    default:
+      return state;
+  }
+}
+
+// ---- Initial state ----
+
+const initialState: SettingsState = {
+  config: null,
+  savePath: "",
+  timeout: 30,
+  downloadTimeout: 60,
+  chunkSize: 8192,
+  rateLimit: 3,
+  retryCount: 3,
+  retryDelay: 2,
+  preferredGroups: "",
+  mediaPaths: "",
+  isLoading: true,
+  isSaving: false,
+  error: null,
+  success: null,
+};
+
+// ---- Component ----
 
 function SettingsPage() {
   const t = useTranslations();
+  const [state, dispatch] = useReducer(settingsReducer, initialState);
+  const { config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, isLoading, isSaving, error, success } = state;
 
-  // Config state
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showApiSchema, setShowApiSchema] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  // Form fields
-  const [savePath, setSavePath] = useState("");
-  const [timeout, setTimeout] = useState(30);
-  const [downloadTimeout, setDownloadTimeout] = useState(60);
-  const [chunkSize, setChunkSize] = useState(8192);
-  const [rateLimit, setRateLimit] = useState(3);
-  const [retryCount, setRetryCount] = useState(3);
-  const [retryDelay, setRetryDelay] = useState(2);
-  const [preferredGroups, setPreferredGroups] = useState("");
-  const [mediaPaths, setMediaPaths] = useState("");
-
-  // Password section
+  // Password section (separate concern from main config)
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -56,20 +144,11 @@ function SettingsPage() {
     async function loadConfig() {
       try {
         const cfg = await fastApiClient.getConfig();
-        setConfig(cfg);
-        setSavePath(cfg.output_dir);
-        setTimeout(cfg.timeout);
-        setDownloadTimeout(cfg.download_timeout);
-        setChunkSize(cfg.chunk_size);
-        setRateLimit(cfg.rate_limit);
-        setRetryCount(cfg.retry_count);
-        setRetryDelay(cfg.retry_delay);
-        setPreferredGroups(cfg.preferred_groups);
-        setMediaPaths(cfg.media_paths);
+        dispatch({ type: "SET_CONFIG", payload: cfg });
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("failed_load_config"));
+        dispatch({ type: "SET_ERROR", payload: err instanceof Error ? err.message : t("failed_load_config") });
       } finally {
-        setIsLoading(false);
+        dispatch({ type: "SET_LOADING", payload: false });
       }
     }
     loadConfig();
@@ -78,9 +157,9 @@ function SettingsPage() {
 
   const handleSave = useCallback(async () => {
     if (!config) return;
-    setIsSaving(true);
-    setError(null);
-    setSuccess(null);
+    dispatch({ type: "SET_SAVING", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+    dispatch({ type: "SET_SUCCESS", payload: null });
 
     try {
       const updated = await fastApiClient.updateConfig({
@@ -94,37 +173,28 @@ function SettingsPage() {
         preferred_groups: preferredGroups,
         media_paths: mediaPaths,
       });
-      setConfig(updated);
-      setSuccess(t("configuration_saved"));
+      dispatch({ type: "SET_CONFIG", payload: updated });
+      dispatch({ type: "SET_SUCCESS", payload: t("configuration_saved") });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failed_save_config"));
+      dispatch({ type: "SET_ERROR", payload: err instanceof Error ? err.message : t("failed_save_config") });
     } finally {
-      setIsSaving(false);
+      dispatch({ type: "SET_SAVING", payload: false });
     }
   }, [config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, t]);
 
   const handleResetDefaults = useCallback(async () => {
-    setIsSaving(true);
-    setError(null);
-    setSuccess(null);
+    dispatch({ type: "SET_SAVING", payload: true });
+    dispatch({ type: "SET_ERROR", payload: null });
+    dispatch({ type: "SET_SUCCESS", payload: null });
 
     try {
       const cfg = await fastApiClient.reloadConfig();
-      setConfig(cfg);
-      setSavePath(cfg.output_dir);
-      setTimeout(cfg.timeout);
-      setDownloadTimeout(cfg.download_timeout);
-      setChunkSize(cfg.chunk_size);
-      setRateLimit(cfg.rate_limit);
-      setRetryCount(cfg.retry_count);
-      setRetryDelay(cfg.retry_delay);
-      setPreferredGroups(cfg.preferred_groups);
-      setMediaPaths(cfg.media_paths);
-      setSuccess(t("configuration_reset"));
+      dispatch({ type: "RESET_FORM", payload: cfg });
+      dispatch({ type: "SET_SUCCESS", payload: t("configuration_reset") });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failed_reset_config"));
+      dispatch({ type: "SET_ERROR", payload: err instanceof Error ? err.message : t("failed_reset_config") });
     } finally {
-      setIsSaving(false);
+      dispatch({ type: "SET_SAVING", payload: false });
     }
   }, [t]);
 
@@ -197,7 +267,7 @@ function SettingsPage() {
               <input
                 type="text"
                 value={savePath}
-                onChange={(e) => setSavePath(e.target.value)}
+                onChange={(e) => dispatch({ type: "SET_FIELD", field: "savePath", value: e.target.value })}
                 placeholder={t("save_path_placeholder") ?? "留空则下载到当前目录"}
                 className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none"
               />
@@ -212,7 +282,7 @@ function SettingsPage() {
               <input
                 type="text"
                 value={preferredGroups}
-                onChange={(e) => setPreferredGroups(e.target.value)}
+                onChange={(e) => dispatch({ type: "SET_FIELD", field: "preferredGroups", value: e.target.value })}
                 placeholder="e.g. KitaujiSub,DMG"
                 className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
@@ -224,7 +294,7 @@ function SettingsPage() {
               <input
                 type="text"
                 value={mediaPaths}
-                onChange={(e) => setMediaPaths(e.target.value)}
+                onChange={(e) => dispatch({ type: "SET_FIELD", field: "mediaPaths", value: e.target.value })}
                 placeholder="/media/movies,/media/tv"
                 className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
@@ -236,7 +306,7 @@ function SettingsPage() {
               <input
                 type="number"
                 value={timeout}
-                onChange={(e) => setTimeout(Number(e.target.value))}
+                onChange={(e) => dispatch({ type: "SET_FIELD", field: "timeout", value: Number(e.target.value) })}
                 min={5}
                 max={300}
                 className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
@@ -257,7 +327,7 @@ function SettingsPage() {
                 <input
                   type="number"
                   value={downloadTimeout}
-                  onChange={(e) => setDownloadTimeout(Number(e.target.value))}
+                  onChange={(e) => dispatch({ type: "SET_FIELD", field: "downloadTimeout", value: Number(e.target.value) })}
                   min={10}
                   max={600}
                   className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
@@ -270,7 +340,7 @@ function SettingsPage() {
                 <input
                   type="number"
                   value={chunkSize}
-                  onChange={(e) => setChunkSize(Number(e.target.value))}
+                  onChange={(e) => dispatch({ type: "SET_FIELD", field: "chunkSize", value: Number(e.target.value) })}
                   min={1024}
                   className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
                 />
@@ -282,7 +352,7 @@ function SettingsPage() {
                 <input
                   type="number"
                   value={rateLimit}
-                  onChange={(e) => setRateLimit(Number(e.target.value))}
+                  onChange={(e) => dispatch({ type: "SET_FIELD", field: "rateLimit", value: Number(e.target.value) })}
                   min={0}
                   max={60}
                   className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
@@ -295,7 +365,7 @@ function SettingsPage() {
                 <input
                   type="number"
                   value={retryCount}
-                  onChange={(e) => setRetryCount(Number(e.target.value))}
+                  onChange={(e) => dispatch({ type: "SET_FIELD", field: "retryCount", value: Number(e.target.value) })}
                   min={0}
                   max={10}
                   className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
@@ -308,7 +378,7 @@ function SettingsPage() {
                 <input
                   type="number"
                   value={retryDelay}
-                  onChange={(e) => setRetryDelay(Number(e.target.value))}
+                  onChange={(e) => dispatch({ type: "SET_FIELD", field: "retryDelay", value: Number(e.target.value) })}
                   min={0}
                   max={30}
                   className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
@@ -484,11 +554,17 @@ function SettingsPage() {
       </div>
 
       {/* API Schema Dialog */}
-      {showApiSchema && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowApiSchema(false)}>
-          <div className="mx-4 w-full max-w-lg rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-4 text-lg font-bold">迅雷字幕 API 接口格式</h3>
-            <pre className="max-h-96 overflow-y-auto rounded bg-black/30 p-4 font-mono text-xs leading-relaxed text-on-surface">
+      <ConfirmDialog
+        open={showApiSchema}
+        onClose={() => setShowApiSchema(false)}
+        title={t("xunlei_subtitle_api")}
+        confirmLabel={t("cancel")}
+        cancelLabel={t("cancel")}
+        loadingLabel={t("loading")}
+        variant="default"
+        onConfirm={() => setShowApiSchema(false)}
+      >
+        <pre className="mt-2 max-h-96 overflow-y-auto rounded bg-black/30 p-4 font-mono text-xs leading-relaxed text-on-surface">
 {`GET https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name={keyword}
 
 Response:
@@ -512,19 +588,8 @@ Response:
     }
   ]
 }`}
-            </pre>
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowApiSchema(false)}
-                className="rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container hover:brightness-110"
-              >
-                {t("cancel")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        </pre>
+      </ConfirmDialog>
     </div>
   );
 }

@@ -11,7 +11,7 @@ class ConfigService:
     @staticmethod
     def _effective_media_paths(config: object) -> str:
         """Return media_paths: JSON priority, env var as fallback seed."""
-        json_val = config.media_paths.strip()  # type: ignore[attr-defined]
+        json_val = getattr(config, "media_paths", "").strip()
         if json_val:
             return json_val
         return os.environ.get("MEDIA_PATHS", "").strip()

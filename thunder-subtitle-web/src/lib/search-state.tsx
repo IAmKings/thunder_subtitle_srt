@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
 import { fastApiClient, SubtitleApiClient } from "@/lib/api";
 import type { Subtitle } from "@/lib/types";
 
@@ -95,13 +95,9 @@ export function SearchStateProvider({ children }: { children: ReactNode }) {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [sortMode, setSortMode] = useState<SortMode>("relevance");
   const [maxDuration, setMaxDuration] = useState("");
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
   const [currentPage, setCurrentPage] = useState(1);
 
-  // 挂载后同步 localStorage 历史记录
-  useEffect(() => {
-    setHistory(loadHistory());
-  }, []);
 
   const handleSearch = useCallback(
     async (searchQuery?: string) => {

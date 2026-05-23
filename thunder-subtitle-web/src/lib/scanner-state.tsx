@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
 import type { MediaDirectory, TaskResponse, AppConfig } from "@/lib/types";
 import type { ScanResultItem } from "@/lib/types";
 

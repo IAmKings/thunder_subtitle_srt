@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, startTransition } from "react";
+import { useState, useEffect, useCallback, useMemo, useReducer, startTransition } from "react";
 import {
   CheckSquare as VerificationIcon,
-  CheckCircle,
+  CheckCircle2,
   Timer,
   Languages,
-  CheckCircle2,
   FileText,
   Loader2,
   RefreshCw,
@@ -20,25 +19,78 @@ import { useTranslations } from "@/lib/i18n";
 import { fastApiClient } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
 import { useVerificationState, useVerificationActions } from "@/lib/verification-state";
-import type { ReviewItem, ReviewState } from "@/lib/types";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SubtitlePreview } from "@/components/SubtitlePreview";
+import { MovieList } from "@/components/MovieList";
+import { VerificationSubtitleList } from "@/components/VerificationSubtitleList";
+import { VerificationFilterBar, BatchActionBar } from "@/components/VerificationFilterBar";
+import { VerificationStats } from "@/components/VerificationStats";
+import type { ReviewItem } from "@/lib/types";
 
 // ---- Helpers ----
-
-function getReviewStatusColor(status: ReviewState) {
-  switch (status) {
-    case "ok":
-      return "bg-green-500/15 text-green-400";
-    case "fail":
-      return "bg-error/15 text-error";
-    case "not_reviewed":
-    default:
-      return "bg-on-surface-variant/15 text-on-surface-variant";
-  }
-}
 
 function getMovieName(filePath: string): string {
   const parts = filePath.split("/");
   return parts[parts.length - 1] || filePath;
+}
+
+/** Filter items for a movie path, optionally by status, then optionally sort by size. */
+function getFilteredAndSortedMovieItems(
+  items: ReviewItem[],
+  moviePath: string,
+  statusFilter: string | null,
+  sortBySize: null | "desc" | "asc"
+): ReviewItem[] {
+  let list = items.filter((i) => i.file_path === moviePath);
+  if (statusFilter) {
+    list = list.filter((i) => i.review_status === statusFilter);
+  }
+  if (sortBySize === "desc") {
+    list = [...list].sort((a, b) => b.size_bytes - a.size_bytes);
+  } else if (sortBySize === "asc") {
+    list = [...list].sort((a, b) => a.size_bytes - b.size_bytes);
+  }
+  return list;
+}
+
+// ---- Filter Reducer ----
+
+interface FilterState {
+  searchQuery: string;
+  statusFilter: string | null;
+  sortBySize: null | "desc" | "asc";
+  listPage: number;
+}
+
+type FilterAction =
+  | { type: "SET_SEARCH_QUERY"; payload: string }
+  | { type: "SET_STATUS_FILTER"; payload: string | null }
+  | { type: "SET_SORT_BY_SIZE"; payload: null | "desc" | "asc" }
+  | { type: "SET_LIST_PAGE"; payload: number }
+  | { type: "RESET_FILTERS" };
+
+const initialFilterState: FilterState = {
+  searchQuery: "",
+  statusFilter: null,
+  sortBySize: null,
+  listPage: 0,
+};
+
+function filterReducer(state: FilterState, action: FilterAction): FilterState {
+  switch (action.type) {
+    case "SET_SEARCH_QUERY":
+      return { ...state, searchQuery: action.payload, listPage: 0 };
+    case "SET_STATUS_FILTER":
+      return { ...state, statusFilter: action.payload, listPage: 0 };
+    case "SET_SORT_BY_SIZE":
+      return { ...state, sortBySize: action.payload, listPage: 0 };
+    case "SET_LIST_PAGE":
+      return { ...state, listPage: action.payload };
+    case "RESET_FILTERS":
+      return { ...initialFilterState };
+    default:
+      return state;
+  }
 }
 
 function VerificationPage() {
@@ -46,29 +98,30 @@ function VerificationPage() {
   const { items, isLoading, error, selectedMovie, pinnedItems: pinnedKeys } = useVerificationState();
   const { setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems } = useVerificationActions();
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
-  const [markingPath, setMarkingPath] = useState<string | null>(null);
   const [baseDir, setBaseDir] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [previewLines, setPreviewLines] = useState(0);
   const [previewEncoding, setPreviewEncoding] = useState("");
   const PREVIEW_CHUNK = 200;
-  const [previewPart, setPreviewPart] = useState(0); // 0=first, 1=20%, 2=40%, 3=60%, 4=last
+  const [previewPart, setPreviewPart] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [confirmRename, setConfirmRename] = useState(false);
   const [newName, setNewName] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameError, setRenameError] = useState("");
 
-  // ---- Filter state ----
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [listPage, setListPage] = useState(0);
-  // null = no sort, "desc" = largest first, "asc" = smallest first
-  const [sortBySize, setSortBySize] = useState<null | "desc" | "asc">(null);
+  // ---- Filter state (useReducer) ----
+  const [{ searchQuery, statusFilter, sortBySize, listPage }, dispatchFilter] = useReducer(filterReducer, initialFilterState);
   const PER_PAGE = 10;
 
-  // Load disabled paths from localStorage
+  // ---- Dialog state ----
+  const [confirmReject, setConfirmReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState<"off_sync" | "wrong_lang" | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [confirmKeepOnly, setConfirmKeepOnly] = useState(false);
+  const [isKeepingOnly, setIsKeepingOnly] = useState(false);
   function getDisabledPaths(): Set<string> {
     try {
       const raw = localStorage.getItem("thunder-disabled-paths");
@@ -102,7 +155,6 @@ function VerificationPage() {
     }
   }, [setItems, setIsLoading, setError, t]);
 
-  // Load on mount and always set baseDir from enabled dirs
   useEffect(() => {
     fastApiClient.listMediaDirectories().then((dirs) => {
       const disabled = getDisabledPaths();
@@ -111,9 +163,7 @@ function VerificationPage() {
         setBaseDir(enabledDirs[0].path);
       }
       if (items.length === 0 && isLoading) {
-        startTransition(() => {
-          loadReviews();
-        });
+        startTransition(() => { loadReviews(); });
       }
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +173,7 @@ function VerificationPage() {
   const handleMark = useCallback(
     async (status: "ok" | "fail") => {
       if (!selectedItem || !baseDir) return;
-      setMarkingPath(`${selectedItem.file_path}/${selectedItem.file_name}`);
+      const movieToRemove = selectedMovie; // FIX: save before clearing
       try {
         await fastApiClient.markReview(baseDir, selectedItem.file_path, status);
         setItems((prev) =>
@@ -140,47 +190,12 @@ function VerificationPage() {
         );
       } catch (err) {
         setError(err instanceof Error ? err.message : t("mark_error"));
-      } finally {
-        setMarkingPath(null);
       }
-      // Move back to movie list (remove verified movie from local state)
       setSelectedMovie(null);
       setSelectedItem(null);
-      setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
+      setItems((prev) => prev.filter((i) => i.file_path !== movieToRemove));
     },
-    [selectedItem, selectedMovie, baseDir, setError, setItems, t]
-  );
-
-  // ---- Batch mark for current movie ----
-  const [isBatchMarking, setIsBatchMarking] = useState(false);
-  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
-  const [isDeletingAll, setIsDeletingAll] = useState(false);
-
-  const handleBatchMark = useCallback(
-    async (status: "ok" | "fail") => {
-      if (!selectedMovie || !baseDir) return;
-      setIsBatchMarking(true);
-      try {
-        const movieItems = items.filter((i) => i.file_path === selectedMovie);
-        for (const item of movieItems) {
-          await fastApiClient.markReview(baseDir, item.file_path, status);
-        }
-        setItems((prev) =>
-          prev.map((item) =>
-            item.file_path === selectedMovie
-              ? { ...item, review_status: status, review_date: new Date().toISOString().split("T")[0] }
-              : item
-          )
-        );
-        // Clear selected item after batch operation
-        setSelectedItem(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t("mark_error"));
-      } finally {
-        setIsBatchMarking(false);
-      }
-    },
-    [selectedMovie, baseDir, items, setError, setItems, t]
+    [selectedItem, selectedMovie, baseDir, setError, setItems, setSelectedMovie, t]
   );
 
   // ---- Delete all subtitles for current movie ----
@@ -201,19 +216,13 @@ function VerificationPage() {
       setSelectedMovie(null);
       setConfirmDeleteAll(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      setError(err instanceof Error ? err.message : t("delete_failed"));
     } finally {
       setIsDeletingAll(false);
     }
-  }, [selectedMovie, items, setItems, setError]);
+  }, [selectedMovie, items, setItems, setError, baseDir, t, setSelectedMovie]);
 
-  // ---- Unified reject: delete file, optionally mark fail, jump to next ----
-  const [confirmReject, setConfirmReject] = useState(false);
-  const [rejectReason, setRejectReason] = useState<"off_sync" | "wrong_lang" | null>(null);
-  const [isRejecting, setIsRejecting] = useState(false);
-  const [confirmKeepOnly, setConfirmKeepOnly] = useState(false);
-  const [isKeepingOnly, setIsKeepingOnly] = useState(false);
-
+  // ---- Keep only pinned subtitles ----
   const handleKeepOnly = useCallback(async () => {
     if (!selectedMovie || pinnedKeys.length === 0) return;
     setIsKeepingOnly(true);
@@ -230,25 +239,27 @@ function VerificationPage() {
       setSelectedItem(null);
       setConfirmKeepOnly(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      setError(err instanceof Error ? err.message : t("delete_failed"));
     } finally {
       setIsKeepingOnly(false);
     }
-  }, [selectedMovie, pinnedKeys, items, setItems, setError]);
+  }, [selectedMovie, pinnedKeys, items, setItems, setError, t]);
 
-  function togglePin(item: ReviewItem) {
+  // ---- Pin toggle ----
+  const togglePin = useCallback((item: ReviewItem) => {
     const key = `${item.file_path}/${item.file_name}`;
     setPinnedItems((prev) => {
       const set = new Set(prev);
       if (set.has(key)) set.delete(key); else set.add(key);
       return [...set];
     });
-  }
+  }, [setPinnedItems]);
 
-  function isPinned(item: ReviewItem) {
+  const isPinned = useCallback((item: ReviewItem) => {
     return pinnedKeys.includes(`${item.file_path}/${item.file_name}`);
-  }
+  }, [pinnedKeys]);
 
+  // ---- Reject: delete file, optionally mark fail, jump to next ----
   const handleReject = useCallback(async () => {
     if (!selectedItem || !selectedMovie) return;
     setIsRejecting(true);
@@ -257,30 +268,22 @@ function VerificationPage() {
       const subtitlePath = `${selectedItem.file_path}/${selectedItem.file_name}`;
       await fastApiClient.deleteSubtitleFile(subtitlePath);
 
-      // Remove from items
       const remaining = items.filter(
         (i) => !(i.file_path === selectedMovie && i.file_name === deletedFile)
       );
 
       // Find next item at deleted position (respect sort + filter)
-      let movieItems = remaining.filter((i) => i.file_path === selectedMovie);
-      if (statusFilter) {
-        movieItems = movieItems.filter((i) => i.review_status === statusFilter);
-      }
-      // Same sort order as movieSubtitleItems
-      const sorter = sortBySize === "desc" ? (a: ReviewItem, b: ReviewItem) => b.size_bytes - a.size_bytes
-              : sortBySize === "asc" ? (a: ReviewItem, b: ReviewItem) => a.size_bytes - b.size_bytes
-              : null;
-      const sorted = sorter ? [...movieItems].sort(sorter) : movieItems;
-      // Find the deleted item's position in the FULL sorted list (before deletion)
-      const fullSorted = sorter ? [...items.filter(i => i.file_path === selectedMovie && (!statusFilter || i.review_status === statusFilter))].sort(sorter)
-                                : items.filter(i => i.file_path === selectedMovie && (!statusFilter || i.review_status === statusFilter));
-      const delIdx = fullSorted.findIndex(i => i.file_name === deletedFile);
-      // Pick item at same position (which is the "next" after deletion)
+      const sorted = getFilteredAndSortedMovieItems(remaining, selectedMovie, statusFilter, sortBySize);
+      const fullSorted = getFilteredAndSortedMovieItems(
+        items.filter((i) => i.file_path === selectedMovie),
+        selectedMovie,
+        statusFilter,
+        sortBySize
+      );
+      const delIdx = fullSorted.findIndex((i) => i.file_name === deletedFile);
       const nextItem = sorted[Math.min(delIdx, sorted.length - 1)] || null;
 
-      if (movieItems.length === 0) {
-        // Last subtitle: always mark fail
+      if (sorted.length === 0) {
         if (baseDir) {
           await fastApiClient.markReview(baseDir, selectedMovie, "fail");
         }
@@ -290,15 +293,15 @@ function VerificationPage() {
       } else {
         setItems(remaining);
         setSelectedItem(nextItem);
-        setListPage(0);  // jump to first page to show selected item
+        dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      setError(err instanceof Error ? err.message : t("delete_failed"));
     } finally {
       setIsRejecting(false);
       setConfirmReject(false);
     }
-  }, [selectedItem, selectedMovie, baseDir, rejectReason, items, sortBySize, statusFilter, setItems, setError]);
+  }, [selectedItem, selectedMovie, baseDir, items, sortBySize, statusFilter, setItems, setError, t, setSelectedMovie, dispatchFilter]);
 
   // ---- Rename subtitle file ----
   const handleRename = useCallback(async () => {
@@ -307,7 +310,7 @@ function VerificationPage() {
     setRenameError("");
     try {
       const subtitlePath = `${selectedItem.file_path}/${selectedItem.file_name}`;
-      const result = await fastApiClient.renameSubtitleFile(subtitlePath, newName.trim());
+      await fastApiClient.renameSubtitleFile(subtitlePath, newName.trim());
       setItems((prev) => prev.map((i) =>
         i.file_path === selectedItem.file_path && i.file_name === selectedItem.file_name
           ? { ...i, file_name: newName.trim() }
@@ -316,42 +319,36 @@ function VerificationPage() {
       setSelectedItem((prev) => prev ? { ...prev, file_name: newName.trim() } : null);
       setConfirmRename(false);
     } catch (err) {
-      setRenameError(err instanceof Error ? err.message : "重命名失败");
+      setRenameError(err instanceof Error ? err.message : t("rename_failed"));
     } finally {
       setIsRenaming(false);
     }
-  }, [selectedItem, newName, setItems]);
+  }, [selectedItem, newName, setItems, t]);
 
   // ---- Preview loading ----
   useEffect(() => {
-    if (!selectedItem) {
-      setPreviewContent(null);
-      setPreviewLines(0);
-      setPreviewPart(0);
-      setPreviewEncoding("");
-      setPreviewLoading(false);
-      return;
-    }
+    if (!selectedItem) return;
 
     const subtitlePath = `${selectedItem.file_path}/${selectedItem.file_name}`;
-    setPreviewLoading(true);
-
+    setPreviewLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
     const controller = new AbortController();
 
     fastApiClient.getSubtitlePreview(subtitlePath, controller.signal).then((data) => {
       setPreviewContent(data.content);
-      setPreviewLines(data.total_lines);
       setPreviewEncoding(data.encoding);
       setPreviewLoading(false);
     }).catch(() => {
       setPreviewContent(null);
-      setPreviewLines(0);
       setPreviewEncoding("");
       setPreviewLoading(false);
     });
 
     return () => {
       controller.abort();
+      setPreviewContent(null);
+      setPreviewPart(0);
+      setPreviewEncoding("");
+      setPreviewLoading(false);
     };
   }, [selectedItem]);
 
@@ -380,16 +377,7 @@ function VerificationPage() {
   // ---- Subtitle-level filtering (for selected movie) ----
   const movieSubtitleItems = useMemo(() => {
     if (!selectedMovie) return [];
-    let list = items.filter((i) => i.file_path === selectedMovie);
-    if (statusFilter) {
-      list = list.filter((i) => i.review_status === statusFilter);
-    }
-    if (sortBySize === "desc") {
-      list = [...list].sort((a, b) => b.size_bytes - a.size_bytes);
-    } else if (sortBySize === "asc") {
-      list = [...list].sort((a, b) => a.size_bytes - b.size_bytes);
-    }
-    return list;
+    return getFilteredAndSortedMovieItems(items, selectedMovie, statusFilter, sortBySize);
   }, [items, selectedMovie, statusFilter, sortBySize]);
 
   // ---- Pagination ----
@@ -413,26 +401,19 @@ function VerificationPage() {
 
   const movieName = selectedMovie ? getMovieName(selectedMovie) : "";
 
-  // ---- Back handler ----
+  // ---- Handlers ----
   const handleBack = useCallback(() => {
     setSelectedMovie(null);
     setSelectedItem(null);
-    setStatusFilter(null);
-    setSortBySize(null);
-    setSearchQuery("");
-    setListPage(0);
-  }, []);
+    dispatchFilter({ type: "RESET_FILTERS" });
+  }, [setSelectedMovie, dispatchFilter]);
 
-  // ---- Select movie handler ----
   const handleSelectMovie = useCallback((filePath: string) => {
     setSelectedMovie(filePath);
     setSelectedItem(null);
     setPinnedItems([]);
-    setStatusFilter(null);
-    setSortBySize(null);
-    setSearchQuery("");
-    setListPage(0);
-  }, []);
+    dispatchFilter({ type: "RESET_FILTERS" });
+  }, [setSelectedMovie, setPinnedItems, dispatchFilter]);
 
   return (
     <div className="grid grid-cols-12 gap-8 h-full">
@@ -465,7 +446,7 @@ function VerificationPage() {
               onClick={() => { setIsRefreshing(true); loadReviews(); }}
               disabled={isRefreshing}
               className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-high disabled:opacity-50"
-              title={t("refresh") ?? "刷新"}
+              title={t("refresh")}
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
               <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
@@ -478,90 +459,50 @@ function VerificationPage() {
           </div>
         </div>
 
-        {/* Level 1: Search input (movies) */}
+        {/* Search input (movies) */}
         {!selectedMovie && (
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setListPage(0); }}
-              placeholder={t("search_placeholder") ?? "搜索电影..."}
+              onChange={(e) => dispatchFilter({ type: "SET_SEARCH_QUERY", payload: e.target.value })}
+              placeholder={t("search_placeholder") ?? t("search_placeholder")}
               className="w-full rounded-lg border border-outline-variant bg-surface-container-low py-2.5 pl-3 pr-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
             />
           </div>
         )}
 
-        {/* Level 2: Status filter chips + size sort (subtitles) */}
+        {/* Status filter chips + size sort (subtitles) */}
         {selectedMovie && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { setSortBySize(sortBySize === null ? "desc" : sortBySize === "desc" ? "asc" : null); setListPage(0); }}
-              className={`rounded-lg px-2 py-1 text-[10px] font-bold transition-all ${
-                sortBySize !== null ? "bg-primary text-on-primary" : "bg-surface-container-high text-on-surface-variant hover:bg-outline-variant"
-              }`}
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              {t("size")}{sortBySize === "desc" ? " ↓" : sortBySize === "asc" ? " ↑" : ""}
-            </button>
-            <div className="flex flex-wrap gap-1 text-[10px] font-bold">
-              <button
-                type="button"
-                onClick={() => { setStatusFilter(null); setListPage(0); }}
-                className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === null ? "bg-primary text-on-primary" : "bg-on-surface-variant/15 text-on-surface-variant"}`}
-              >
-                {t("all_status")} {visibleItems.length}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setStatusFilter(statusFilter === "not_reviewed" ? null : "not_reviewed"); setListPage(0); }}
-                className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === "not_reviewed" ? "bg-primary text-on-primary" : "bg-on-surface-variant/15 text-on-surface-variant"}`}
-              >
-                {t("untagged")} {unreviewedCount}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setStatusFilter(statusFilter === "ok" ? null : "ok"); setListPage(0); }}
-                className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === "ok" ? "bg-green-500 text-on-primary" : "bg-green-500/15 text-green-400"}`}
-              >
-                ✓ {okCount}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setStatusFilter(statusFilter === "fail" ? null : "fail"); setListPage(0); }}
-                className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === "fail" ? "bg-error text-on-primary" : "bg-error/15 text-error"}`}
-              >
-                ✗ {failCount}
-              </button>
-            </div>
-          </div>
+          <VerificationFilterBar
+            sortBySize={sortBySize}
+            setSortBySize={(v) => dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: v })}
+            statusFilter={statusFilter}
+            setStatusFilter={(v) => dispatchFilter({ type: "SET_STATUS_FILTER", payload: v })}
+            setListPage={(v) => {
+              if (typeof v === "function") {
+                dispatchFilter({ type: "SET_LIST_PAGE", payload: v(listPage) });
+              } else {
+                dispatchFilter({ type: "SET_LIST_PAGE", payload: v });
+              }
+            }}
+            okCount={okCount}
+            failCount={failCount}
+            unreviewedCount={unreviewedCount}
+            visibleItemsCount={visibleItems.length}
+            t={t}
+          />
         )}
 
-        {/* Level 2: Batch action bar */}
+        {/* Batch action bar */}
         {selectedMovie && (
-          <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-2">
-            {pinnedKeys.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setConfirmKeepOnly(true)}
-                disabled={isKeepingOnly}
-                className="flex items-center gap-1.5 rounded-lg bg-error/15 px-3 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error/25 active:scale-95 disabled:opacity-50"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-              >
-                <Trash2 size={12} /> 删除未选中
-              </button>
-            )}
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteAll(true)}
-              disabled={isBatchMarking}
-              className="flex items-center gap-1.5 rounded-lg bg-error/10 px-3 py-1.5 text-[10px] font-bold text-error transition-all hover:bg-error/20 active:scale-95 disabled:opacity-50"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              <Trash2 size={12} /> 全部删除
-            </button>
-          </div>
+          <BatchActionBar
+            pinnedCount={pinnedKeys.length}
+            setConfirmKeepOnly={setConfirmKeepOnly}
+            isKeepingOnly={isKeepingOnly}
+            setConfirmDeleteAll={setConfirmDeleteAll}
+            t={t}
+          />
         )}
 
         {/* Loading state */}
@@ -600,89 +541,21 @@ function VerificationPage() {
 
         {/* List */}
         <div className="flex max-h-[calc(100vh-380px)] flex-col gap-3 overflow-y-auto pr-2">
-          {selectedMovie
-            /* Level 2: Subtitle items for selected movie */
-            ? paginatedSubtitleItems.map((item, i) => (
-                <button
-                  key={`${i}-${item.file_path}-${item.file_name}`}
-                  type="button"
-                  onClick={() => setSelectedItem(item)}
-                  className={`rounded-lg border p-4 text-left transition-all hover:border-primary/50 ${
-                    selectedItem?.file_name === item.file_name && selectedItem?.file_path === item.file_path
-                      ? "border-primary bg-primary/5 border-l-4 shadow-sm"
-                      : "border-outline-variant/30 bg-surface-container"
-                  }`}
-                  style={{ WebkitTapHighlightColor: "transparent" }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1 truncate text-sm font-bold">
-                        {isPinned(item) && <Star size={12} className="flex-shrink-0 text-amber-400" fill="currentColor" />}
-                        <span className="truncate">{item.file_name}</span>
-                      </p>
-                      <p className="mt-1 truncate text-[10px] text-on-surface-variant">{item.file_path}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                        item.score >= 80 ? "bg-green-500/15 text-green-400"
-                        : item.score >= 60 ? "bg-tertiary/15 text-tertiary"
-                        : "bg-error/15 text-error"
-                      }`}>
-                        {item.score || "—"}
-                      </span>
-                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${getReviewStatusColor(item.review_status)}`}>
-                        {item.review_status}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-on-surface-variant">
-                    <div className="flex items-center gap-4">
-                    {(
-                      <>
-                        <span>{t("match")}: {Math.round(item.chinese_ratio * 100)}%</span>
-                        {item.encoding && <span>{item.encoding}</span>}
-                      </>
-                    )}
-                    </div>
-                    <span className="tabular-nums text-on-surface-variant/60">
-                      {item.size_bytes >= 1048576
-                        ? `${(item.size_bytes / 1048576).toFixed(1)} MB`
-                        : item.size_bytes >= 1024
-                        ? `${(item.size_bytes / 1024).toFixed(0)} KB`
-                        : item.size_bytes > 0
-                        ? `${item.size_bytes} B`
-                        : ""}
-                    </span>
-                  </div>
-                </button>
-              ))
-            /* Level 1: Movie group cards */
-            : paginatedMovies.map(([filePath, movieItems], i) => (
-                <button
-                  key={`${i}-${filePath}`}
-                  type="button"
-                  onClick={() => handleSelectMovie(filePath)}
-                  className="rounded-lg border border-outline-variant/30 bg-surface-container p-5 text-left transition-all hover:border-primary/50"
-                  style={{ WebkitTapHighlightColor: "transparent" }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-bold">{getMovieName(filePath)}</p>
-                      <p className="mt-1 truncate text-[11px] text-on-surface-variant">{filePath}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold text-primary">
-                        {movieItems.length} {t("files")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex items-center gap-3 text-[10px] text-on-surface-variant">
-                    <span className="text-green-400">✓ {movieItems.filter(i => i.review_status === "ok").length}</span>
-                    <span className="text-error">✗ {movieItems.filter(i => i.review_status === "fail").length}</span>
-                    <span>{t("untagged")}: {movieItems.filter(i => i.review_status === "not_reviewed").length}</span>
-                  </div>
-                </button>
-              ))}
+          {selectedMovie ? (
+            <VerificationSubtitleList
+              paginatedItems={paginatedSubtitleItems}
+              selectedItem={selectedItem}
+              onSelectItem={setSelectedItem}
+              isPinned={isPinned}
+              t={t}
+            />
+          ) : (
+            <MovieList
+              paginatedMovies={paginatedMovies}
+              handleSelectMovie={handleSelectMovie}
+              t={t}
+            />
+          )}
         </div>
 
         {/* Pagination */}
@@ -700,7 +573,7 @@ function VerificationPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                onClick={() => dispatchFilter({ type: "SET_LIST_PAGE", payload: Math.max(0, listPage - 1) })}
                 disabled={listPage === 0}
                 className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
               >
@@ -709,7 +582,7 @@ function VerificationPage() {
               <span className="px-2 tabular-nums">{currentPage} / {totalPages}</span>
               <button
                 type="button"
-                onClick={() => setListPage((p) => Math.min(totalPages - 1, p + 1))}
+                onClick={() => dispatchFilter({ type: "SET_LIST_PAGE", payload: Math.min(totalPages - 1, listPage + 1) })}
                 disabled={listPage >= totalPages - 1}
                 className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
               >
@@ -758,7 +631,7 @@ function VerificationPage() {
                       ? "text-amber-400 bg-amber-400/10"
                       : "text-on-surface-variant hover:bg-surface-container-highest"
                   }`}
-                  title={selectedItem && isPinned(selectedItem) ? "取消固定" : "固定"}
+                  title={selectedItem && isPinned(selectedItem) ? t("unpin") : t("pin")}
                   style={{ WebkitTapHighlightColor: "transparent" }}
                 >
                   <Star size={18} fill={selectedItem && isPinned(selectedItem) ? "currentColor" : "none"} />
@@ -771,7 +644,7 @@ function VerificationPage() {
                     setConfirmRename(true);
                   }}
                   className="rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container-highest"
-                  title="重命名"
+                  title={t("rename")}
                   style={{ WebkitTapHighlightColor: "transparent" }}
                 >
                   <FileText size={18} />
@@ -780,7 +653,7 @@ function VerificationPage() {
                   type="button"
                   onClick={() => { setRejectReason(null); setConfirmReject(true); }}
                   className="rounded p-1 text-error transition-colors hover:bg-error/10"
-                  title="删除字幕文件"
+                  title={t("delete_subtitle_file")}
                   style={{ WebkitTapHighlightColor: "transparent" }}
                 >
                   <Trash2 size={18} />
@@ -791,32 +664,11 @@ function VerificationPage() {
         </div>
 
         {/* Quality info when selected */}
-        {selectedItem && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="ghost-border rounded-lg bg-surface-container p-4 text-center">
-              <p className="text-[10px] font-bold uppercase text-on-surface-variant">{t("quality_score")}</p>
-              <p className={`mt-1 text-2xl font-bold ${selectedItem.score >= 80 ? "text-green-400" : selectedItem.score >= 60 ? "text-tertiary" : "text-error"}`}>
-                {selectedItem.score || "—"}
-              </p>
-            </div>
-            <div className="ghost-border rounded-lg bg-surface-container p-4 text-center">
-              <p className="text-[10px] font-bold uppercase text-on-surface-variant">{t("match")}</p>
-              <p className="mt-1 text-2xl font-bold text-primary">
-                {Math.round(selectedItem.chinese_ratio * 100)}%
-              </p>
-            </div>
-            <div className="ghost-border rounded-lg bg-surface-container p-4 text-center">
-              <p className="text-[10px] font-bold uppercase text-on-surface-variant">{t("format_encoding_short")}</p>
-              <p className="mt-1 text-xs font-bold text-on-surface truncate" title={selectedItem.encoding || t("unknown_encoding")}>
-                {selectedItem.encoding || t("unknown_encoding")}
-              </p>
-            </div>
-          </div>
-        )}
+        {selectedItem && <VerificationStats selectedItem={selectedItem} t={t} />}
 
         {/* Content preview area */}
         <div className="ghost-border flex min-h-[400px] flex-1 flex-col overflow-hidden rounded-xl bg-surface-container-lowest">
-          {/* Progress bar */}
+          {/* Chinese ratio progress bar */}
           <div className="relative h-1 w-full bg-surface-container-highest">
             {selectedItem && selectedItem.chinese_ratio > 0 && (
               <div
@@ -827,75 +679,16 @@ function VerificationPage() {
           </div>
 
           <div className="flex flex-1 flex-col p-6">
-            {selectedItem && previewLoading && (
-              <div className="flex flex-1 items-center justify-center">
-                <Loader2 size={24} className="animate-spin text-primary" />
-              </div>
-            )}
-
-            {selectedItem && !previewLoading && previewContent !== null && (() => {
-              const allLines = previewContent.split("\n");
-              const total = allLines.length;
-              let start = 0;
-              if (previewPart === 1) start = Math.floor(total * 0.2);
-              else if (previewPart === 2) start = Math.floor(total * 0.4);
-              else if (previewPart === 3) start = Math.floor(total * 0.6);
-              else if (previewPart === 4) start = Math.max(0, total - PREVIEW_CHUNK);
-              const chunkLines = allLines.slice(start, start + PREVIEW_CHUNK);
-              const currentCount = chunkLines.length;
-              return (
-              <div className="flex flex-1 flex-col">
-                <div className="flex flex-wrap gap-1 pb-2">
-                  {[0, 1, 2, 3, 4].map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPreviewPart(p)}
-                      className={`rounded px-2 py-0.5 text-[10px] font-bold transition-all ${
-                        previewPart === p
-                          ? "bg-primary text-on-primary"
-                          : "bg-surface-container-high text-on-surface-variant hover:bg-outline-variant"
-                      }`}
-                    >
-                      Part {p + 1}
-                    </button>
-                  ))}
-                </div>
-                <pre className="min-h-0 flex-1 overflow-y-auto rounded bg-black/20 p-3 font-mono text-xs text-on-surface leading-relaxed" style={{ maxHeight: "30vh" }}>
-                  {chunkLines.join("\n") || " "}
-                </pre>
-                <p className="mt-2 text-right text-[10px] text-on-surface-variant">
-                  {start + 1}-{start + currentCount} / {total}
-                </p>
-              </div>
-              );
-            })()}
-
-            {selectedItem && !previewLoading && previewContent === null && (
-              <div className="flex flex-1 items-center justify-center font-mono">
-                <div className="space-y-2 text-sm">
-                  <p className="text-on-surface-variant">
-                    {t("format_encoding_short")} {selectedItem.encoding || "UTF-8"}
-                  </p>
-                  {selectedItem.chinese_ratio > 0 && (
-                    <p className="text-primary">
-                      {t("chinese_content_ratio")} {Math.round(selectedItem.chinese_ratio * 100)}%
-                    </p>
-                  )}
-                  <p className="text-on-surface-variant">
-                    {t("quality_score")} {selectedItem.quality}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {!selectedItem && (
-              <div className="flex flex-1 items-center justify-center font-mono">
-                <p className="text-on-surface-variant">
-                  {t("subtitle_preview_here")}
-                </p>
-              </div>
-            )}
+            <SubtitlePreview
+              selectedItem={selectedItem}
+              previewContent={previewContent}
+              previewEncoding={previewEncoding}
+              previewLoading={previewLoading}
+              previewPart={previewPart}
+              setPreviewPart={setPreviewPart}
+              PREVIEW_CHUNK={PREVIEW_CHUNK}
+              t={t}
+            />
           </div>
 
           {/* Action buttons */}
@@ -949,115 +742,97 @@ function VerificationPage() {
         </div>
       </section>
 
-      {/* Unified Reject / Delete Confirmation */}
-      {confirmReject && selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmReject(false)}>
-          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold">
-              {!rejectReason ? "确认删除" : rejectReason === "off_sync" ? "画音不同步" : "语言错误"}
-            </h3>
+      {/* Reject Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmReject && !!selectedItem}
+        onClose={() => setConfirmReject(false)}
+        title={
+          rejectReason === "off_sync"
+            ? t("off_sync")
+            : rejectReason === "wrong_lang"
+            ? t("wrong_lang")
+            : t("confirm_delete")
+        }
+        confirmLabel={rejectReason ? t("confirm") : t("delete")}
+        cancelLabel={t("cancel")}
+        loadingLabel={t("loading")}
+        variant="danger"
+        isLoading={isRejecting}
+        onConfirm={handleReject}
+      >
+        {selectedItem && (
+          <>
             <p className="mt-2 text-sm text-on-surface-variant">
-              {!rejectReason
-                ? `确定要删除 ${selectedItem.file_name} 吗？`
-                : `确定标记 ${selectedItem.file_name} 为${rejectReason === "off_sync" ? "画音不同步" : "语言错误"}并删除吗？`}
+              {rejectReason
+                ? `${selectedItem.file_name} — ${t(rejectReason)}`
+                : `${t("delete")} ${selectedItem.file_name}?`}
             </p>
-            <p className="mt-1 text-xs text-error">此操作不可撤销。</p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmReject(false)}
-                disabled={isRejecting}
-                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleReject}
-                disabled={isRejecting}
-                className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
-              >
-                {isRejecting ? t("loading") : !rejectReason ? "删除" : "确认"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <p className="mt-1 text-xs text-error">{t("irreversible")}</p>
+          </>
+        )}
+      </ConfirmDialog>
 
       {/* Delete All Confirmation */}
-      {confirmDeleteAll && selectedMovie && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmDeleteAll(false)}>
-          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold">删除全部字幕</h3>
+      <ConfirmDialog
+        open={confirmDeleteAll && !!selectedMovie}
+        onClose={() => setConfirmDeleteAll(false)}
+        title={t("delete_all_subs")}
+        confirmLabel={t("delete_all")}
+        cancelLabel={t("cancel")}
+        loadingLabel={t("loading")}
+        variant="danger"
+        isLoading={isDeletingAll}
+        onConfirm={handleDeleteAll}
+      >
+        {selectedMovie && (
+          <>
             <p className="mt-2 text-sm text-on-surface-variant">
-              确定要删除 <span className="font-bold text-on-surface">{getMovieName(selectedMovie)}</span> 的全部字幕文件吗？此操作不可撤销。
+              {t("delete")} &quot;{movieName}&quot; {t("delete_all")}?
             </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteAll(false)}
-                disabled={isDeletingAll}
-                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteAll}
-                disabled={isDeletingAll}
-                className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
-              >
-                {isDeletingAll ? t("loading") : "全部删除"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <p className="mt-1 text-xs text-error">{t("irreversible")}</p>
+          </>
+        )}
+      </ConfirmDialog>
 
-      {/* Keep Only Dialog */}
-      {confirmKeepOnly && selectedMovie && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmKeepOnly(false)}>
-          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold">删除未选中字幕</h3>
+      {/* Keep Only Confirmation */}
+      <ConfirmDialog
+        open={confirmKeepOnly && !!selectedMovie}
+        onClose={() => setConfirmKeepOnly(false)}
+        title={t("delete_unselected")}
+        confirmLabel={t("confirm_delete")}
+        cancelLabel={t("cancel")}
+        loadingLabel={t("loading")}
+        variant="danger"
+        isLoading={isKeepingOnly}
+        onConfirm={handleKeepOnly}
+      >
+        {selectedMovie && (
+          <>
             <p className="mt-2 text-sm text-on-surface-variant">
-              确定删除「{getMovieName(selectedMovie)}」下未固定的{" "}
-              <span className="font-bold text-error">
-                {items.filter(i => i.file_path === selectedMovie && !pinnedKeys.includes(`${i.file_path}/${i.file_name}`)).length}
-              </span>{" "}
-              个字幕文件吗？保留固定的{" "}
-              <span className="font-bold text-primary">{pinnedKeys.length}</span>{" "}
-              个。
+              {t("delete_unselected")}: {items.filter(i => i.file_path === selectedMovie && !pinnedKeys.includes(`${i.file_path}/${i.file_name}`)).length}
+              , {t("keep")}: {pinnedKeys.length}
             </p>
-            <p className="mt-1 text-xs text-error">此操作不可撤销。</p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmKeepOnly(false)}
-                disabled={isKeepingOnly}
-                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleKeepOnly}
-                disabled={isKeepingOnly}
-                className="rounded-lg bg-error px-4 py-2 text-xs font-bold text-on-primary transition-all hover:brightness-110 disabled:opacity-50"
-              >
-                {isKeepingOnly ? t("loading") : "确认删除"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <p className="mt-1 text-xs text-error">{t("irreversible")}</p>
+          </>
+        )}
+      </ConfirmDialog>
 
       {/* Rename Dialog */}
-      {confirmRename && selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmRename(false)}>
-          <div className="mx-4 w-full max-w-sm rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold">重命名</h3>
-            <p className="mt-1 text-xs text-on-surface-variant">
-              当前: {selectedItem.file_name}
+      <ConfirmDialog
+        open={confirmRename && !!selectedItem}
+        onClose={() => setConfirmRename(false)}
+        title={t("rename")}
+        confirmLabel={t("confirm")}
+        cancelLabel={t("cancel")}
+        loadingLabel={t("loading")}
+        variant="default"
+        isLoading={isRenaming}
+        onConfirm={handleRename}
+      >
+        {selectedItem && (
+          <>
+            <p className="text-xs text-on-surface-variant">
+              {t("current")} {selectedItem.file_name}
             </p>
             <input
               type="text"
@@ -1070,27 +845,9 @@ function VerificationPage() {
             {renameError && (
               <p className="mt-2 text-xs text-error">{renameError}</p>
             )}
-            <div className="mt-4 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmRename(false)}
-                disabled={isRenaming}
-                className="rounded-lg border border-outline px-4 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleRename}
-                disabled={isRenaming || !newName.trim()}
-                className="rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container transition-all hover:brightness-110 disabled:opacity-50"
-              >
-                {isRenaming ? t("loading") : "确认"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }
