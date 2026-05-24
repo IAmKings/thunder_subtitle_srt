@@ -158,6 +158,11 @@ function ScannerPage() {
         setProgress(task.progress);
         if (task.status === "completed" || task.status === "failed" || task.status === "cancelled") {
           clearInterval(interval);
+          // HTTP polling fallback: populate findings when WebSocket is unavailable (e.g. local dev)
+          if (task.results && Array.isArray(task.results) && task.results.length > 0) {
+            const results = task.results as ScanResultItem[];
+            setFindings(results);
+          }
         }
       } catch {
         // Polling timeout — keep retrying, don't clear interval
