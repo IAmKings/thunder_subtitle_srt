@@ -405,14 +405,20 @@ function VerificationPage() {
   const handleBack = useCallback(() => {
     setSelectedMovie(null);
     setSelectedItem(null);
-    dispatchFilter({ type: "RESET_FILTERS" });
+    // Only reset subtitle-level filters (status/sort/page), keep movie search query
+    dispatchFilter({ type: "SET_STATUS_FILTER", payload: null });
+    dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: null });
+    dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
   }, [setSelectedMovie, dispatchFilter]);
 
   const handleSelectMovie = useCallback((filePath: string) => {
     setSelectedMovie(filePath);
     setSelectedItem(null);
     setPinnedItems([]);
-    dispatchFilter({ type: "RESET_FILTERS" });
+    // Reset subtitle-level filters only, keep movie search query
+    dispatchFilter({ type: "SET_STATUS_FILTER", payload: null });
+    dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: null });
+    dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
   }, [setSelectedMovie, setPinnedItems, dispatchFilter]);
 
   return (
