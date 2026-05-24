@@ -40,10 +40,9 @@ self.addEventListener("fetch", (event) => {
   // Skip non-http(s) requests (e.g. chrome-extension://)
   if (!event.request.url.startsWith("http")) return;
 
-  // API requests: network-first
-  if (event.request.url.includes("/api/")) {
-    event.respondWith(networkFirst(event.request));
-    return;
+  // API/WebSocket requests: bypass cache, pass through directly
+  if (event.request.url.includes("/api/") || event.request.url.includes("/ws/")) {
+    return;  // Let browser handle normally — no caching
   }
 
   // Static assets: cache-first
