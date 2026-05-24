@@ -245,6 +245,28 @@ interface TaskResponse {
 
 ---
 
+## Git 提交规则（MANDATORY — 违反即回退）
+
+| 规则 | 说明 |
+| --- | --- |
+| **禁止直接提交** | AI 禁止在未经用户明确验收确认的情况下执行 `git commit`。必须先展示 commit 方案（变更文件清单 + 提交信息），等待用户回复 `ok`/`行`/`确认` 后方可提交 |
+| **中文提交信息** | 所有 `git commit` 的提交信息必须使用中文 |
+| **Conventional Commits** | 格式：`<type>: <中文描述>`，type 可选 `feat`/`fix`/`docs`/`chore`/`refactor`/`style` |
+| **禁止 amend** | 禁止 `git commit --amend`，始终创建新提交 |
+| **禁止 force push** | 禁止 `git push --force` 到 main/master |
+
+### 提交确认流程
+
+1. AI 执行 `git status --porcelain` + `git log --oneline -5`
+2. AI 分析变更文件，按逻辑分组
+3. AI 向用户展示分组方案和中文提交信息
+4. 用户明确回复 `ok`/`行`/`确认` 后，AI 方可执行 `git add` + `git commit`
+5. 用户回复 `不行`/`我自己来`/`manual` 时，AI 立即停止
+
+**违反后果**：未经批准的提交应立即 `git revert` 回退。
+
+---
+
 ## Lint and Type Check Before Commit
 
 ```bash
