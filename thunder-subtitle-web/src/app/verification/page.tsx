@@ -120,6 +120,8 @@ function VerificationPage() {
   const [isRejecting, setIsRejecting] = useState(false);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [confirmMarkAllFail, setConfirmMarkAllFail] = useState(false);
+  const [isMarkingAllFail, setIsMarkingAllFail] = useState(false);
   const [confirmKeepOnly, setConfirmKeepOnly] = useState(false);
   const [isKeepingOnly, setIsKeepingOnly] = useState(false);
   function getDisabledPaths(): Set<string> {
@@ -221,6 +223,23 @@ function VerificationPage() {
       setIsDeletingAll(false);
     }
   }, [selectedMovie, items, setItems, setError, baseDir, t, setSelectedMovie]);
+
+  // ---- Mark all as fail without deleting files ----
+  const handleMarkAllFail = useCallback(async () => {
+    if (!selectedMovie || !baseDir) return;
+    setIsMarkingAllFail(true);
+    try {
+      await fastApiClient.markReview(baseDir, selectedMovie, "fail");
+      setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
+      setSelectedItem(null);
+      setSelectedMovie(null);
+      setConfirmMarkAllFail(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("mark_error"));
+    } finally {
+      setIsMarkingAllFail(false);
+    }
+  }, [selectedMovie, baseDir, setItems, setError, t, setSelectedMovie]);
 
   // ---- Keep only pinned subtitles ----
   const handleKeepOnly = useCallback(async () => {
@@ -507,6 +526,7 @@ function VerificationPage() {
             setConfirmKeepOnly={setConfirmKeepOnly}
             isKeepingOnly={isKeepingOnly}
             setConfirmDeleteAll={setConfirmDeleteAll}
+            setConfirmMarkAllFail={setConfirmMarkAllFail}
             t={t}
           />
         )}
@@ -797,6 +817,25 @@ function VerificationPage() {
             </p>
             <p className="mt-1 text-xs text-error">{t("irreversible")}</p>
           </>
+        )}
+      </ConfirmDialog>
+
+      {/* Mark All Fail Confirmation */}
+      <ConfirmDialog
+        open={confirmMarkAllFail && !!selectedMovie}
+        onClose={() => setConfirmMarkAllFail(false)}
+        title={t("mark_all_fail")}
+        confirmLabel={t("mark_all_fail")}
+        cancelLabel={t("cancel")}
+        loadingLabel={t("loading")}
+        variant="default"
+        isLoading={isMarkingAllFail}
+        onConfirm={handleMarkAllFail}
+      >
+        {selectedMovie && (
+          <p className="mt-2 text-sm text-on-surface-variant">
+            {t("mark_all_fail_confirm")}
+          </p>
         )}
       </ConfirmDialog>
 

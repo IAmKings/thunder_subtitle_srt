@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Trash2, XCircle } from "lucide-react";
 
 interface VerificationFilterBarProps {
   sortBySize: null | "desc" | "asc";
@@ -78,6 +78,7 @@ interface BatchActionBarProps {
   setConfirmKeepOnly: (v: boolean) => void;
   isKeepingOnly: boolean;
   setConfirmDeleteAll: (v: boolean) => void;
+  setConfirmMarkAllFail: (v: boolean) => void;
   t: (key: string) => string;
 }
 
@@ -86,6 +87,7 @@ export function BatchActionBar({
   setConfirmKeepOnly,
   isKeepingOnly,
   setConfirmDeleteAll,
+  setConfirmMarkAllFail,
   t,
 }: BatchActionBarProps) {
   return (
@@ -102,6 +104,14 @@ export function BatchActionBar({
         </button>
       )}
       <div className="flex-1" />
+      <button
+        type="button"
+        onClick={() => setConfirmMarkAllFail(true)}
+        className="flex items-center gap-1.5 rounded-lg bg-tertiary/15 px-3 py-1.5 text-[10px] font-bold text-tertiary transition-all hover:bg-tertiary/25 active:scale-95"
+        style={{ WebkitTapHighlightColor: "transparent" }}
+      >
+        <XCircle size={12} /> {t("mark_all_fail")}
+      </button>
       <button
         type="button"
         onClick={() => setConfirmDeleteAll(true)}

@@ -9,7 +9,7 @@ from ..models import ReviewState, ReviewQuality
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, CYAN
 from ..utils import matches
 
-from ..scanner._skip import _existing_subtitle_file
+from ..scanner._skip import _existing_subtitle_file, _find_dump_subtitle
 from ..utils import parse_nfo
 
 from ._marker import _batch_mark, _is_reviewed
@@ -127,16 +127,22 @@ def review_directory(
             print(f"{DIM}    (no subtitle files found){RESET}")
             continue
 
-        # 已审查通过 → 跳过
+        # 已审查过 → 检查是否需要在验证页显示
         reviewed_file = os.path.join(movie_path, ".reviewed")
         if os.path.isfile(reviewed_file):
             try:
                 with open(reviewed_file, "r", encoding="utf-8") as f:
-                    if f.read().strip().lower() != "fail":
-                        print(f"{DIM}    ✓ Already reviewed — skip{RESET}")
-                        continue
+                    content = f.read().strip().lower()
             except OSError:
-                pass
+                content = ""
+            if content != "fail":
+                # 审查通过 → 跳过
+                print(f"{DIM}    ✓ Already reviewed — skip{RESET}")
+                continue
+            # 审查失败：只有存在 dump 数字字幕时才需要重审
+            if not _find_dump_subtitle(movie_path):
+                print(f"{DIM}    ✗ Review FAILED — no new subtitles to re-review{RESET}")
+                continue
 
         sub_files = _find_all_subtitle_files(movie_path, movie_name)
         if not sub_files:
