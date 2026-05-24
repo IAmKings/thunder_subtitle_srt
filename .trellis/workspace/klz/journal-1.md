@@ -629,3 +629,43 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: 移动端响应式适配 + 审查流程深度优化
+
+**Date**: 2026-05-24
+**Task**: 移动端响应式适配 + 审查流程深度优化
+**Branch**: `master`
+
+### Summary
+
+移动端响应式+PWA：底部TabBar、4页面响应式适配、manifest+service worker。Bug修复：sw.js API绕过缓存/skipWaiting强制更新、扫描HTTP轮询兜底填充findings、验证页搜索文字保留。审查流程优化：全部失败按钮(mark-fail不删字幕)、reviewed_fail_new_subs琥珀色待重审状态、纯FAIL无新dump字幕跳过、Git提交规则强化。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cbe857a` | (see git log) |
+| `69c8c91` | (see git log) |
+| `70de5c0` | (see git log) |
+| `e5f2c4e` | (see git log) |
+| `0c79fd4` | (see git log) |
+| `9775647` | (see git log) |
+| `eaba600` | (see git log) |
+| `8d00ac5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

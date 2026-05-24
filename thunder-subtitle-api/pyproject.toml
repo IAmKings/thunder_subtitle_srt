@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thunder-subtitle-api"
-version = "1.0.2"
+version = "1.1.0"
 description = "REST API for Thunder Subtitle - subtitle search, scan, review management"
 readme = "README.md"
 requires-python = ">=3.10"
