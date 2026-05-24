@@ -593,3 +593,39 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: 1.0.1 预发布审查 + Nginx反向代理重构 + 版本 1.0.2
+
+**Date**: 2026-05-23
+**Task**: 1.0.1 预发布审查 + Nginx反向代理重构 + 版本 1.0.2
+**Branch**: `master`
+
+### Summary
+
+预发布审查：逐文件精读(i18n补全7键、localStorage key前缀统一、config错误处理、版本号统一)。Nginx反向代理重构：单端口3000统一入口，/api/*→FastAPI，/ws/*→WebSocket，其余→Next.js。修复Alpine nginx http.d嵌套问题。版本更新至1.0.2。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `08840d2` | (see git log) |
+| `cce994d` | (see git log) |
+| `3d23372` | (see git log) |
+| `26e1369` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

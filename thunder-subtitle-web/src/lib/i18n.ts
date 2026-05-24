@@ -63,6 +63,12 @@ const translations: Record<Language, Record<string, string>> = {
     verified_only: "Verified Only",
     verified_desc: "All uploads are scanned for malicious scripts and formatted for readability.",
 
+    // Mobile Nav
+    nav_search: "Search",
+    nav_scanner: "Scanner",
+    nav_verification: "Verification",
+    nav_settings: "Settings",
+
     // Auth
     logged_in_as: "Logged in as",
     logout: "Sign Out",
@@ -255,6 +261,12 @@ const translations: Record<Language, Record<string, string>> = {
     sync_feature_desc: "\u4e00\u952e\u4e0b\u8f7d\u5e76\u81ea\u52a8\u4e0e\u60a8\u7684\u672c\u5730\u5a92\u4f53\u5e93\u540c\u6b65\u3002",
     verified_only: "\u4ec5\u9650\u9a8c\u8bc1",
     verified_desc: "\u6240\u6709\u4e0a\u4f20\u5185\u5bb9\u90fd\u4f1a\u7ecf\u8fc7\u6076\u610f\u811a\u672c\u626b\u63cf\u5e76\u8fdb\u884c\u683c\u5f0f\u5316\u4ee5\u63d0\u9ad8\u53ef\u8bfb\u6027\u3002",
+
+    // Mobile Nav
+    nav_search: "\u641c\u7d22",
+    nav_scanner: "\u626b\u63cf",
+    nav_verification: "\u5ba1\u6838",
+    nav_settings: "\u8bbe\u7f6e",
 
     // Auth
     logged_in_as: "\u5f53\u524d\u767b\u5f55",

@@ -15,12 +15,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Proxy API calls to FastAPI backend
+  // Proxy API calls to FastAPI backend (local dev)
+  // In Docker, Nginx handles this; rewrites only active in dev mode
   async rewrites() {
     return [
       {
-        source: "/fastapi/:path*",
-        destination: apiBaseUrl + "/:path*",
+        source: "/api/:path*",
+        destination: apiBaseUrl + "/api/:path*",
       },
     ];
   },

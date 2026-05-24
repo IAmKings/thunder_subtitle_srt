@@ -37,7 +37,7 @@ export function VerificationSubtitleList({
           key={`${i}-${item.file_path}-${item.file_name}`}
           type="button"
           onClick={() => onSelectItem(item)}
-          className={`rounded-lg border p-4 text-left transition-all hover:border-primary/50 ${
+          className={`rounded-lg border p-3 text-left transition-all hover:border-primary/50 md:p-4 ${
             selectedItem?.file_name === item.file_name && selectedItem?.file_path === item.file_path
               ? "border-primary bg-primary/5 border-l-4 shadow-sm"
               : "border-outline-variant/30 bg-surface-container"
@@ -46,7 +46,7 @@ export function VerificationSubtitleList({
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1 truncate text-sm font-bold">
+              <p className="flex items-center gap-1 truncate text-xs md:text-sm font-bold">
                 {isPinned(item) && <Star size={12} className="flex-shrink-0 text-amber-400" fill="currentColor" />}
                 <span className="truncate">{item.file_name}</span>
               </p>

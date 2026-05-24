@@ -421,7 +421,7 @@ function VerificationPage() {
       <section className="col-span-12 flex flex-col gap-4 lg:col-span-4">
         {/* Title row */}
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-bold">
+          <h2 className="flex items-center gap-2 text-lg md:text-xl font-bold">
             {selectedMovie ? (
               <button
                 type="button"
@@ -429,10 +429,10 @@ function VerificationPage() {
                 className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft size={18} />
               </button>
             ) : (
-              <VerificationIcon className="text-primary" size={20} />
+              <VerificationIcon className="text-primary" size={18} />
             )}
             <span>
               {selectedMovie
@@ -600,7 +600,7 @@ function VerificationPage() {
 
       {/* Right Panel: Preview + Actions */}
       <section className="col-span-12 flex flex-col gap-4 lg:col-span-8">
-        <div className="ghost-border flex items-center justify-between rounded-xl bg-surface-container-high p-4">
+        <div className="ghost-border flex items-center justify-between rounded-xl bg-surface-container-high p-3 md:p-4">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-outline-variant/20 bg-surface-container-highest">
               {selectedItem ? (
@@ -667,7 +667,7 @@ function VerificationPage() {
         {selectedItem && <VerificationStats selectedItem={selectedItem} t={t} />}
 
         {/* Content preview area */}
-        <div className="ghost-border flex min-h-[400px] flex-1 flex-col overflow-hidden rounded-xl bg-surface-container-lowest">
+        <div className="ghost-border flex min-h-[200px] md:min-h-[400px] flex-1 flex-col overflow-hidden rounded-xl bg-surface-container-lowest">
           {/* Chinese ratio progress bar */}
           <div className="relative h-1 w-full bg-surface-container-highest">
             {selectedItem && selectedItem.chinese_ratio > 0 && (
@@ -678,7 +678,7 @@ function VerificationPage() {
             )}
           </div>
 
-          <div className="flex flex-1 flex-col p-6">
+          <div className="flex flex-1 flex-col p-3 md:p-6">
             <SubtitlePreview
               selectedItem={selectedItem}
               previewContent={previewContent}
@@ -692,7 +692,7 @@ function VerificationPage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-col items-center justify-between gap-4 border-t border-outline-variant/30 bg-surface-container-low p-6 sm:flex-row">
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-outline-variant/30 bg-surface-container-low p-6 md:flex-row">
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -717,7 +717,7 @@ function VerificationPage() {
               type="button"
               onClick={() => handleMark("ok")}
               disabled={!selectedItem || isRejecting}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-8 py-3 font-bold text-white shadow-[0_4px_12px_rgba(0,164,220,0.4)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-8 py-3 font-bold text-white shadow-[0_4px_12px_rgba(0,164,220,0.4)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:w-auto"
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
               <CheckCircle2 size={18} /> {t("confirm_verification")}
@@ -726,7 +726,7 @@ function VerificationPage() {
         </div>
 
         {/* Keyboard shortcuts hint */}
-        <div className="flex justify-center gap-8 py-2 text-[10px] font-bold uppercase text-on-surface-variant/40">
+        <div className="hidden justify-center gap-8 py-2 text-[10px] font-bold uppercase text-on-surface-variant/40 md:flex">
           <div className="flex items-center gap-1">
             <kbd className="rounded border border-outline-variant/50 bg-surface-container-high px-1.5 py-0.5">SPACE</kbd>
             <span>{t("play_pause")}</span>

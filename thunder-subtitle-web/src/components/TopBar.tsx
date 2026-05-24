@@ -16,7 +16,7 @@ export function TopBar() {
   }, [language, setLanguage]);
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/30 bg-surface px-8">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-outline-variant/30 bg-surface px-4 md:px-8">
       <div className="flex items-center gap-4">
         <span className="text-2xl font-black text-on-surface">{t("title")}</span>
       </div>

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
+- **Total Sessions**: 18
 - **Last Active**: 2026-05-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~595 | Active |
+| `journal-1.md` | ~631 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 18 | 2026-05-23 | 1.0.1 预发布审查 + Nginx反向代理重构 + 版本 1.0.2 | `08840d2`, `cce994d`, `3d23372`, `26e1369` | `master` |
 | 17 | 2026-05-23 | 1.0.1 版本发布代码审查与深度重构 | `2c3bc2f`, `8d5fa5f`, `714bd95`, `346b89f` | `master` |
 | 16 | 2026-05-23 | 验证模块深度优化：Pin+删除未选中+mark fail统一+自动跳转+设置页改进+Docker修复 | `e9c3087`, `d73c95d`, `f24bf7c`, `229c2a8`, `8bc15b1`, `9f8628c`, `61655ac`, `723a0f3` | `master` |
 | 15 | 2026-05-22 | 扫描结果展示、验证模块UX重构、字幕预览 | `1d7f841`, `ab5289e`, `dce1497`, `029d602`, `e0da5f8` | `master` |

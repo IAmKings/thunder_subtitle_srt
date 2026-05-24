@@ -110,11 +110,11 @@ export default function SearchPage() {
   const hasMore = subtitles.length > currentPage * ITEMS_PER_PAGE;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-7xl space-y-6 md:space-y-8">
       {/* Search Hero */}
-      <section className="flex flex-col items-center py-8 text-center">
+      <section className="flex flex-col items-center py-4 text-center md:py-8">
         <div className="w-full max-w-3xl space-y-4">
-          <h2 className="text-3xl font-bold">{t("find_perfect")}</h2>
+          <h2 className="text-2xl font-bold md:text-3xl">{t("find_perfect")}</h2>
           <p className="text-base text-on-surface-variant">{t("search_desc")}</p>
           <div className="group relative mt-6">
             <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-outline">
@@ -133,7 +133,7 @@ export default function SearchPage() {
                 type="button"
                 onClick={() => handleSearch()}
                 disabled={isLoading}
-                className="h-12 rounded-lg bg-primary-container px-8 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+                className="h-12 rounded-lg bg-primary-container px-5 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:px-8"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
                 {isLoading ? t("scanning") : t("search_btn")}
@@ -156,7 +156,7 @@ export default function SearchPage() {
                     key={mode}
                     type="button"
                     onClick={() => setFilterMode(mode)}
-                    className={`rounded-md px-4 py-1.5 text-xs font-bold transition-all ${
+                    className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition-all md:px-4 md:text-xs ${
                       filterMode === mode
                         ? "bg-primary text-on-primary"
                         : "text-on-surface-variant hover:bg-surface-container-high"
@@ -175,7 +175,7 @@ export default function SearchPage() {
                   value={maxDuration}
                   onChange={(e) => setMaxDuration(e.target.value)}
                   placeholder="Max duration (e.g. 2h, 90m)"
-                  className="w-44 rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-36 rounded-lg border border-outline-variant/30 bg-surface-container px-2 py-1.5 text-[11px] text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary md:w-44 md:px-3 md:text-xs"
                 />
                 {maxDuration && (
                   <button
@@ -213,9 +213,9 @@ export default function SearchPage() {
             ) : (
               <>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-bold">
+                  <h3 className="text-xl font-bold md:text-2xl">
                     {t("top_results")}{" "}
-                    <span className="ml-2 text-sm font-normal text-on-surface-variant opacity-50">
+                    <span className="ml-2 text-xs font-normal text-on-surface-variant opacity-50 md:text-sm">
                       ({subtitles.length} {t("items")})
                     </span>
                   </h3>
@@ -232,7 +232,7 @@ export default function SearchPage() {
                           key={mode}
                           type="button"
                           onClick={() => setSortMode(mode)}
-                          className={`rounded-md px-3 py-1 text-xs font-bold transition-all ${
+                          className={`rounded-md px-2 py-1 text-[11px] font-bold transition-all md:px-3 md:text-xs ${
                             sortMode === mode
                               ? "bg-primary text-on-primary"
                               : "text-on-surface-variant hover:bg-surface-container-high"
@@ -245,7 +245,7 @@ export default function SearchPage() {
                     </div>
                     <button
                       type="button"
-                      className="flex items-center gap-1 rounded-full border border-outline-variant/30 bg-surface-container px-4 py-1.5 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-container-highest"
+                      className="flex items-center gap-1 rounded-full border border-outline-variant/30 bg-surface-container px-3 py-1.5 text-[11px] font-bold text-on-surface-variant transition-colors hover:bg-surface-container-highest md:px-4 md:text-xs"
                       style={{ WebkitTapHighlightColor: "transparent" }}
                     >
                       <Filter size={14} /> {t("filter")}
@@ -315,7 +315,7 @@ export default function SearchPage() {
                     <button
                       type="button"
                       onClick={() => setCurrentPage(currentPage + 1)}
-                      className="rounded-lg border border-outline-variant/50 bg-surface-container px-8 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-high"
+                      className="rounded-lg border border-outline-variant/50 bg-surface-container px-6 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high md:px-8 md:py-3 md:text-sm"
                       style={{ WebkitTapHighlightColor: "transparent" }}
                     >
                       {t("load_more")}
@@ -344,7 +344,7 @@ export default function SearchPage() {
       )}
 
       {!hasSearched && (
-        <section className="grid grid-cols-1 gap-6 border-t border-outline-variant/30 pt-12 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-6 border-t border-outline-variant/30 pt-8 md:grid-cols-3 md:pt-12">
           {[
             { icon: Globe, title: t("lang_52"), desc: t("lang_desc") },
             { icon: Zap, title: t("instant_sync"), desc: t("sync_feature_desc") },
@@ -386,7 +386,7 @@ function HistoryPanel({
 
   return (
     <section className="mx-auto max-w-2xl">
-      <div className="ghost-border rounded-xl bg-surface-container p-6">
+      <div className="ghost-border rounded-xl bg-surface-container p-4 md:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-bold">{t("recent_searches")}</h3>
           <button

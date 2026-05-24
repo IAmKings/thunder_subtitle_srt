@@ -76,8 +76,7 @@ export function SubtitlePreview({
           ))}
         </div>
         <pre
-          className="min-h-0 flex-1 overflow-y-auto rounded bg-black/20 p-3 font-mono text-xs text-on-surface leading-relaxed"
-          style={{ maxHeight: "30vh" }}
+          className="min-h-0 flex-1 overflow-y-auto rounded bg-black/20 p-3 font-mono text-xs text-on-surface leading-relaxed max-h-[20vh] md:max-h-[30vh]"
         >
           {chunkLines.join("\n") || " "}
         </pre>

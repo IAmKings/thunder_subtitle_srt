@@ -236,7 +236,7 @@ function SettingsPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header className="mb-8">
-        <h2 className="text-3xl font-bold">{t("system_settings")}</h2>
+        <h2 className="text-2xl font-bold md:text-3xl">{t("system_settings")}</h2>
         <p className="mt-1 text-on-surface-variant">{t("settings_desc")}</p>
       </header>
 
@@ -254,7 +254,7 @@ function SettingsPage() {
 
       <div className="space-y-8">
         {/* General */}
-        <section className="ghost-border rounded-xl bg-surface-container p-6">
+        <section className="ghost-border rounded-xl bg-surface-container p-4 md:p-6">
           <div className="mb-6 flex items-center gap-2 border-b border-outline-variant/20 pb-2">
             <SettingsIcon className="text-primary" size={20} />
             <h3 className="text-lg font-bold">{t("general")}</h3>
@@ -389,7 +389,7 @@ function SettingsPage() {
         </section>
 
         {/* Subtitle Sources */}
-        <section className="ghost-border rounded-xl bg-surface-container p-6">
+        <section className="ghost-border rounded-xl bg-surface-container p-4 md:p-6">
           <div className="mb-6 flex items-center gap-2 border-b border-outline-variant/20 pb-2">
             <ExternalLink className="text-secondary" size={20} />
             <div className="flex items-center gap-2">
@@ -423,7 +423,7 @@ function SettingsPage() {
         </section>
 
         {/* Automation */}
-        <section className="ghost-border rounded-xl bg-surface-container p-6">
+        <section className="ghost-border rounded-xl bg-surface-container p-4 md:p-6">
           <div className="mb-6 flex items-center gap-2 border-b border-outline-variant/20 pb-2">
             <ScannerIcon className="text-primary" size={20} />
             <div className="flex items-center gap-2">
@@ -465,7 +465,7 @@ function SettingsPage() {
         </section>
 
         {/* Password Section */}
-        <section className="ghost-border rounded-xl bg-surface-container p-6">
+        <section className="ghost-border rounded-xl bg-surface-container p-4 md:p-6">
           <div className="mb-6 flex items-center gap-2 border-b border-outline-variant/20 pb-2">
             <Key className="text-tertiary" size={20} />
             <h3 className="text-lg font-bold">{t("change_password")}</h3>
@@ -529,12 +529,12 @@ function SettingsPage() {
         </section>
 
         {/* Action Footer */}
-        <div className="flex items-center justify-end gap-4 pt-4">
+        <div className="flex items-center justify-stretch gap-4 pt-4 md:justify-end">
           <button
             type="button"
             onClick={handleResetDefaults}
             disabled={isSaving}
-            className="flex items-center gap-2 rounded-lg border border-outline px-8 py-3 text-sm font-bold transition-all hover:bg-surface-container-high active:scale-95 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline px-8 py-3 text-sm font-bold transition-all hover:bg-surface-container-high active:scale-95 disabled:opacity-50 md:w-auto"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
             <RotateCcw size={14} />
@@ -544,7 +544,7 @@ function SettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 rounded-lg bg-primary-container px-8 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(0,164,220,0.3)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-8 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(0,164,220,0.3)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:w-auto"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}

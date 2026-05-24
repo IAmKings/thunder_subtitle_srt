@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from "react";
 import {
   Play,
   RefreshCw as SyncIcon,
@@ -81,7 +81,17 @@ function ScannerPage() {
   // Path carousel state
   const pathScrollRef = useRef<HTMLDivElement>(null);
   const [pathScrollIdx, setPathScrollIdx] = useState(0);
-  const CARDS_PER_VIEW = 2;
+  const [cardsPerView, setCardsPerView] = useState(1);
+
+  // Responsive cards per view: 1 on mobile, 2 on desktop
+  useLayoutEffect(() => {
+    const checkWidth = () => {
+      setCardsPerView(window.innerWidth >= 768 ? 2 : 1);
+    };
+    checkWidth();
+    window.addEventListener("resize", checkWidth);
+    return () => window.removeEventListener("resize", checkWidth);
+  }, []);
 
   // Results table pagination
   const RESULTS_PER_PAGE = 10;
@@ -316,19 +326,19 @@ function ScannerPage() {
     if (!el) return;
     const cardWidth = el.scrollWidth / mediaDirs.length;
     const newIdx = dir === "left"
-      ? Math.max(0, pathScrollIdx - CARDS_PER_VIEW)
-      : Math.min(mediaDirs.length - CARDS_PER_VIEW, pathScrollIdx + CARDS_PER_VIEW);
+      ? Math.max(0, pathScrollIdx - cardsPerView)
+      : Math.min(mediaDirs.length - cardsPerView, pathScrollIdx + cardsPerView);
     el.scrollTo({ left: newIdx * cardWidth, behavior: "smooth" });
     setPathScrollIdx(newIdx);
-  }, [mediaDirs.length, pathScrollIdx]);
+  }, [mediaDirs.length, pathScrollIdx, cardsPerView]);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-8">
+    <div className="mx-auto w-full max-w-7xl space-y-6 md:space-y-8">
       {/* Stats Cards */}
       <section className="space-y-4">
         {/* Path Carousel Row */}
         <div className="flex items-stretch gap-4">
-          {mediaDirs.length > CARDS_PER_VIEW && (
+          {mediaDirs.length > cardsPerView && (
             <button
               type="button"
               onClick={() => scrollPaths("left")}
@@ -347,7 +357,7 @@ function ScannerPage() {
               mediaDirs.map((dir, i) => (
                 <div
                   key={`${i}-${dir.path}`}
-                  className="ghost-border flex w-[calc(50%-0.5rem)] flex-shrink-0 items-center justify-between rounded-xl bg-surface-container p-6"
+                  className="ghost-border flex w-full flex-shrink-0 items-center justify-between rounded-xl bg-surface-container p-6 md:w-[calc(50%-0.5rem)]"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -404,11 +414,11 @@ function ScannerPage() {
               </div>
             )}
           </div>
-          {mediaDirs.length > CARDS_PER_VIEW && (
+          {mediaDirs.length > cardsPerView && (
             <button
               type="button"
               onClick={() => scrollPaths("right")}
-              disabled={pathScrollIdx >= mediaDirs.length - CARDS_PER_VIEW}
+              disabled={pathScrollIdx >= mediaDirs.length - cardsPerView}
               className="flex-shrink-0 rounded-lg border border-outline-variant/30 bg-surface-container p-2 transition-colors hover:bg-surface-container-high disabled:opacity-30"
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
@@ -510,7 +520,7 @@ function ScannerPage() {
 
       {/* Active Scan */}
       <section className="ghost-border space-y-6 rounded-xl bg-surface-container-low p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
               <SyncIcon size={24} className={isRunning ? "animate-spin" : ""} />
@@ -527,7 +537,7 @@ function ScannerPage() {
               <button
                 type="button"
                 onClick={handleCancelTask}
-                className="flex items-center gap-2 rounded-lg border border-error/50 bg-error/10 px-4 py-3 text-xs font-bold text-error transition-all hover:bg-error/20 active:scale-95"
+                className="flex items-center gap-2 rounded-lg border border-error/50 bg-error/10 px-3 py-2 text-xs font-bold text-error transition-all hover:bg-error/20 active:scale-95 md:px-4 md:py-3"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
                 <StopCircle size={16} />
@@ -538,7 +548,7 @@ function ScannerPage() {
               type="button"
               onClick={handleScanNow}
               disabled={isStartingScan || isRunning}
-              className="flex items-center gap-2 rounded-lg bg-primary-container px-6 py-3 text-xs font-bold text-on-primary-container transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:px-6 md:py-3"
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
               {isRunning || isStartingScan ? (
@@ -566,7 +576,7 @@ function ScannerPage() {
                 type="button"
                 onClick={() => setScanMode(mode)}
                 disabled={isRunning}
-                className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                className={`rounded-md px-2 py-1.5 text-[11px] font-bold transition-all md:px-3 md:text-xs ${
                   scanMode === mode
                     ? "bg-primary text-on-primary"
                     : "text-on-surface-variant hover:bg-surface-container-high"
@@ -656,7 +666,7 @@ function ScannerPage() {
                   key={opt ?? "all"}
                   type="button"
                   onClick={() => { setStatusFilter(opt); setResultsPage(0); }}
-                  className={`rounded-md px-3 py-1 text-xs font-bold transition-all ${
+                  className={`rounded-md px-2 py-1 text-[10px] font-bold transition-all md:px-3 md:text-xs ${
                     statusFilter === opt
                       ? "bg-primary text-on-primary"
                       : "text-on-surface-variant hover:bg-surface-container-high"
@@ -727,7 +737,7 @@ function ScannerPage() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between bg-surface-container-low px-6 py-4 text-sm text-on-surface-variant">
+        <div className="flex items-center justify-between bg-surface-container-low px-4 py-4 text-xs text-on-surface-variant md:px-6 md:text-sm">
           <span>
             {sortedFindings.length > 0
               ? `${resultsPage * RESULTS_PER_PAGE + 1}-${Math.min((resultsPage + 1) * RESULTS_PER_PAGE, sortedFindings.length)} / ${sortedFindings.length}`
@@ -743,7 +753,7 @@ function ScannerPage() {
               >
                 <ChevronLeft size={16} />
               </button>
-              <span className="px-2 tabular-nums">{resultsPage + 1} / {totalPages}</span>
+              <span className="px-2 text-xs tabular-nums md:text-sm">{resultsPage + 1} / {totalPages}</span>
               <button
                 type="button"
                 onClick={() => setResultsPage((p) => Math.min(totalPages - 1, p + 1))}

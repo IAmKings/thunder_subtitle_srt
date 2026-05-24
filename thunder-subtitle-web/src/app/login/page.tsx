@@ -42,7 +42,7 @@ export default function LoginPage() {
         {/* Login Card */}
         <form
           onSubmit={handleSubmit}
-          className="ghost-border rounded-xl bg-surface-container p-8 shadow-lg"
+          className="ghost-border rounded-xl bg-surface-container p-4 shadow-lg md:p-8"
         >
           <div className="space-y-6">
             {/* Username */}

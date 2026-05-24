@@ -25,7 +25,7 @@ export function Sidebar() {
   const { logout, user } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-full w-64 flex-col border-r border-outline-variant/30 bg-surface-container-low px-4 py-6">
+    <aside className="fixed left-0 top-0 z-50 hidden h-full w-64 flex-col border-r border-outline-variant/30 bg-surface-container-low px-4 py-6 md:flex">
       <div className="mb-8 px-2">
         <h1 className="text-2xl font-bold text-primary">Thunder Subtitle</h1>
         <p className="text-sm text-on-surface-variant">{t("subtitle")}</p>
@@ -46,7 +46,7 @@ export function Sidebar() {
               }`}
             >
               <Icon className={isActive ? "text-primary" : ""} size={20} />
-              <span className="text-sm">{t(item.id)}</span>
+              <span className="text-sm">{t("nav_" + item.id)}</span>
             </Link>
           );
         })}

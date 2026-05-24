@@ -21,7 +21,7 @@ export function MovieList({ paginatedMovies, handleSelectMovie, t }: MovieListPr
           key={`${i}-${filePath}`}
           type="button"
           onClick={() => handleSelectMovie(filePath)}
-          className="rounded-lg border border-outline-variant/30 bg-surface-container p-5 text-left transition-all hover:border-primary/50"
+          className="rounded-lg border border-outline-variant/30 bg-surface-container p-3 text-left transition-all hover:border-primary/50 md:p-5"
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
           <div className="flex items-start justify-between gap-2">
