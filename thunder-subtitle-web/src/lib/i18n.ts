@@ -156,6 +156,7 @@ const translations: Record<Language, Record<string, string>> = {
     dry_need_review: "Need Review",
     dry_reviewed_ok: "Reviewed OK",
     dry_reviewed_fail: "Reviewed FAIL",
+    dry_reviewed_fail_new_subs: "Re-review",
 
     // Verification (additional)
     loading_reviews: "Loading reviews...",
@@ -172,6 +173,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Verification — dialog / action translations
     delete_unselected: "Delete Unselected",
     delete_all: "Delete All",
+    mark_all_fail: "Mark All Fail",
+    mark_all_fail_confirm: "Mark all subtitles for this movie as FAIL without deleting files? .rejected records will be updated for incremental re-download.",
     confirm_delete: "Confirm Delete",
     irreversible: "This action cannot be undone.",
     delete: "Delete",
@@ -355,6 +358,7 @@ const translations: Record<Language, Record<string, string>> = {
     dry_need_review: "待审查",
     dry_reviewed_ok: "审查通过",
     dry_reviewed_fail: "审查失败",
+    dry_reviewed_fail_new_subs: "待重审",
 
     // Verification (additional)
     loading_reviews: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u4e2d...",
@@ -371,6 +375,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Verification — dialog / action translations
     delete_unselected: "删除未选中",
     delete_all: "全部删除",
+    mark_all_fail: "全部失败",
+    mark_all_fail_confirm: "确定将此电影所有字幕标记为失败（不删除文件）？.rejected 记录将更新以便下次增量下载。",
     confirm_delete: "确认删除",
     irreversible: "此操作不可撤销。",
     delete: "删除",

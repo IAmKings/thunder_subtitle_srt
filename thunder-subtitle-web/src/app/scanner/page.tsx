@@ -53,6 +53,7 @@ function dryStateLabel(dryState: string, t: (key: string) => string): string {
     case "need_review": return t("dry_need_review");
     case "reviewed_ok": return t("dry_reviewed_ok");
     case "reviewed_fail": return t("dry_reviewed_fail");
+    case "reviewed_fail_new_subs": return t("dry_reviewed_fail_new_subs");
     default: return dryState;
   }
 }

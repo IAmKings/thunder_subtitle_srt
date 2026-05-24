@@ -29,6 +29,8 @@ export function getDryStateColor(dryState: string): string {
       return "bg-green-500/15 text-green-400";
     case "reviewed_fail":
       return "bg-error/15 text-error";
+    case "reviewed_fail_new_subs":
+      return "bg-amber-500/15 text-amber-400";
     default:
       return "bg-tertiary/15 text-tertiary";
   }

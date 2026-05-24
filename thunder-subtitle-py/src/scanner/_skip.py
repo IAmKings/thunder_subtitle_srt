@@ -93,6 +93,7 @@ def _check_fail_skip(movie_path: str, force: bool, dry_run: bool) -> tuple[str, 
         has_new_subs = bool(_find_dump_subtitle(movie_path))
         if has_new_subs:
             print(f"{YELLOW}    ⚠ Review FAILED but new subtitles exist — needs re-review{RESET}")
+            return ("New subtitles exist — needs re-review", DryState.reviewed_fail_new_subs)
         else:
             print(f"{RED}    ✗ Review FAILED — find subtitles elsewhere{RESET}")
     return ("Review FAILED — find subtitles elsewhere", DryState.reviewed_fail)

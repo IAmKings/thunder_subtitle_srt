@@ -24,6 +24,7 @@ class DryState(str, Enum):
     need_review = "need_review"
     reviewed_ok = "reviewed_ok"
     reviewed_fail = "reviewed_fail"
+    reviewed_fail_new_subs = "reviewed_fail_new_subs"
     skipped = "skipped"
 
 
