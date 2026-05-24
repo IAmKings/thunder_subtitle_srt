@@ -1,6 +1,6 @@
 // Thunder Subtitle Service Worker
-// Cache key for versioning
-const CACHE_NAME = "thunder-subtitle-v1";
+// Cache key — bump on every sw.js change to force cache cleanup
+const CACHE_NAME = "thunder-subtitle-v2";
 
 // Resources to pre-cache on install
 const PRECACHE_URLS = [
@@ -10,16 +10,19 @@ const PRECACHE_URLS = [
   "/icon-512.svg",
 ];
 
-// Install event: pre-cache key resources
+// Install: pre-cache + skip waiting (activate immediately, don't wait for old tabs to close)
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_URLS);
+      return cache.addAll(PRECACHE_URLS).catch(() => {
+        // Pre-cache failure is non-fatal — pages still load from network
+      });
     })
   );
 });
 
-// Activate event: clean up old caches
+// Activate: clean old caches + claim all clients (take control without page reload)
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -28,7 +31,7 @@ self.addEventListener("activate", (event) => {
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
@@ -66,22 +69,3 @@ async function cacheFirst(request) {
   }
 }
 
-async function networkFirst(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    return new Response(JSON.stringify({ error: "Offline" }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-}
