@@ -669,3 +669,36 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: 1.1.0 预发布轻量审查 + 版本更新
+
+**Date**: 2026-05-24
+**Task**: 1.1.0 预发布轻量审查 + 版本更新
+**Branch**: `master`
+
+### Summary
+
+1.1.0轻量验证：全量lint/typecheck全绿通过、Docker配置正确(单端口3000)、版本号三包统一更新至1.1.0、CLI pyproject.toml同步更新。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bd96165` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
