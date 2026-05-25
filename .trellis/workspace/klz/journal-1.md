@@ -805,3 +805,36 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: 扫描页轮播剩余页数提示
+
+**Date**: 2026-05-25
+**Task**: 扫描页轮播剩余页数提示
+**Branch**: `master`
+
+### Summary
+
+路径轮播左右箭头下方新增剩N页提示，0时灰色。i18n中英文scroll_remaining。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `HEAD~1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

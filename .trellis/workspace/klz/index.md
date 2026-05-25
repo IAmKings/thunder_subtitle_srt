@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 23
+- **Total Sessions**: 24
 - **Last Active**: 2026-05-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~807 | Active |
+| `journal-1.md` | ~840 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 24 | 2026-05-25 | 扫描页轮播剩余页数提示 | HEAD~1 | `master` |
 | 23 | 2026-05-25 | PWA安装提示修复 — Docker内置自签名HTTPS | HEAD~1 | `master` |
 | 22 | 2026-05-25 | 三包代码质量全面修复：P0×5 + P1×33 + P2×34 + 文档重构 | `5ec9b90`, `94907ef`, `4bdc685`, `e27c92d`, `8760eb1` | `master` |
 | 21 | 2026-05-25 | 三包深度代码质量审查：web/api/py | `5b4c860` | `master` |

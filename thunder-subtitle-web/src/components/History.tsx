@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { HistoryItem, DownloadHistoryItem } from '@/lib/types';
 
 interface SearchHistoryProps {
@@ -15,15 +16,14 @@ interface DownloadHistoryProps {
   onClear: () => void;
 }
 
-function formatTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
+function formatTime(timestamp: number, now: number): string {
+  const diff = now - timestamp;
 
   if (diff < 60000) return '刚刚';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
   if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
 
-  // Use a fixed format to avoid locale differences between server/client
   const date = new Date(timestamp);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -31,7 +31,16 @@ function formatTime(timestamp: number): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Hydration-safe wrapper: defers Date.now() to client-side only. */
+function useNow(): number {
+  const [now, setNow] = useState(0);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setNow(Date.now()); }, []);
+  return now;
+}
+
 export function SearchHistory({ history, onSearch, onRemove, onClear }: SearchHistoryProps) {
+  const now = useNow();
   if (history.length === 0) return null;
 
   return (
@@ -57,7 +66,7 @@ export function SearchHistory({ history, onSearch, onRemove, onClear }: SearchHi
             >
               {item.name}
             </button>
-            <span className="text-xs text-zinc-400">{formatTime(item.timestamp)}</span>
+            {now > 0 && <span className="text-xs text-zinc-400">{formatTime(item.timestamp, now)}</span>}
             <button
               onClick={() => onRemove(item.id)}
               className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-600 transition-opacity"
@@ -74,6 +83,7 @@ export function SearchHistory({ history, onSearch, onRemove, onClear }: SearchHi
 }
 
 export function DownloadHistory({ history, onRemove, onClear }: DownloadHistoryProps) {
+  const now = useNow();
   if (history.length === 0) return null;
 
   return (
@@ -95,7 +105,7 @@ export function DownloadHistory({ history, onRemove, onClear }: DownloadHistoryP
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm text-zinc-900 truncate">{item.name}</p>
-              <p className="text-xs text-zinc-500">{formatTime(item.timestamp)}</p>
+              {now > 0 && <p className="text-xs text-zinc-500">{formatTime(item.timestamp, now)}</p>}
             </div>
             <button
               onClick={() => onRemove(item.id)}
