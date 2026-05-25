@@ -6,8 +6,13 @@ import tempfile
 from src.api import SubtitleApiClient
 from src.scanner._processor import _content_fingerprint, _select_primary_alt
 from src.scanner._skip import (
-    _has_zh_prefix, _find_dump_subtitle, _is_review_fail,
-    _check_fail_skip, _check_nfo_skip, _check_release_age, _check_existing_skip,
+    _has_zh_prefix,
+    _find_dump_subtitle,
+    _is_review_fail,
+    _check_fail_skip,
+    _check_nfo_skip,
+    _check_release_age,
+    _check_existing_skip,
     _check_skip,
 )
 from src.models import DryState, Subtitle, SearchResult
@@ -179,9 +184,16 @@ class TestContentFingerprint:
 
 # ---- _check_skip 子函数测试 ----
 
-def _make_nfo(duration: int = 7200, has_chinese: bool = False, release_date: str = "") -> NfoInfo:
+
+def _make_nfo(
+    duration: int = 7200, has_chinese: bool = False, release_date: str = ""
+) -> NfoInfo:
     """快捷构造 NfoInfo"""
-    return NfoInfo(duration_seconds=duration, has_chinese_subtitle=has_chinese, release_date=release_date)
+    return NfoInfo(
+        duration_seconds=duration,
+        has_chinese_subtitle=has_chinese,
+        release_date=release_date,
+    )
 
 
 class TestCheckFailSkip:
@@ -190,7 +202,7 @@ class TestCheckFailSkip:
     def test_no_reviewed_file(self):
         """无 .reviewed 文件 → 不跳过"""
         with tempfile.TemporaryDirectory() as d:
-            result = _check_fail_skip(d, force=False, dry_run=False)
+            result = _check_fail_skip(d, force=False, dry_run=False, is_fail=False)
             assert result is None
 
     def test_fail_skip(self):
@@ -198,7 +210,7 @@ class TestCheckFailSkip:
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, ".reviewed"), "w") as f:
                 f.write("fail")
-            result = _check_fail_skip(d, force=False, dry_run=False)
+            result = _check_fail_skip(d, force=False, dry_run=False, is_fail=True)
             assert result is not None
             assert "Review FAILED" in result[0]
             assert result[1] == DryState.reviewed_fail
@@ -208,7 +220,7 @@ class TestCheckFailSkip:
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, ".reviewed"), "w") as f:
                 f.write("fail")
-            result = _check_fail_skip(d, force=True, dry_run=False)
+            result = _check_fail_skip(d, force=True, dry_run=False, is_fail=True)
             assert result is None
 
 
@@ -217,7 +229,10 @@ class TestCheckNfoSkip:
 
     def test_with_chinese_tag(self):
         nfo = _make_nfo(has_chinese=True)
-        assert _check_nfo_skip(nfo, force=False, is_fail=False) == "NFO has Chinese subtitle tag"
+        assert (
+            _check_nfo_skip(nfo, force=False, is_fail=False)
+            == "NFO has Chinese subtitle tag"
+        )
 
     def test_no_chinese_tag(self):
         nfo = _make_nfo(has_chinese=False)
@@ -248,6 +263,7 @@ class TestCheckReleaseAge:
     def test_too_recent(self):
         """发布日期太新 → 跳过"""
         from datetime import datetime, timedelta
+
         recent = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
         nfo = _make_nfo(release_date=recent)
         reason = _check_release_age(nfo, min_age_days=30)
@@ -265,19 +281,41 @@ class TestCheckExistingSkip:
 
     def test_no_existing_file(self):
         with tempfile.TemporaryDirectory() as d:
-            assert _check_existing_skip(d, "movie", force=False, is_fail=False, dry_run=False) is None
+            assert (
+                _check_existing_skip(
+                    d, "movie", force=False, is_fail=False, dry_run=False, existing=None
+                )
+                is None
+            )
 
     def test_has_existing_srt(self):
         with tempfile.TemporaryDirectory() as d:
             open(os.path.join(d, "movie.srt"), "w").close()
-            reason = _check_existing_skip(d, "movie", force=False, is_fail=False, dry_run=False)
+            reason = _check_existing_skip(
+                d,
+                "movie",
+                force=False,
+                is_fail=False,
+                dry_run=False,
+                existing="movie.srt",
+            )
             assert reason is not None
             assert "already exists" in reason
 
     def test_force_fail_overrides(self):
         with tempfile.TemporaryDirectory() as d:
             open(os.path.join(d, "movie.srt"), "w").close()
-            assert _check_existing_skip(d, "movie", force=True, is_fail=True, dry_run=False) is None
+            assert (
+                _check_existing_skip(
+                    d,
+                    "movie",
+                    force=True,
+                    is_fail=True,
+                    dry_run=False,
+                    existing="movie.srt",
+                )
+                is None
+            )
 
 
 class TestCheckSkipIntegration:
@@ -341,7 +379,9 @@ class TestCheckSkipIntegration:
             os.makedirs(movie_path)
             with open(os.path.join(movie_path, ".reviewed"), "w") as f:
                 f.write("fail")
-            reason, state = _check_skip(movie_path, "movie", nfo, reset_fail=True, dry_run=False)
+            reason, state = _check_skip(
+                movie_path, "movie", nfo, reset_fail=True, dry_run=False
+            )
             # reset 后 .reviewed 被删除，不再被 fail 跳过
             assert os.path.exists(os.path.join(movie_path, ".reviewed")) is False
             assert reason is None or "Review FAILED" not in reason
@@ -355,7 +395,9 @@ class TestCheckSkipIntegration:
             reviewed = os.path.join(movie_path, ".reviewed")
             with open(reviewed, "w") as f:
                 f.write("fail")
-            reason, state = _check_skip(movie_path, "movie", nfo, reset_fail=True, dry_run=True)
+            reason, state = _check_skip(
+                movie_path, "movie", nfo, reset_fail=True, dry_run=True
+            )
             # dry_run 模式下文件保留，fail 状态仍在
             assert os.path.exists(reviewed) is True
             assert reason is not None and "Review FAILED" in reason
@@ -363,11 +405,21 @@ class TestCheckSkipIntegration:
 
 # ---- _select_primary_alt 测试 ----
 
+
 def _make_sub(**kwargs: object) -> Subtitle:
     defaults: dict[str, object] = {
-        "gcid": "", "cid": "", "url": "", "ext": "srt", "name": "Test",
-        "duration": 3600000, "languages": ["English"], "source": 0,
-        "score": 0.0, "fingerprintf_score": 0.0, "extra_name": "", "mt": 0,
+        "gcid": "",
+        "cid": "",
+        "url": "",
+        "ext": "srt",
+        "name": "Test",
+        "duration": 3600000,
+        "languages": ["English"],
+        "source": 0,
+        "score": 0.0,
+        "fingerprintf_score": 0.0,
+        "extra_name": "",
+        "mt": 0,
     }
     defaults.update(kwargs)
     return Subtitle(**defaults)  # type: ignore[arg-type]
@@ -386,7 +438,7 @@ class TestSelectPrimaryAlt:
 
         primary, alt = _select_primary_alt(subtitles, result, client, [])
         assert primary is s1  # API 第一条
-        assert alt is s2     # 算法最佳（duration 更长）
+        assert alt is s2  # 算法最佳（duration 更长）
 
     def test_chinese_preferred_as_alt(self):
         """中文优先：中文排在前"""
@@ -398,7 +450,7 @@ class TestSelectPrimaryAlt:
 
         primary, alt = _select_primary_alt(subtitles, result, client, [])
         assert primary is s1  # API 第一条
-        assert alt is s2      # 中文优先
+        assert alt is s2  # 中文优先
 
     def test_same_primary_alt_uses_second_api(self):
         """主力=备选时，取 API 第二条作为备选"""
@@ -415,7 +467,9 @@ class TestSelectPrimaryAlt:
     def test_preferred_group_sort(self):
         """偏好字幕组优先"""
         s1 = _make_sub(name="Random Sub", duration=3600000, languages=["English"])
-        s2 = _make_sub(name="KitaujiSub Release", duration=1800000, languages=["English"])
+        s2 = _make_sub(
+            name="KitaujiSub Release", duration=1800000, languages=["English"]
+        )
         subtitles = [s1, s2]
         result = SearchResult(subtitles=[s1, s2], total=2)
         client = SubtitleApiClient()

@@ -5,8 +5,12 @@ import tempfile
 
 import pytest
 from src.utils import (
-    parse_duration, format_duration, seconds_to_duration_str,
-    filter_by_duration, load_gcid_file, clear_file,
+    parse_duration,
+    format_duration,
+    seconds_to_duration_str,
+    filter_by_duration,
+    load_gcid_file,
+    clear_file,
 )
 
 
@@ -76,8 +80,10 @@ class TestSecondsToDurationStr:
 
 # ---- filter_by_duration ----
 
+
 class _FakeSub:
     """最小化字幕对象，仅含 name 和 duration"""
+
     def __init__(self, name: str, duration: int):
         self.name = name
         self.duration = duration
@@ -113,6 +119,7 @@ class TestFilterByDuration:
 
 # ---- load_gcid_file ----
 
+
 class TestLoadGcidFile:
     def test_normal(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".gcid", delete=False) as f:
@@ -137,6 +144,7 @@ class TestLoadGcidFile:
 
 
 # ---- clear_file ----
+
 
 class TestClearFile:
     def test_clears_content(self):

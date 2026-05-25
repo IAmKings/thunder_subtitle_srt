@@ -103,10 +103,20 @@ class TestSearchArgs:
                     pass
 
     def test_search_with_flags(self):
-        with patch.object(sys, "argv", [
-            "thunder-subtitle", "search", "MovieName",
-            "--chinese-only", "--max-duration", "1h30m", "--limit", "10"
-        ]):
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "thunder-subtitle",
+                "search",
+                "MovieName",
+                "--chinese-only",
+                "--max-duration",
+                "1h30m",
+                "--limit",
+                "10",
+            ],
+        ):
             with patch("commands.search.SubtitleApiClient") as mock_client_class:
                 mock_client = mock_client_class.return_value
                 mock_result = mock_client.search_subtitles.return_value
@@ -126,12 +136,16 @@ class TestConfigArgs:
                 main()
 
     def test_config_set(self):
-        with patch.object(sys, "argv", ["thunder-subtitle", "config", "--set", "timeout", "60"]):
+        with patch.object(
+            sys, "argv", ["thunder-subtitle", "config", "--set", "timeout", "60"]
+        ):
             with redirect_stdout(StringIO()):
                 main()
 
     def test_config_set_unknown_key(self):
-        with patch.object(sys, "argv", ["thunder-subtitle", "config", "--set", "invalid_key", "value"]):
+        with patch.object(
+            sys, "argv", ["thunder-subtitle", "config", "--set", "invalid_key", "value"]
+        ):
             with redirect_stdout(StringIO()):
                 main()
 
@@ -148,7 +162,9 @@ class TestDumpArgs:
                 main()
 
     def test_dump_with_dir_nonexistent(self):
-        with patch.object(sys, "argv", ["thunder-subtitle", "dump", "--dir", "/nonexistent/path"]):
+        with patch.object(
+            sys, "argv", ["thunder-subtitle", "dump", "--dir", "/nonexistent/path"]
+        ):
             with pytest.raises(SystemExit) as exc:
                 main()
             assert exc.value.code == 1

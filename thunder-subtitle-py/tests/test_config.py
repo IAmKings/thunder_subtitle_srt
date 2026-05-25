@@ -52,7 +52,9 @@ class TestConfigDefaults:
 
 class TestConfigLoadSave:
     def test_load_nonexistent_file(self, monkeypatch):
-        monkeypatch.setattr("src.config.CONFIG_PATH", "/tmp/__nonexistent_config__.json")
+        monkeypatch.setattr(
+            "src.config.CONFIG_PATH", "/tmp/__nonexistent_config__.json"
+        )
         c = Config.load()
         assert c.timeout == 30
         assert c.rate_limit == 3

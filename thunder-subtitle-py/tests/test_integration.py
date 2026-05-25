@@ -5,7 +5,6 @@ import subprocess
 import sys
 from unittest.mock import patch
 
-import pytest
 
 from cli import main
 
@@ -79,7 +78,9 @@ class TestConfigRoundTrip:
         monkeypatch.setattr("src.config.CONFIG_PATH", tmp_cfg)
         monkeypatch.setattr("commands.config.CONFIG_PATH", tmp_cfg, raising=False)
 
-        with patch.object(sys, "argv", ["thunder-subtitle", "config", "--set", "timeout", "99"]):
+        with patch.object(
+            sys, "argv", ["thunder-subtitle", "config", "--set", "timeout", "99"]
+        ):
             main()
 
         with open(tmp_cfg) as f:
@@ -90,7 +91,9 @@ class TestConfigRoundTrip:
         tmp_cfg = str(tmp_path / "config.json")
         monkeypatch.setattr("src.config.CONFIG_PATH", tmp_cfg)
 
-        with patch.object(sys, "argv", ["thunder-subtitle", "config", "--set", "timeout", "99"]):
+        with patch.object(
+            sys, "argv", ["thunder-subtitle", "config", "--set", "timeout", "99"]
+        ):
             main()
         with patch.object(sys, "argv", ["thunder-subtitle", "config", "--reset"]):
             main()
@@ -103,7 +106,9 @@ class TestConfigRoundTrip:
         tmp_cfg = str(tmp_path / "config.json")
         monkeypatch.setattr("src.config.CONFIG_PATH", tmp_cfg)
 
-        with patch.object(sys, "argv", ["thunder-subtitle", "config", "--set", "invalid_key", "value"]):
+        with patch.object(
+            sys, "argv", ["thunder-subtitle", "config", "--set", "invalid_key", "value"]
+        ):
             main()
 
     def test_config_show_ok(self, monkeypatch, tmp_path):

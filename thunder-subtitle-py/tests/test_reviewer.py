@@ -3,12 +3,11 @@
 import tempfile
 import os
 
-import pytest
 
 from src.reviewer._srt import _parse_srt_entries, _ts_to_ms
 from src.reviewer._encoding import _detect_encoding, _calc_cn_ratio
 from src.reviewer._output import _human_size
-from src.reviewer._review import _review_one_file, ReviewItem, MIN_FILE_SIZE
+from src.reviewer._review import _review_one_file, MIN_FILE_SIZE
 from src.models import ReviewQuality
 
 
@@ -95,7 +94,15 @@ class TestDetectEncoding:
         # 随机字节无法被任何已知编码解码
         raw = bytes([0xFF, 0xFE, 0x00, 0x01, 0x80, 0x81])
         result = _detect_encoding(raw)
-        assert result in ("utf-8", "gbk", "gb2312", "big5", "shift_jis", "euc-kr", "unknown")
+        assert result in (
+            "utf-8",
+            "gbk",
+            "gb2312",
+            "big5",
+            "shift_jis",
+            "euc-kr",
+            "unknown",
+        )
 
 
 class TestCalcCnRatio:
@@ -146,11 +153,13 @@ class TestReviewOneFile:
     def test_valid_srt(self):
         # 多行内容确保文件 > MIN_FILE_SIZE (200B)
         entries = "\n\n".join(
-            f"{i}\n00:00:{i:02d},000 --> 00:00:{i+2:02d},000\nSubtitle line {i}"
+            f"{i}\n00:00:{i:02d},000 --> 00:00:{i + 2:02d},000\nSubtitle line {i}"
             for i in range(1, 12)
         )
         srt = entries + "\n\n"
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".srt", encoding="utf-8", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".srt", encoding="utf-8", delete=False
+        ) as f:
             f.write(srt)
             path = f.name
         try:
@@ -163,18 +172,22 @@ class TestReviewOneFile:
             os.unlink(path)
 
     def test_nonexistent_file(self):
-        item = _review_one_file("/nonexistent/file.srt", "file.srt", "/movies/test", "Test")
+        item = _review_one_file(
+            "/nonexistent/file.srt", "file.srt", "/movies/test", "Test"
+        )
         assert item.score == 0
         assert item.status == ReviewQuality.fail
 
     def test_zh_file_with_chinese_content(self):
         # 多行中文确保文件 > MIN_FILE_SIZE (200B)
         entries = "\n\n".join(
-            f"{i}\n00:00:{i:02d},000 --> 00:00:{i+2:02d},000\n你好世界这是第{i}条字幕"
+            f"{i}\n00:00:{i:02d},000 --> 00:00:{i + 2:02d},000\n你好世界这是第{i}条字幕"
             for i in range(1, 12)
         )
         srt = entries + "\n\n"
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".srt", encoding="utf-8", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".srt", encoding="utf-8", delete=False
+        ) as f:
             f.write(srt)
             path = f.name
         try:

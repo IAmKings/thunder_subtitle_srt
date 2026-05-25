@@ -126,7 +126,8 @@ class TestSearchSubtitles:
         import requests
 
         with patch.object(
-            client._session, "get",
+            client._session,
+            "get",
             side_effect=requests.RequestException("Connection refused"),
         ):
             with pytest.raises(NetworkError, match="Network error"):
@@ -254,6 +255,7 @@ class TestParseSubtitle:
 
 
 # ---- helpers ----
+
 
 def _make_sub(**kwargs: object) -> Subtitle:
     """快捷构造 Subtitle 对象"""

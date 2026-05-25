@@ -4,7 +4,12 @@ import hashlib
 import os
 from unittest.mock import Mock, patch
 
-from src.download import _sanitize_filename, download_subtitle, dump_subtitles, DumpResult
+from src.download import (
+    _sanitize_filename,
+    download_subtitle,
+    dump_subtitles,
+    DumpResult,
+)
 from src.models import Subtitle
 
 
@@ -45,8 +50,11 @@ class TestDownloadSubtitle:
 
         with patch("src.download.requests.get", return_value=mock_response):
             result = download_subtitle(
-                sub, str(tmp_path), custom_filename="sub.srt",
-                max_retries=2, retry_delay=0,
+                sub,
+                str(tmp_path),
+                custom_filename="sub.srt",
+                max_retries=2,
+                retry_delay=0,
             )
 
         # 2次重试都失败 → success = False
@@ -63,8 +71,11 @@ class TestDownloadSubtitle:
 
         with patch("src.download.requests.get", return_value=mock_response):
             result = download_subtitle(
-                sub, str(tmp_path), custom_filename="sub.srt",
-                max_retries=1, retry_delay=0,
+                sub,
+                str(tmp_path),
+                custom_filename="sub.srt",
+                max_retries=1,
+                retry_delay=0,
             )
 
         assert result.success is True
@@ -81,14 +92,18 @@ class TestDownloadSubtitle:
 
         with patch("src.download.requests.get", return_value=mock_response):
             result = download_subtitle(
-                sub, str(tmp_path), custom_filename="sub.ass",
-                max_retries=1, retry_delay=0,
+                sub,
+                str(tmp_path),
+                custom_filename="sub.ass",
+                max_retries=1,
+                retry_delay=0,
             )
 
         assert result.success is True
 
 
 # ---- helpers ----
+
 
 def _make_sub(**kwargs: object) -> Subtitle:
     defaults: dict[str, object] = {
@@ -111,6 +126,7 @@ def _make_sub(**kwargs: object) -> Subtitle:
 
 # ---- DumpResult ----
 
+
 class TestDumpResult:
     def test_defaults(self):
         r = DumpResult()
@@ -128,6 +144,7 @@ class TestDumpResult:
 
 
 # ---- dump_subtitles ----
+
 
 class TestDumpSubtitles:
     def test_empty_list(self, tmp_path):
@@ -156,7 +173,9 @@ class TestDumpSubtitles:
         mock_result.success = True
         mock_result.filename = "test.srt"
 
-        with patch("src.download.download_subtitle", return_value=mock_result) as mock_dl:
+        with patch(
+            "src.download.download_subtitle", return_value=mock_result
+        ) as mock_dl:
             result = dump_subtitles([s1, s2], str(tmp_path))
             assert mock_dl.call_count == 1  # 只下载第一个
             assert result.dupes == 1
@@ -173,7 +192,9 @@ class TestDumpSubtitles:
         mock_result.success = True
         mock_result.filename = "test.srt"
 
-        with patch("src.download.download_subtitle", return_value=mock_result) as mock_dl:
+        with patch(
+            "src.download.download_subtitle", return_value=mock_result
+        ) as mock_dl:
             result = dump_subtitles(subs, str(tmp_path))
             assert mock_dl.call_count == 2
             assert result.downloaded == 2
@@ -234,7 +255,9 @@ class TestDumpSubtitles:
         mock_result.success = True
         mock_result.filename = "test.srt"
 
-        with patch("src.download.download_subtitle", return_value=mock_result) as mock_dl:
+        with patch(
+            "src.download.download_subtitle", return_value=mock_result
+        ) as mock_dl:
             result = dump_subtitles([s1, s2], str(tmp_path))
             assert mock_dl.call_count == 1  # 只下载第一个
             assert result.dupes == 1
