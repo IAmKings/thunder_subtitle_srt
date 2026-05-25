@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/quality.md", "reason": "前端质量清单"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "组件规范"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "状态管理"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "类型安全"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "共享代码质量"}
