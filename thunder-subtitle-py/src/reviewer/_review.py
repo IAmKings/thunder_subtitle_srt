@@ -10,28 +10,31 @@ from ._srt import _parse_srt_entries, _check_srt_quality
 
 logger = logging.getLogger(__name__)
 
-MIN_FILE_SIZE = 200     # 最小文件大小（字节）
-MIN_CN_RATIO = 0.05     # .zh 文件最低中文占比
-_ZH_PREFIX = ".zh."     # 中文字幕文件名标识
+MIN_FILE_SIZE = 200  # 最小文件大小（字节）
+MIN_CN_RATIO = 0.05  # .zh 文件最低中文占比
+_ZH_PREFIX = ".zh."  # 中文字幕文件名标识
 
 
 @dataclass
 class ReviewItem:
     """单文件审查结果"""
+
     movie_path: str
     movie_name: str
     filename: str
     score: int = 100
-    status: str = ReviewQuality.ok       # ReviewQuality.ok | ReviewQuality.warn | ReviewQuality.fail
+    status: str = (
+        ReviewQuality.ok
+    )  # ReviewQuality.ok | ReviewQuality.warn | ReviewQuality.fail
     checks: list[str] = field(default_factory=list)
     deductions: list[str] = field(default_factory=list)  # 扣分明细
     size_bytes: int = 0
     line_count: int = 0
-    entry_count: int = 0     # SRT 条目数
+    entry_count: int = 0  # SRT 条目数
     encoding: str = ""
     cn_ratio: float = 0.0
-    reviewed: bool = False      # 是否已人工审查
-    reviewed_date: str = ""     # 审查日期
+    reviewed: bool = False  # 是否已人工审查
+    reviewed_date: str = ""  # 审查日期
 
 
 def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str, str]]:
@@ -54,7 +57,9 @@ def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str
     return result
 
 
-def _review_one_file(filepath: str, filename: str, movie_path: str, movie_name: str) -> ReviewItem:
+def _review_one_file(
+    filepath: str, filename: str, movie_path: str, movie_name: str
+) -> ReviewItem:
     """深度审查单个字幕文件，返回带评分的 ReviewItem"""
     item = ReviewItem(
         movie_path=movie_path,

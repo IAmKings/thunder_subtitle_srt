@@ -30,9 +30,7 @@ def display_subtitle_list(subtitles: list[Subtitle]) -> None:
         tag = f"{GREEN}[CN]{RESET}" if is_chinese else f"{GRAY}[--]{RESET}"
         duration = format_duration(sub.duration)
 
-        print(
-            f"  {YELLOW}{str(idx).rjust(2)}{RESET}. {tag} {sub.name}"
-        )
+        print(f"  {YELLOW}{str(idx).rjust(2)}{RESET}. {tag} {sub.name}")
         print(
             f"      {GRAY}Duration:{RESET} {duration} | "
             f"{GRAY}Format:{RESET} {sub.ext.upper()}"

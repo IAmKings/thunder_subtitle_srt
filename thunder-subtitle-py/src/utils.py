@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class NfoInfo:
     """movie.nfo 解析结果"""
+
     duration_seconds: int = 0
     has_chinese_subtitle: bool = False
     release_date: str = ""  # YYYY-MM-DD
@@ -104,6 +105,7 @@ def seconds_to_duration_str(total_seconds: int) -> str:
 
 # ---- NFO 解析 ----
 
+
 def parse_nfo(nfo_path: str) -> NfoInfo:
     """解析 movie.nfo XML 文件，提取时长和中文状态"""
     tree = ET.parse(nfo_path)
@@ -152,7 +154,11 @@ def _find_elem(parent, tags: tuple[str, ...]):
 # ---- 通用文件/数据工具 ----
 
 
-def filter_by_duration(subtitles: list[Any], max_duration_ms: int, filter_fn: Callable[[list[Any], int], list[Any]]) -> list[Any]:
+def filter_by_duration(
+    subtitles: list[Any],
+    max_duration_ms: int,
+    filter_fn: Callable[[list[Any], int], list[Any]],
+) -> list[Any]:
     """按时长筛选字幕，同时保留 duration=0（无时长信息）的字幕"""
     with_dur = [s for s in subtitles if s.duration > 0]
     without_dur = [s for s in subtitles if s.duration == 0]
