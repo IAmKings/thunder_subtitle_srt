@@ -558,11 +558,7 @@ function SettingsPage() {
         open={showApiSchema}
         onClose={() => setShowApiSchema(false)}
         title={t("xunlei_subtitle_api")}
-        confirmLabel={t("cancel")}
         cancelLabel={t("cancel")}
-        loadingLabel={t("loading")}
-        variant="default"
-        onConfirm={() => setShowApiSchema(false)}
       >
         <pre className="mt-2 max-h-96 overflow-y-auto rounded bg-black/30 p-4 font-mono text-xs leading-relaxed text-on-surface">
 {`GET https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name={keyword}

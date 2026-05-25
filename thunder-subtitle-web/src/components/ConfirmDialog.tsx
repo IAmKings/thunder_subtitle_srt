@@ -7,10 +7,10 @@ interface ConfirmDialogProps {
   onClose: () => void;
   title: string;
   message?: string;
-  confirmLabel: string;
+  confirmLabel?: string;
   cancelLabel?: string;
   loadingLabel?: string;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   variant?: "danger" | "default";
   isLoading?: boolean;
   children?: ReactNode;
@@ -61,15 +61,17 @@ export function ConfirmDialog({
           >
             {cancelLabel}
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
-            className={confirmButtonClass}
-            style={{ WebkitTapHighlightColor: "transparent" }}
-          >
-            {isLoading ? loadingLabel : confirmLabel}
-          </button>
+          {confirmLabel && onConfirm && (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isLoading}
+              className={confirmButtonClass}
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              {isLoading ? loadingLabel : confirmLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

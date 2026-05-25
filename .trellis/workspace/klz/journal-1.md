@@ -838,3 +838,38 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: PWA优化+bug修复：最简SW/更新检测/hydration/循环导入
+
+**Date**: 2026-05-25
+**Task**: PWA优化+bug修复：最简SW/更新检测/hydration/循环导入
+**Branch**: `master`
+
+### Summary
+
+sw.js最简化(72→10行仅PWA壳)、PWA更新检测toast、History组件Date.now()hydration修复、auth循环导入修复。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f00c1fc` | (see git log) |
+| `238d983` | (see git log) |
+| `cd13311` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
