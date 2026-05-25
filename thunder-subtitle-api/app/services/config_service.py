@@ -78,6 +78,17 @@ class ConfigService:
             media_paths=self._effective_media_paths(config),
         )
 
+    def save_password(self, password: str) -> None:
+        """Persist admin password to config file."""
+        try:
+            from src.config import Config
+        except ImportError:
+            from thunder_subtitle.config import Config  # type: ignore[import-untyped]
+
+        config = Config.load()
+        config.password = password
+        config.save()
+
     def reload_config(self) -> AppConfig:
         """Hot-reload configuration from disk."""
         return self.get_config()

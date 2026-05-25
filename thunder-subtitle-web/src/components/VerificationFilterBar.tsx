@@ -7,7 +7,7 @@ interface VerificationFilterBarProps {
   setSortBySize: (v: null | "desc" | "asc") => void;
   statusFilter: string | null;
   setStatusFilter: (v: string | null) => void;
-  setListPage: (v: number | ((prev: number) => number)) => void;
+  setListPage: (v: number) => void;
   okCount: number;
   failCount: number;
   unreviewedCount: number;

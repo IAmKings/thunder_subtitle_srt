@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..exceptions import ThunderSubtitleError
@@ -150,6 +151,21 @@ def _apply_filters(movie_dirs: list[str], name_filters: list[str] | None) -> lis
     return filtered
 
 
+# 并行模式 rate limit：跨线程协调 API 请求间隔
+_rate_last: float = 0.0
+_rate_lock = threading.Lock()
+
+
+def _rate_limit_wait(interval: float) -> None:
+    """跨线程协调等待，确保两次 API 请求间隔 >= interval 秒"""
+    global _rate_last
+    with _rate_lock:
+        elapsed = time.time() - _rate_last
+        if elapsed < interval:
+            time.sleep(interval - elapsed)
+        _rate_last = time.time()
+
+
 def _process_parallel(
     movie_dirs: list[str], dry_run: bool, client, config,
     min_age_days: int, dump_mode: bool, force: bool, reset_fail: bool,
@@ -165,6 +181,7 @@ def _process_parallel(
         nonlocal done
         actor = os.path.basename(os.path.dirname(movie_path))
         name = os.path.basename(movie_path)
+        _rate_limit_wait(float(config.rate_limit))
         with lock:
             done += 1
             print(f"{YELLOW}  [{done}/{total}]{RESET} {BOLD}{actor}/{name}{RESET}", flush=True)

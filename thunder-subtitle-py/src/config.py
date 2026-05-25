@@ -4,6 +4,7 @@
 
 import json
 import os
+import stat
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -28,6 +29,7 @@ class Config:
     retry_delay: int = 2  # 重试间隔（秒）
     preferred_groups: str = ""  # 偏好字幕组（逗号分隔，如 KitaujiSub,DMG）
     media_paths: str = ""  # 默认媒体库路径（逗号分隔，缺省时自动使用）
+    password: str = ""  # 管理密码（持久化存储）
 
     @property
     def preferred_groups_list(self) -> list[str]:
@@ -67,10 +69,12 @@ class Config:
         return config
 
     def save(self) -> None:
-        """保存配置到文件"""
+        """保存配置到文件（含密码持久化），文件权限 0600"""
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+        data = asdict(self)
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(asdict(self), f, indent=2, ensure_ascii=False)
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.chmod(CONFIG_PATH, stat.S_IRUSR | stat.S_IWUSR)
 
     def show(self) -> None:
         """打印当前配置"""

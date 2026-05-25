@@ -702,3 +702,36 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: 三包深度代码质量审查：web/api/py
+
+**Date**: 2026-05-25
+**Task**: 三包深度代码质量审查：web/api/py
+**Branch**: `master`
+
+### Summary
+
+分三批深度审查thunder-subtitle-web(27文件)/api(21文件)/py(20文件)，按SOLID/DRY/错误处理/类型安全/安全/性能六维度评分。共发现73个问题(5个P0/32个P1/36个P2)。关键P0: download端点缺鉴权、文件操作路径遍历、change_password未持久化、setListPage类型不兼容、并行模式rate_limit失效。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5b4c860` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

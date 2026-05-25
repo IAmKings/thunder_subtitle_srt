@@ -13,7 +13,38 @@ from app.models.schemas import (
     ReviewMarkResponse,
     SubtitlePreviewResponse,
 )
+from app.services.config_service import ConfigService
 from app.services.review_service import ReviewService
+
+
+def _get_allowed_roots() -> list[str]:
+    """Return realpath-normalized list of allowed media root directories."""
+    config_service = ConfigService()
+    config = config_service.get_config()
+    raw = config.media_paths or ""
+    paths = [p.strip() for p in raw.split(",") if p.strip()]
+    return [os.path.realpath(p) for p in paths if os.path.isdir(p)]
+
+
+def _validate_subtitle_path(path: str) -> str:
+    """Validate that the resolved path is within an allowed media root directory.
+
+    Raises HTTPException 403 if the path is outside allowed directories.
+    Returns the realpath of the given path.
+    """
+    real = os.path.realpath(path)
+    allowed = _get_allowed_roots()
+    if not allowed:
+        # No roots configured — allow (backward-compatible)
+        return real
+    for root in allowed:
+        if real.startswith(root + "/") or real == root:
+            return real
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Path outside allowed media directories",
+    )
+
 
 router = APIRouter()
 
@@ -95,13 +126,14 @@ async def preview_subtitle(
     _user: str = Depends(get_current_user),
 ):
     """Preview first 50 lines of a subtitle file."""
-    if not os.path.exists(path):
+    validated_path = _validate_subtitle_path(path)
+    if not os.path.exists(validated_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subtitle file not found")
-    if not os.path.isfile(path):
+    if not os.path.isfile(validated_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Path is not a file")
 
     try:
-        content, encoding, total_lines = _detect_and_read_preview(path)
+        content, encoding, total_lines = _detect_and_read_preview(validated_path)
         return SubtitlePreviewResponse(
             content=content,
             encoding=encoding,
@@ -117,10 +149,11 @@ async def delete_subtitle_file(
     _user: str = Depends(get_current_user),
 ):
     """Delete a subtitle file from disk."""
-    if not os.path.isfile(path):
+    validated = _validate_subtitle_path(path)
+    if not os.path.isfile(validated):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
     try:
-        os.remove(path)
+        os.remove(validated)
         return {"success": True}
     except OSError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -137,15 +170,17 @@ async def rename_subtitle_file(
     _user: str = Depends(get_current_user),
 ):
     """Rename a subtitle file. Returns error if target exists."""
-    if not os.path.isfile(body.path):
+    validated = _validate_subtitle_path(body.path)
+    if not os.path.isfile(validated):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-    new_path = os.path.join(os.path.dirname(body.path), body.new_name)
+    new_path = os.path.join(os.path.dirname(validated), body.new_name)
+    new_path = _validate_subtitle_path(new_path)
     if os.path.exists(new_path):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Target file already exists"
         )
     try:
-        os.rename(body.path, new_path)
+        os.rename(validated, new_path)
         return {"success": True, "new_path": new_path}
     except OSError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

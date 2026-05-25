@@ -152,7 +152,10 @@ async def change_password(request: Request, body: ChangePasswordRequest):
             detail="Old password is incorrect",
         )
 
-    # Update password (for single-admin MVP: update the settings object)
+    # Update password and persist to config file
     settings.admin_password = body.new_password
+    from app.services.config_service import ConfigService
+
+    ConfigService().save_password(body.new_password)
 
     return {"success": True, "message": "Password changed successfully"}

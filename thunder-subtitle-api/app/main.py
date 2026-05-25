@@ -5,13 +5,16 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
+from app.config import override_password_from_config, settings
 from app.ws.manager import manager as ws_manager
 
 # Add thunder-subtitle-py/ to sys.path so `from src.config import Config` works
 _cli_src = Path(__file__).resolve().parent.parent.parent / "thunder-subtitle-py"
 if _cli_src.is_dir() and str(_cli_src) not in sys.path:
     sys.path.insert(0, str(_cli_src))
+
+# Load persisted password from config file (overrides env var / default)
+override_password_from_config()
 
 
 @asynccontextmanager

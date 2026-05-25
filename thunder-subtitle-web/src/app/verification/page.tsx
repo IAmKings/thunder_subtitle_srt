@@ -504,13 +504,7 @@ function VerificationPage() {
             setSortBySize={(v) => dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: v })}
             statusFilter={statusFilter}
             setStatusFilter={(v) => dispatchFilter({ type: "SET_STATUS_FILTER", payload: v })}
-            setListPage={(v) => {
-              if (typeof v === "function") {
-                dispatchFilter({ type: "SET_LIST_PAGE", payload: v(listPage) });
-              } else {
-                dispatchFilter({ type: "SET_LIST_PAGE", payload: v });
-              }
-            }}
+            setListPage={(v) => dispatchFilter({ type: "SET_LIST_PAGE", payload: v })}
             okCount={okCount}
             failCount={failCount}
             unreviewedCount={unreviewedCount}

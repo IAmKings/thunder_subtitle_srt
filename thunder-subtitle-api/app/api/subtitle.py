@@ -5,6 +5,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.auth.dependencies import get_current_user
 from app.models.schemas import (
     SubtitleDetail,
     SubtitleSearchResponse,
@@ -70,6 +71,7 @@ async def get_subtitle_detail(
 async def download_subtitle(
     url: str = Query(..., description="Subtitle download URL"),
     filename: Optional[str] = Query(None, description="Optional filename for the download"),
+    _user: str = Depends(get_current_user),
 ):
     """Proxy download a subtitle file from the given URL."""
     try:

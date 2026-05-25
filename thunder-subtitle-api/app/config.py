@@ -1,5 +1,9 @@
 """Application configuration loaded from environment variables."""
 
+import json
+import os
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 
 
@@ -32,3 +36,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def override_password_from_config() -> None:
+    """Override settings.admin_password from config file (priority: config > env > default).
+
+    Must be called after sys.path is set up so the CLI config module can be imported.
+    This runs during lifespan startup in main.py.
+    """
+    config_path = os.environ.get(
+        "THUNDER_SUBTITLE_CONFIG",
+        os.path.join(str(Path.home()), ".thunder-subtitle.json"),
+    )
+    if not os.path.isfile(config_path):
+        return
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        pw = data.get("password", "").strip()
+        if pw:
+            settings.admin_password = pw
+    except (json.JSONDecodeError, OSError):
+        pass
