@@ -1,169 +1,144 @@
-# Thunder Subtitle
+# Thunder Subtitle CLI (Python)
 
-迅雷字幕 CLI 工具 — 搜索、下载中文字幕，支持 Jellyfin 媒体库自动扫描。
+迅雷字幕搜索下载命令行工具，支持 Jellyfin 媒体库自动扫描、字幕质量审查、配置文件管理。
 
 ## 安装
 
 ```bash
-pip install thunder-subtitle
+pip install thunder-subtitle-srt
 ```
 
-或开发模式安装：
+## 快速开始
 
 ```bash
-git clone <repo>
-cd thunder-subtitle-py
-pip install -e ".[dev]"
+thunder-subtitle search "电影名称" --chinese-only
+thunder-subtitle scan /path/to/media --dry-run
+thunder-subtitle review /path/to/media
+thunder-subtitle config --set media_paths /media/movies
 ```
 
-## 使用方法
+## 命令参考
 
-### 搜索字幕
+### `search` — 搜索字幕
+
+| 参数 | 简写 | 说明 |
+|------|------|------|
+| `--chinese-only` | `-c` | 仅显示中文字幕 |
+| `--chinese-first` | `-f` | 中文优先，无中文时降级到其他语言 |
+| `--max-duration` | `-d` | 最大视频时长筛选（如 `1h30m`） |
+| `--output` | `-o` | 下载输出目录 |
+| `--index` | `-i` | 下载指定序号（`1,3,5` 或 `1-3`） |
+| `--all` | `-a` | 下载全部结果 |
+| `--limit` | | 限制显示前 N 条 |
+
+### `scan` — 媒体库扫描
+
+| 参数 | 说明 |
+|------|------|
+| `directory` | 扫描根目录（演员/电影 结构） |
+| `--dry-run` | 预览模式，不实际下载 |
+| `--filter` | 仅处理匹配电影（可重复） |
+| `--resume` | 断点续扫 |
+| `--log` | 保存扫描日志 |
+| `--min-age` | 仅处理发布 N 天后的电影 |
+| `--dump` | 暴力模式：全量下载 + 内容去重 |
+| `--force` | 强制刷新，读取 `.rejected` 增量下载 |
+| `--reset-fail` | 清除 mark-fail + 已拒绝指纹 |
+| `-p N` | 并行 worker 数（默认 1） |
+
+### `review` — 字幕审查
+
+| 参数 | 说明 |
+|------|------|
+| `directory` | 审查目录 |
+| `--filter` | 仅审查匹配电影（可重复） |
+| `--log` | 保存审查报告 |
+| `--mark` | 标记为已审查通过 |
+| `--mark-fail` | 标记为审查失败（合并 `.dumped` → `.rejected`） |
+| `--unmark` | 取消审查标记 |
+
+审查项：编码检测、文件大小、SRT 解析（序号/重叠/时长）、中文占比。百分制评分。
+
+### `dump` — 全量下载
+
+| 参数 | 简写 | 说明 |
+|------|------|------|
+| `name` | | 搜索的电影名 |
+| `--output` | `-o` | 输出目录 |
+| `--max-duration` | `-d` | 视频时长筛选 |
+| `--chinese-only` | `-c` | 仅中文字幕 |
+| `--chinese-first` | `-f` | 中文优先 |
+| `--dir` | | 直接指定电影目录（读 NFO 获取片名+时长） |
+
+### `config` — 配置管理
+
+| 参数 | 说明 |
+|------|------|
+| （无参数） | 查看当前配置 |
+| `--set K V` | 设置配置项 |
+| `--reset` | 恢复默认 |
+
+配置文件 `~/.thunder-subtitle.json`，环境变量 `THUNDER_SUBTITLE_CONFIG` 可覆盖路径。
+
+## 扫描器工作原理
+
+### 目录结构
+
+```
+/path/to/media/
+├── 演员/
+│   └── 电影/
+│       ├── movie.nfo          # 元数据（必需）
+│       └── 电影.zh.srt        # 已有字幕（跳过）
+```
+
+### 跳过条件
+
+- NFO 含"中文字幕"标签
+- `{电影名}.zh.{ext}` 已存在
+- movie.nfo 无 `durationinseconds`
+- 发布天数 < `--min-age`
+- mark-fail + 非 force 模式
+
+### 下载策略
+
+每次下载两个字幕：主力（API 第一条）+ 备选（按优先级算法选择），文件命名为 `{电影名}.zh.{ext}` 和 `{电影名}-alt.zh.{ext}`。
+
+### dry_run 状态
+
+`scan --dry-run` 每部电影输出状态标签：
+
+| 状态 | 含义 |
+|------|------|
+| `need_download` | 无字幕，需下载 |
+| `need_review` | 有字幕但未审查 |
+| `reviewed_ok` | 审查通过 |
+| `reviewed_fail` | 审查失败，无新字幕 |
+| `reviewed_fail_new_subs` | 审查失败但有新 dump 字幕，**待重审** |
+| `skipped` | 其他原因跳过 |
+
+### 增量刷新
 
 ```bash
-# 基本搜索
-thunder-subtitle search "Movie Name"
-
-# 仅中文字幕
-thunder-subtitle search "Movie Name" --chinese-only
-
-# 按视频时长筛选 (过滤时长不匹配的字幕)
-thunder-subtitle search "Movie Name" --max-duration 1h30m
-
-# 下载全部结果
-thunder-subtitle search "Movie Name" --all -o ./subs/
-
-# 按序号下载
-thunder-subtitle search "Movie Name" --index 1,3,5
+thunder-subtitle scan /media --dump                    # 1. 全量下载
+thunder-subtitle review /media --mark-fail "电影"       # 2. 标记失败（合并指纹 → .rejected）
+thunder-subtitle scan /media --dump --force             # 3. 增量刷新（跳过已拒绝，仅下载新字幕）
 ```
 
-### 全量下载（dump）
+> 验证页仅显示 `not_reviewed` 和存在新 dump 字幕的 `fail` 电影，纯 fail 无新字幕的电影不再显示。
 
-下载所有匹配的中文字幕，自动跳过之前已拒绝的字幕（基于 gcid 记录在 `.rejected` 文件中）。
+### 文件名规则
 
-```bash
-# 直接搜索下载
-thunder-subtitle dump "Movie Name"
-
-# 从目录读取 movie.nfo 自动获取时长
-thunder-subtitle dump --dir /path/to/movie
-
-# 清空 .rejected 文件以重新下载所有字幕
-rm /path/to/movie/.rejected
-```
-
-> 注意：已拒绝的字幕（gcid 或 url hash 记录在 `.rejected`）在后续下载中自动跳过。手动删除 `.rejected` 文件可清空拒绝列表。scan 模式下的 `--reset-fail` 会自动清空 `.rejected` 和审查失败标记，实现完全暴力刷新。
-
-### Jellyfin 目录扫描
-
-扫描演员/电影目录结构，自动搜索并下载缺失的字幕。支持断点续扫、并行下载。
-
-```bash
-# 基础扫描
-thunder-subtitle scan /path/to/jellyfin/media
-
-# 预览模式（不实际下载）
-thunder-subtitle scan /path/to/jellyfin/media --dry-run
-
-# 并行处理（4线程）
-thunder-subtitle scan /path/to/jellyfin/media --parallel 4
-
-# 过滤特定电影
-thunder-subtitle scan /path/to/jellyfin/media --filter "电影名"
-
-# 断点续扫
-thunder-subtitle scan /path/to/jellyfin/media --resume
-
-# 仅处理 N 天前发布的电影
-thunder-subtitle scan /path/to/jellyfin/media --min-age 7
-
-# 全量下载模式（每部电影下载所有匹配字幕）
-thunder-subtitle scan /path/to/jellyfin/media --dump
-
-# 强制重试标记失败的电影（但跳过已拒绝的字幕）
-thunder-subtitle scan /path/to/jellyfin/media --dump --force
-
-# 暴力刷新：清除标记失败状态和所有拒绝记录，重新下载
-thunder-subtitle scan /path/to/jellyfin/media --dump --force --reset-fail
-```
-
-### 字幕审查
-
-审查已下载字幕质量，给出百分制评分。
-
-```bash
-# 审查目录
-thunder-subtitle review /path/to/jellyfin/media
-
-# 标记审查状态
-thunder-subtitle review --mark "电影名"            # 标记通过
-thunder-subtitle review --mark-fail "电影名"       # 标记失败（不再尝试下载）
-thunder-subtitle review --unmark "电影名"          # 取消标记
-thunder-subtitle review --mark-all                 # 全部标记
-```
-
-### 配置管理
-
-```bash
-# 查看配置
-thunder-subtitle config
-
-# 设置配置项
-thunder-subtitle config --set media_paths /path1,/path2
-thunder-subtitle config --set rate_limit 5
-thunder-subtitle config --set preferred_groups "KitaujiSub,DMG"
-
-# 重置为默认
-thunder-subtitle config --reset
-```
-
-配置项：
-
-| 键 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `output_dir` | str | `""` | 默认下载目录 |
-| `timeout` | int | `30` | API 超时（秒） |
-| `rate_limit` | int | `3` | 扫描模式查询间隔（秒） |
-| `retry_count` | int | `3` | 下载失败重试次数 |
-| `retry_delay` | int | `2` | 重试基础间隔（秒，指数退避） |
-| `preferred_groups` | str | `""` | 偏好字幕组（逗号分隔） |
-| `media_paths` | str | `""` | 默认媒体库路径（逗号分隔） |
-
-### 直接下载
-
-```bash
-thunder-subtitle download "https://..." "filename.srt"
-```
-
-## Jellyfin 目录结构
-
-```
-媒体库/
-├── 演员A/
-│   ├── 电影1/
-│   │   ├── movie.nfo
-│   │   └── 视频文件
-│   └── 电影2/
-│       └── movie.nfo
-└── 演员B/
-    └── 电影3/
-        └── movie.nfo
-```
+中文字幕自动加 `.zh` 标识：`流浪地球.zh.srt`。非中文不加：`inception.srt`。
 
 ## 开发
 
 ```bash
-pip install -e ".[dev]"    # 安装开发依赖
-pytest tests/ -v           # 运行测试（196 用例）
-ruff check .               # 代码检查
+cd thunder-subtitle-py
+pip install -e ".[dev]"
+pytest
 ```
 
-## CI/CD
+## 技术栈
 
-- **CI**：push/PR 时自动运行 ruff lint + 编译检查 + pytest
-- **发布**：推送 `v*` tag 自动构建 wheel 并发布到 PyPI
-
-## 要求
-
-- Python >= 3.10
-- `requests`
+Python 3.10+ / requests / argparse / dataclasses

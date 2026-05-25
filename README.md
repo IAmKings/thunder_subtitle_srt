@@ -1,47 +1,21 @@
 # Thunder Subtitle
 
-字幕搜索下载工具，支持 CLI（TypeScript / Python）和 WebApp 三种方式获取迅雷电鳎 API 字幕。
-
-## 项目结构
-
-```
-thunder-subtitle-srt/
-├── thunder-subtitle-cli/    # CLI 工具 (TypeScript, 交互式 TUI)
-├── thunder-subtitle-py/     # CLI 工具 (Python, 纯命令行参数)
-├── thunder-subtitle-web/    # WebApp
-├── .trellis/               # Trellis 工作流配置
-└── AGENTS.md               # AI 代理说明
-```
+字幕搜索下载工具，支持 CLI 命令行和 WebApp 两种方式获取迅雷电鳎 API 字幕。
 
 ## 功能特性
 
-- [x] 字幕搜索（通过迅雷电鳎 API）
-- [x] 中文字幕过滤（`--chinese-only`）
-- [x] 中文优先模式（`--chinese-first`，无中文时降级下载其他语言）
-- [x] 智能中文检测（languages 字段 + 文件名关键字 zh/CN/Chinese/中文）
-- [x] 视频时长匹配筛选（`--max-duration`，最接近但不超过）
-- [x] 单选/多选字幕（TS 交互式 / Python 参数式）
-- [x] 字幕下载（单文件/批量）
-- [x] Jellyfin 扫描器（自动扫描、多关键词过滤、双字幕下载）
-- [x] 多关键词过滤（`--filter` 可重复，命中任一即处理）
-- [x] 配置文件持久化（`~/.thunder-subtitle.json`，支持 `config` 命令管理）
-- [x] 字幕审查（深度检测+百分制评分+人工审查通过/不及格标记）
-- [x] 下载文件名规则：`{搜索名}{.zh}.{ext}`，中文字幕自动加 `.zh` 标识
+- 字幕搜索下载（中文字幕过滤、时长匹配、多选/批量）
+- Jellyfin 媒体库自动扫描（双字幕下载、断点续扫、增量刷新）
+- 字幕质量审查（编码/时间轴/中文占比检测 + 百分制评分）
+- WebApp 全功能 UI（搜索/扫描/审查/配置 + 移动端适配 + PWA）
 
-## 安装
+## 快速开始
 
-### pip install（推荐）
+### pip install
 
 ```bash
 pip install thunder-subtitle-srt
-```
-
-安装后直接使用 `thunder-subtitle` 命令：
-
-```bash
 thunder-subtitle search "电影名称" --chinese-only
-thunder-subtitle scan /path/to/media --dry-run
-thunder-subtitle config --set media_paths /media/movies
 ```
 
 ### Docker
@@ -50,356 +24,45 @@ thunder-subtitle config --set media_paths /media/movies
 docker pull ghcr.io/iamkings/thunder_subtitle_srt:latest
 
 docker run -d \
-  -p 3000:3000 -p 8000:8000 \
+  -p 3000:3000 \
   -e ADMIN_PASSWORD=your-password \
   -v /path/to/media:/media \
+  -v /path/to/data:/root \
   ghcr.io/iamkings/thunder_subtitle_srt:latest
-```
-
-访问 http://localhost:3000 进入 WebApp。
-
-## 开发环境
-
-### CLI 工具 (TypeScript)
-
-```bash
-cd thunder-subtitle-cli
-pnpm install
-
-# 搜索字幕
-pnpm search "电影名称"
-
-# 仅中文字幕
-pnpm search "电影名称" --chinese-only
-
-# 中文优先（有中文下中文，无中文降级下载其他语言）
-pnpm search "电影名称" --chinese-first
-
-# 多选批量下载
-pnpm search "电影名称" --multi-select
-
-# 按视频时长筛选（支持 h/m/s 组合）
-pnpm search "电影名称" --max-duration 1h30m
-pnpm search "电影名称" -d 90m
-```
-
-### CLI 工具 (Python) — 开发
-
-```bash
-cd thunder-subtitle-py
-pip install -e ".[dev]"
-
-# 安装后直接使用
-thunder-subtitle search "电影名称" -c -d 2h --all
-
-# 按序号下载（1-based，支持逗号/范围）
-python3 cli.py search "电影名称" -i 1
-python3 cli.py search "电影名称" -i 1,3,5
-python3 cli.py search "电影名称" -i 1-3
-
-# 下载全部
-python3 cli.py search "电影名称" --all
-
-# 组合筛选
-python3 cli.py search "电影名称" -c -d 2h -f --all
-
-# 限制显示条数
-python3 cli.py search "电影名称" --limit 10
-
-# Jellyfin 目录扫描（预览模式）
-python3 cli.py scan /path/to/media --dry-run
-
-# Jellyfin 目录扫描（实际下载）
-python3 cli.py scan /path/to/media
-
-# 断点续扫（中断后继续）
-python3 cli.py scan /path/to/media --resume
-
-# 保存扫描日志
-python3 cli.py scan /path/to/media --log
-
-# 暴力dump模式：全部字幕下载到电影目录（人工筛选）
-python3 cli.py scan /path/to/media --dump
-
-# 并行下载（5 并发，加快速度）
-python3 cli.py scan /path/to/media -p 5
-
-# 强制刷新 mark-fail 电影
-python3 cli.py scan /path/to/media --dump --force
-
-# 仅处理发布 30 天后的电影（新片字幕质量差）
-python3 cli.py scan /path/to/media --min-age 30
-
-# 只处理特定系列电影（支持多关键词）
-python3 cli.py scan /path/to/media --filter "星球大战"
-python3 cli.py scan /path/to/media --filter "星球大战" --filter "Star Wars" --filter "漫威"
-
-# 审查字幕文件质量
-python3 cli.py review /path/to/media
-python3 cli.py review /path/to/media --filter "星球大战" --log
-
-# 全量下载（评分低时人工筛选）
-# 全量下载（手动指定电影名）
-python3 cli.py dump "流浪地球" -o /path/to/movie -d 2h --chinese-first
-
-# 全量下载（自动从目录读取电影名+时长）
-python3 cli.py dump --dir /media/A/流浪地球
-
-# 标记人工审查
-python3 cli.py review /path/to/media --mark "星球大战"
-python3 cli.py review /path/to/media --mark-path "A/流浪地球"
-python3 cli.py review /path/to/media --mark-fail "星球大战"  # dump全部不及格
-python3 cli.py review /path/to/media --mark-all
-
-# 查看/修改配置
-python3 cli.py config
-python3 cli.py config --set rate_limit 5
-python3 cli.py config --set preferred_groups KitaujiSub,DMG
-python3 cli.py config --set media_paths /media/movies,/media/anime
-
-# 配置后无需每次传目录
-python3 cli.py scan --dry-run
-python3 cli.py review
-```
-
-### WebApp
-
-```bash
-cd thunder-subtitle-web
-pnpm install
-pnpm dev
 ```
 
 访问 http://localhost:3000
 
-## 命令参数速查
+## 项目结构
 
-### `search` 命令
+```
+thunder-subtitle-srt/
+├── thunder-subtitle-py/     # CLI 工具 (Python)
+├── thunder-subtitle-web/    # WebApp 前端 (Next.js)
+├── thunder-subtitle-api/    # FastAPI 后端
+├── thunder-subtitle-cli/    # CLI 工具 (TypeScript, 已归档)
+├── README_DEPLOY.md         # Docker 详细部署指南
+└── .trellis/                # Trellis 工作流配置
+```
 
-| 参数 | 简写 | 说明 |
+## 模块文档
+
+| 模块 | 说明 | 文档 |
 |------|------|------|
-| `--chinese-only` | `-c` | 仅显示中文字幕 |
-| `--chinese-first` | `-f` | 中文优先，无中文时降级到其他语言 |
-| `--max-duration` | `-d` | 最大视频时长筛选（如 `1h30m`、`90m`） |
-| `--output` | `-o` | 下载输出目录 |
-| `--multi-select` | `-m` | 多选模式（仅 TS 版） |
-| `--index` | `-i` | 下载指定序号（仅 Python 版，如 `1,3,5`） |
-| `--all` | `-a` | 下载全部结果（仅 Python 版） |
-| `--limit` | | 限制显示前 N 条（仅 Python 版） |
-
-### `scan` 命令（仅 Python 版）
-
-| 参数 | 说明 |
-|------|------|
-| `directory` | 扫描根目录（演员/电影 结构） |
-| `--dry-run` | 预览模式，不实际下载 |
-| `--filter` | 仅处理电影名包含该关键词的目录（可重复多次） |
-| `--resume` | 断点续扫，跳过已处理的电影 |
-| `--log` | 保存扫描日志到目录下 |
-| `--min-age` | 仅处理发布 N 天后的电影（默认 0，无日期也作 0） |
-| `--dump` | 暴力模式：每电影下载全部字幕 + 内容去重 |
-| `--force` | 强制刷新 mark-fail 电影（保留 fail 状态） |
-| `--reset-fail` | 清除 mark-fail 状态 + 已拒绝指纹 |
-| `-p / --parallel` | 并行 worker 数（默认 1 = 串行） |
-
-### `review` 命令（仅 Python 版）
-
-| 参数 | 说明 |
-|------|------|
-| `directory` | 审查目录（演员/电影 结构） |
-| `--filter` | 仅审查匹配关键词的电影（可重复） |
-| `--log` | 保存审查报告 |
-| `--mark` | 标记匹配电影为已审查 |
-| `--unmark` | 取消匹配电影的审查标记 |
-| `--mark-all` | 批量标记全部电影为已审查 |
-| `--mark-path` | 精确标记目录（相对/绝对路径） |
-| `--unmark-path` | 精确取消标记（相对/绝对路径） |
-| `--mark-fail` | 标记匹配电影为审查不及格 |
-| `--mark-fail-path` | 精确标记指定目录为审查不及格 |
-
-审查项：编码、文件大小、SRT时间轴解析（序号/重叠/空内容/行长度/时长）、中文占比。输出百分制评分。
-
-标记文件：`.reviewed` 空文件放在电影目录下，`scan --dry-run` 联动提示未审查项。
-
-### `dump` 命令（仅 Python 版）
-
-| 参数 | 简写 | 说明 |
-|------|------|------|
-| `name` | | 搜索的电影名 |
-| `--output` | `-o` | 输出目录（默认当前目录） |
-| `--max-duration` | `-d` | 最大视频时长筛选 |
-| `--chinese-only` | `-c` | 仅中文字幕 |
-| `--dir` | 直接指定电影目录（自动读电影名+时长） |
-| `--chinese-first` | `-f` | 中文优先排序 |
-
-下载全部匹配字幕，按 `1.srt`、`2.srt`、... 命名，方便人工逐个筛选。
-
-### `config` 命令（仅 Python 版）
-
-| 参数 | 说明 |
-|------|------|
-| （无参数） | 查看当前配置 |
-| `--set KEY VALUE` | 设置配置项 |
-| `--reset` | 恢复默认配置 |
-
-配置项：`output_dir`、`timeout`、`rate_limit`、`retry_count`、`retry_delay`、`preferred_groups`、`media_paths`。文件：`~/.thunder-subtitle.json`
-
-`media_paths`：逗号分隔的媒体库路径。配置后 `scan`/`review` 命令可不传目录参数，自动按序处理多个仓库。
-
-### 文件名规则
-
-下载的字幕文件按以下规则命名：
-
-```
-{搜索关键词}{.zh}.{扩展名}
-```
-
-| 场景 | 示例 |
-|------|------|
-| 中文字幕 | `流浪地球.zh.srt` |
-| 非中文字幕 | `inception.srt` |
-| `-f` 降级非中文 | `stranger things.srt`（不误导加 .zh） |
-
-## Jellyfin 扫描器
-
-自动扫描 Jellyfin 媒体库目录，批量下载中文字幕（每个电影下载主力 + 备选两个字幕）。
-
-### 目录结构
-
-扫描器期望以下目录结构：
-
-```
-/path/to/media/
-├── 演员A/
-│   ├── 电影1/
-│   │   ├── movie.nfo          # 电影元数据（必需）
-│   │   └── 电影1.zh.srt       # 已有字幕（会跳过）
-│   └── 电影2/
-│       └── movie.nfo
-└── 演员B/
-    └── 电影3/
-        └── movie.nfo
-```
-
-### movie.nfo 格式
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<movie>
-  <fileinfo>
-    <streamdetails>
-      <video>
-        <durationinseconds>7140</durationinseconds>  <!-- 用于时长匹配 -->
-      </video>
-    </streamdetails>
-  </fileinfo>
-  <genre>科幻</genre>
-  <!-- 含"中文字幕"的标签会自动跳过 -->
-</movie>
-```
-
-### 跳过条件（满足任一即跳过）
-
-| 条件 | 说明 |
-|------|------|
-| NFO 任意标签含"中文字幕" | 已内置中文字幕 |
-| `{电影名}{.zh}.{srt,ass,ssa,sub,vtt}` 已存在 | 已有字幕，不重复下载 |
-| movie.nfo 无 `durationinseconds` | 无法匹配时长 |
-| `releasedate` 距今天数 < `--min-age` | 新片前期字幕质量差 |
-
-### 下载策略
-
-每次搜索匹配后，会下载**两个字幕**方便播放器选择：
-
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| `{电影名}{.zh}.{ext}` | API 返回第一条 | **主力字幕**（80% 场景翻译质量最高） |
-| `{电影名}-alt.zh.{ext}` | 优先级算法最佳 | 备选字幕（字幕组 > 中文 > 时长接近） |
-
-去重规则：备选和主力是同一个字幕时，后延取 API 顺序第二条。
-
-### 下载优先级
-
-每次搜索匹配后，按以下优先级选择字幕：
-
-| 优先级 | 条件 | 说明 |
-|:------:|------|------|
-| **1** | 偏好字幕组 | `preferred_groups` 中指定的字幕组 |
-| **2** | 中文字幕 | languages 含中文 或 name 含中文标识 |
-| **3** | duration 降序 | 最接近视频时长 |
-
-### 断点续扫
-
-意外中断后，使用 `--resume` 跳过已处理的电影继续扫描：
-
-```bash
-python3 cli.py scan /path/to/media --resume
-```
-
-进度文件 `.scan-progress` 保存在扫描目录下，全部完成后自动清理。
-
-### 扫描日志
-
-`--log` 在扫描目录下生成日志文件 `scan_{时间戳}.log`：
-
-```
-[16:19:43] [OK] 流浪地球 - 流浪地球.zh.srt, 流浪地球-alt.zh.ass
-[16:20:15] [SKIP] 星际穿越 - NFO has Chinese subtitle tag
-[16:20:15] [NONE] 盗梦空间 - No subtitles found
-[16:20:45] [ERR] 未知电影 - NFO parse error: ...
-
---- Summary ---
-Total: 4  OK: 1  Skip: 1  None: 1  Err: 1
-```
-
-### 增量刷新
-
-dump 全量后 mark-fail，系统自动归档内容指纹到 `.rejected`。后续 `--dump --force` 时跳过已拒绝的字幕：
-
-```bash
-python3 cli.py scan /media --dump              # 全量下载 + 存指纹
-python3 cli.py review /media --mark-fail "电影" # 归档指纹 → .rejected
-# … 一星期后 …
-python3 cli.py scan /media --dump --force       # 跳过已拒绝，仅下载新字幕
-```
-
-`.dumped` / `.rejected` 文件在电影目录下，纯文本，每行一个 MD5 指纹。
-
-### 下载重试
-
-下载失败自动重试（默认 3 次，间隔 2 秒），可通过配置调整：
-
-```bash
-python3 cli.py config --set retry_count 5
-python3 cli.py config --set retry_delay 3
-```
-
-### 防抖机制
-
-API 查询间隔可通过配置调整，避免请求过频（默认 3 秒）：
-
-```bash
-python3 cli.py config --set rate_limit 5   # 改为 5 秒
-python3 cli.py config --set rate_limit 0   # 不等待（测试用）
-```
+| **CLI (Python)** | 命令行搜索/扫描/审查/配置 | [README](./thunder-subtitle-py/README.md) |
+| **WebApp** | Next.js 前端 UI | [README](./thunder-subtitle-web/README.md) |
+| **API** | FastAPI 后端服务 | [README](./thunder-subtitle-api/README.md) |
+| **部署** | Docker 构建、compose、验证 | [README_DEPLOY.md](./README_DEPLOY.md) |
 
 ## 技术栈
 
-| 组件 | TS CLI | Python CLI | WebApp |
-|------|--------|------------|--------|
-| 语言 | TypeScript | Python 3.10+ | TypeScript |
-| 框架 | Node.js | argparse | Next.js 15 + React |
-| UI | Inquirer (TUI) | 纯命令行 | TailwindCSS |
-| HTTP | axios | requests | fetch + API Route |
-
-## API
-
-项目使用迅雷电鳎公开字幕 API：
-
-- Endpoint: `https://api-shoulei-ssl.xunlei.com/oracle/subtitle?name={name}`
-- 返回格式: JSON with `code:0` and `data[]` array
-
-WebApp 通过 `/api/subtitle` 代理请求以解决 CORS 问题。
+| 组件 | 技术 |
+|------|------|
+| CLI | Python 3.10+ / requests / argparse |
+| Web 前端 | Next.js 16 / React 19 / TailwindCSS 4 / TypeScript |
+| API 后端 | FastAPI / Pydantic / JWT / WebSocket |
+| 部署 | Docker (Alpine) / Nginx / supervisord / GitHub Actions |
+| 数据源 | 迅雷电鳎公开字幕 API |
 
 ## 许可证
 
