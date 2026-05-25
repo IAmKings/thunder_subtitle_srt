@@ -906,3 +906,38 @@ sw.js最简化(72→10行仅PWA壳)、PWA更新检测toast、History组件Date.n
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: PWA移动端UI修复+库路径文件夹名+ConfirmDialog优化
+
+**Date**: 2026-05-25
+**Task**: PWA移动端UI修复+库路径文件夹名+ConfirmDialog优化
+**Branch**: `master`
+
+### Summary
+
+PWA三UI修复(表格→卡片/筛选分行/审查切换)、库路径卡片新增文件夹名、ConfirmDialog支持仅关闭模式(修复双取消按钮)、API格式弹窗简化。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `51fa9c5` | (see git log) |
+| `fccad55` | (see git log) |
+| `4b0b3e2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -30,6 +30,7 @@ docker pull ghcr.io/iamkings/thunder_subtitle_srt:latest
 
 docker run -d \
   -p 3000:3000 \
+  -p 3443:443 \
   -e ADMIN_PASSWORD=your-password \
   -v /path/to/media:/media \
   -v /path/to/data:/root \
@@ -38,10 +39,12 @@ docker run -d \
 
 详细部署文档：[README_DEPLOY.md](../README_DEPLOY.md)
 
+> HTTPS 访问（PWA 安装）：`https://your-ip:3443` — 首次自签名证书警告，点击继续后 Chrome 弹出 PWA 安装提示。
+
 ## 架构
 
 ```
-Nginx :3000 (统一入口)
+Nginx :3000 (HTTP) / :443 (HTTPS 自签名)
   ├── /api/*  + /ws/* → FastAPI :8000
   └── /* → Next.js :3001
 ```
