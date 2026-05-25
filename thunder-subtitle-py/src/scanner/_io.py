@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime
 
-from ..models import ScanStatus, DryState
+from ..models import DryState
 from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW
 
 from ._processor import ScanResult
@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 def _count_scan_statuses(results: list[ScanResult]) -> dict[str, int]:
     """统计扫描结果中各状态的数量"""
     counts: dict[str, int] = {
-        ScanStatus.downloaded: 0,
-        ScanStatus.skipped: 0,
-        ScanStatus.no_match: 0,
-        ScanStatus.error: 0,
+        "downloaded": 0,
+        "skipped": 0,
+        "no_match": 0,
+        "error": 0,
     }
     for r in results:
         if r.status in counts:
@@ -39,10 +39,10 @@ def _write_log(log_path: str, movie_path: str, result: ScanResult) -> None:
     """写入单条日志"""
     ts = datetime.now().strftime("%H:%M:%S")
     status_map = {
-        ScanStatus.downloaded: "OK",
-        ScanStatus.skipped: "SKIP",
-        ScanStatus.no_match: "NONE",
-        ScanStatus.error: "ERR",
+        "downloaded": "OK",
+        "skipped": "SKIP",
+        "no_match": "NONE",
+        "error": "ERR",
     }
     tag = status_map.get(result.status, "??")
     extra = (
@@ -63,13 +63,17 @@ def _write_log_summary(log_path: str, results: list[ScanResult]) -> None:
     """写入汇总到日志末尾"""
     counts = _count_scan_statuses(results)
     total = len(results)
+    ok, skip, none, err = (
+        counts["downloaded"],
+        counts["skipped"],
+        counts["no_match"],
+        counts["error"],
+    )
     try:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write("\n--- Summary ---\n")
             f.write(
-                f"Total: {total}  OK: {counts[ScanStatus.downloaded]}  "
-                f"Skip: {counts[ScanStatus.skipped]}  None: {counts[ScanStatus.no_match]}  "
-                f"Err: {counts[ScanStatus.error]}\n"
+                f"Total: {total}  OK: {ok}  Skip: {skip}  None: {none}  Err: {err}\n"
             )
     except OSError:
         logger.warning("无法写入日志汇总: %s", log_path)
@@ -85,7 +89,7 @@ def _print_scan_summary(results: list[ScanResult]) -> None:
             DryState.need_review: dry_states.count(DryState.need_review),
             DryState.reviewed_ok: dry_states.count(DryState.reviewed_ok),
             DryState.reviewed_fail: dry_states.count(DryState.reviewed_fail),
-            ScanStatus.skipped: dry_states.count(ScanStatus.skipped),
+            "skipped": dry_states.count("skipped"),
         }
         print()
         print(f"{BOLD}  Scan Summary:{RESET}")
@@ -97,22 +101,28 @@ def _print_scan_summary(results: list[ScanResult]) -> None:
             print(f"{GREEN}    ✓ Reviewed: {counts['reviewed_ok']}{RESET}")
         if counts[DryState.reviewed_fail] > 0:
             print(f"{RED}    ✗ Failed: {counts['reviewed_fail']}{RESET}")
-        if counts[ScanStatus.skipped] > 0:
+        if counts["skipped"] > 0:
             print(f"{DIM}    - Other skip: {counts['skipped']}{RESET}")
         print()
         return
 
     # 正常下载模式：按结果状态统计
     counts = _count_scan_statuses(results)
+    dl, sk, nm, er = (
+        counts["downloaded"],
+        counts["skipped"],
+        counts["no_match"],
+        counts["error"],
+    )
 
     print()
     print(f"{BOLD}  Scan Summary:{RESET}")
-    if counts[ScanStatus.downloaded] > 0:
-        print(f"{GREEN}    ✓ Downloaded: {counts[ScanStatus.downloaded]}{RESET}")
-    if counts[ScanStatus.skipped] > 0:
-        print(f"{DIM}    - Skipped: {counts[ScanStatus.skipped]}{RESET}")
-    if counts[ScanStatus.no_match] > 0:
-        print(f"{YELLOW}    - No match: {counts[ScanStatus.no_match]}{RESET}")
-    if counts[ScanStatus.error] > 0:
-        print(f"{RED}    ✗ Errors: {counts[ScanStatus.error]}{RESET}")
+    if dl > 0:
+        print(f"{GREEN}    ✓ Downloaded: {dl}{RESET}")
+    if sk > 0:
+        print(f"{DIM}    - Skipped: {sk}{RESET}")
+    if nm > 0:
+        print(f"{YELLOW}    - No match: {nm}{RESET}")
+    if er > 0:
+        print(f"{RED}    ✗ Errors: {er}{RESET}")
     print()

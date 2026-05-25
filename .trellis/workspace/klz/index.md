@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 27
+- **Total Sessions**: 28
 - **Last Active**: 2026-05-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~943 | Active |
+| `journal-1.md` | ~976 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 28 | 2026-05-25 | 1.2.0 预发布版本更新与文档同步 | HEAD~1 | `master` |
 | 27 | 2026-05-25 | PWA移动端UI修复+库路径文件夹名+ConfirmDialog优化 | `51fa9c5`, `fccad55`, `4b0b3e2` | `master` |
 | 26 | 2026-05-25 | PWA移动端三个UI问题修复 | HEAD~1 | `master` |
 | 25 | 2026-05-25 | PWA优化+bug修复：最简SW/更新检测/hydration/循环导入 | `f00c1fc`, `238d983`, `cd13311` | `master` |
