@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 28
+- **Total Sessions**: 29
 - **Last Active**: 2026-05-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~976 | Active |
+| `journal-1.md` | ~1011 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 29 | 2026-05-25 | CI修复：mypy+测试签名+PNG图标 | `8d87013`, `ea3aadf`, `8958912` | `master` |
 | 28 | 2026-05-25 | 1.2.0 预发布版本更新与文档同步 | HEAD~1 | `master` |
 | 27 | 2026-05-25 | PWA移动端UI修复+库路径文件夹名+ConfirmDialog优化 | `51fa9c5`, `fccad55`, `4b0b3e2` | `master` |
 | 26 | 2026-05-25 | PWA移动端三个UI问题修复 | HEAD~1 | `master` |
