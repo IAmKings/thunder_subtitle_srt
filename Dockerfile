@@ -22,8 +22,8 @@ RUN pip install --no-cache-dir --target=/install -r requirements.txt
 # ---- Stage 3: Runtime ----
 FROM node:22-alpine AS runtime
 
-# Install supervisord and nginx
-RUN apk add --no-cache supervisor python3 py3-pip nginx
+# Install supervisord, nginx, and openssl
+RUN apk add --no-cache supervisor python3 py3-pip nginx openssl
 
 # Copy Python packages from builder (--target flat install)
 COPY --from=backend-builder /install /app/deps
@@ -56,10 +56,14 @@ COPY nginx.conf /etc/nginx/http.d/default.conf
 # Copy supervisord config
 COPY supervisord.conf /etc/supervisord/supervisord.conf
 
+# Copy docker-entrypoint.sh
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 EXPOSE 3000
 
 # Health check (via Nginx proxy covers both frontend and backend)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:3000/api/health || exit 1
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord/supervisord.conf", "-n"]
+CMD ["/app/docker-entrypoint.sh"]

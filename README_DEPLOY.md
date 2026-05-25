@@ -72,6 +72,7 @@ services:
     image: ghcr.io/iamkings/thunder_subtitle_srt:latest
     ports:
       - "3000:3000"
+      - "3443:443"
     volumes:
       - /path/to/your/media:/media
       - /path/to/your/data:/root
@@ -88,6 +89,8 @@ docker compose up -d
 ```
 
 访问 http://localhost:3000 进入 WebApp。
+
+> HTTPS 访问（PWA 安装）：`https://your-ip:3443`。首次访问会提示自签名证书警告，点击"继续"后即可正常使用，Chrome 将显示 PWA 安装提示。
 
 > 镜像地址：`ghcr.io/iamkings/thunder_subtitle_srt:latest`
 
@@ -124,7 +127,8 @@ docker compose up -d
 
 | 端口 | 服务 | 说明 |
 |------|------|------|
-| 3000 | Nginx | 统一入口（转发前端/后端/WebSocket） |
+| 3000 | Nginx (HTTP) | 统一入口（转发前端/后端/WebSocket） |
+| 443 (容器) → 3443 (主机) | Nginx (HTTPS) | 自签名 TLS，用于触发 PWA 安装提示 |
 
 > 用户只需访问 `http://localhost:3000`，无需关心后端端口。Nginx 自动将 `/api/*` 和 `/ws/*` 转发到 FastAPI，其余请求转发到 Next.js。
 

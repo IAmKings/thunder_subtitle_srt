@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+      - "3443:443"
     volumes:
       - /Users/mac/Documents/media:/media
       - ./data:/root
