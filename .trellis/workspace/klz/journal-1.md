@@ -1009,3 +1009,36 @@ _io.py mypy类型错误修复(string键+f-string兼容)、测试同步_check_fai
 ### Next Steps
 
 - None - task complete
+
+
+## Session 30: Android WebView壳工程创建
+
+**Date**: 2026-05-25
+**Task**: Android WebView壳工程创建
+**Branch**: `master`
+
+### Summary
+
+解决PWA自签名HTTPS无法触发的根本方案：Android WebView原生壳，APK安装即用，自签名证书自动信任(onReceivedSslError)，SetupActivity首次配置+MainActivity全屏WebView。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `HEAD~1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
