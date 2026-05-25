@@ -384,6 +384,10 @@ function ScannerPage() {
     setPathScrollIdx(newIdx);
   }, [mediaDirs.length, pathScrollIdx, cardsPerView]);
 
+  const maxScrollIdx = Math.max(0, mediaDirs.length - cardsPerView);
+  const remainingLeft = Math.ceil(pathScrollIdx / cardsPerView);
+  const remainingRight = Math.ceil(Math.max(0, maxScrollIdx - pathScrollIdx) / cardsPerView);
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 md:space-y-8">
       {/* Stats Cards */}
@@ -391,15 +395,24 @@ function ScannerPage() {
         {/* Path Carousel Row */}
         <div className="flex items-stretch gap-4">
           {mediaDirs.length > cardsPerView && (
-            <button
-              type="button"
-              onClick={() => scrollPaths("left")}
-              disabled={pathScrollIdx === 0}
-              className="flex-shrink-0 rounded-lg border border-outline-variant/30 bg-surface-container p-2 transition-colors hover:bg-surface-container-high disabled:opacity-30"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              <ChevronLeft size={20} />
-            </button>
+            <div className="flex flex-col items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => scrollPaths("left")}
+                disabled={pathScrollIdx === 0}
+                className="flex-shrink-0 rounded-lg border border-outline-variant/30 bg-surface-container p-2 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span
+                className={`text-[9px] ${
+                  remainingLeft === 0 ? "text-on-surface-variant/30" : "text-on-surface-variant"
+                }`}
+              >
+                {t("scroll_remaining").replace("{x}", String(remainingLeft))}
+              </span>
+            </div>
           )}
           <div
             ref={pathScrollRef}
@@ -467,15 +480,24 @@ function ScannerPage() {
             )}
           </div>
           {mediaDirs.length > cardsPerView && (
-            <button
-              type="button"
-              onClick={() => scrollPaths("right")}
-              disabled={pathScrollIdx >= mediaDirs.length - cardsPerView}
-              className="flex-shrink-0 rounded-lg border border-outline-variant/30 bg-surface-container p-2 transition-colors hover:bg-surface-container-high disabled:opacity-30"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-            >
-              <ChevronRight size={20} />
-            </button>
+            <div className="flex flex-col items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => scrollPaths("right")}
+                disabled={pathScrollIdx >= mediaDirs.length - cardsPerView}
+                className="flex-shrink-0 rounded-lg border border-outline-variant/30 bg-surface-container p-2 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <ChevronRight size={20} />
+              </button>
+              <span
+                className={`text-[9px] ${
+                  remainingRight === 0 ? "text-on-surface-variant/30" : "text-on-surface-variant"
+                }`}
+              >
+                {t("scroll_remaining").replace("{x}", String(remainingRight))}
+              </span>
+            </div>
           )}
         </div>
 

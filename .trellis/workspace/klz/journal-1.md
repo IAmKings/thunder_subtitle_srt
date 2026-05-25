@@ -772,3 +772,36 @@ Docker构建修复（pnpm v11、Alpine musl、PYTHONPATH、types→models）、D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: PWA安装提示修复 — Docker内置自签名HTTPS
+
+**Date**: 2026-05-25
+**Task**: PWA安装提示修复 — Docker内置自签名HTTPS
+**Branch**: `master`
+
+### Summary
+
+根因分析：Chrome PWA安装提示要求HTTPS（localhost除外），局域网http://192.168.x.x不触发。方案：docker-entrypoint.sh启动时openssl生成10年自签名证书，nginx监听443端口。docker-compose暴露3443:443。HTTP 3000不受影响。README更新HTTPS访问说明。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `HEAD~1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

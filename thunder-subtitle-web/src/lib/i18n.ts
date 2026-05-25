@@ -202,6 +202,9 @@ const translations: Record<Language, Record<string, string>> = {
     path_enabled: "Enabled",
     path_disabled: "Disabled",
 
+    // Scanner — carousel scroll remaining
+    scroll_remaining: "{x} pages",
+
     // Search — duration / empty (was hardcoded English)
     unknown_duration: "Unknown duration",
     no_results_try_again: "No subtitles found. Try a different keyword or adjust filters.",
@@ -403,6 +406,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Scanner — path toggle (was hardcoded Chinese)
     path_enabled: "\u5df2\u542f\u7528",
     path_disabled: "\u5df2\u7981\u7528",
+
+    // Scanner — carousel scroll remaining
+    scroll_remaining: "\u5269 {x} \u9875",
 
     // Search — duration / empty (was hardcoded English)
     unknown_duration: "\u672a\u77e5\u65f6\u957f",
