@@ -74,10 +74,12 @@ services:
       - "3000:3000"
     volumes:
       - /path/to/your/media:/media
+      - /path/to/your/data:/root
     environment:
       - ADMIN_PASSWORD=changeme
       - MEDIA_PATHS=/media
       - JWT_SECRET=change-me-in-production
+      - THUNDER_SUBTITLE_CONFIG=/root/.thunder-subtitle.json
 ```
 
 ```bash
