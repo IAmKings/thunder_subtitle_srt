@@ -1,8 +1,28 @@
-"""JWT authentication — dependency for protecting FastAPI routes."""
+"""JWT authentication — dependency and token helpers for protecting FastAPI routes."""
+
+from typing import Optional
 
 from fastapi import HTTPException, Request, status
+from jose import JWTError, jwt
 
-from app.auth.router import extract_token_from_request, verify_access_token
+from app.config import settings
+
+
+def verify_access_token(token: str) -> Optional[dict]:
+    """Verify and decode a JWT token. Returns payload or None."""
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        return payload
+    except JWTError:
+        return None
+
+
+def extract_token_from_request(request: Request) -> Optional[str]:
+    """Extract Bearer token from Authorization header."""
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    return None
 
 
 async def get_current_user(request: Request) -> str:
