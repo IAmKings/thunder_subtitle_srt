@@ -873,3 +873,36 @@ sw.js最简化(72→10行仅PWA壳)、PWA更新检测toast、History组件Date.n
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: PWA移动端三个UI问题修复
+
+**Date**: 2026-05-25
+**Task**: PWA移动端三个UI问题修复
+**Branch**: `master`
+
+### Summary
+
+扫描器表格移动端改卡片列表(消除竖排)、标题筛选堆叠分行、审查页列表↔预览全屏切换模式。全部走md:/lg:断点隔离，桌面端零变化。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `HEAD~1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

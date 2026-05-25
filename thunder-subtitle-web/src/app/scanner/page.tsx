@@ -425,10 +425,11 @@ function ScannerPage() {
                   className="ghost-border flex w-full flex-shrink-0 items-center justify-between rounded-xl bg-surface-container p-6 md:w-[calc(50%-0.5rem)]"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    <p className="text-sm font-bold truncate">{dir.path.split("/").filter(Boolean).pop() || dir.path}</p>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">
                       {t("library_path")}
                     </p>
-                    <h2 className={`truncate text-lg font-bold ${disabledPaths.has(dir.path) ? "text-on-surface-variant/40 line-through" : ""}`} title={dir.path}>{dir.path}</h2>
+                    <h2 className={`truncate text-sm font-medium text-on-surface-variant ${disabledPaths.has(dir.path) ? "text-on-surface-variant/40 line-through" : ""}`} title={dir.path}>{dir.path}</h2>
                   </div>
                   <div className="ml-2 flex flex-shrink-0 items-center gap-1">
                     <button
