@@ -1,10 +1,14 @@
 """Media library endpoints — directory listing, NFO metadata."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import MediaDirectory, NfoInfoResponse
 from app.services.scan_service import scan_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -28,6 +32,7 @@ async def get_nfo_info(
         nfo = scan_service.get_nfo_info(path)
         return nfo
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="movie.nfo not found")
+        raise HTTPException(status_code=404, detail="movie.nfo 不存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("get_nfo_info failed: %s", e)
+        raise HTTPException(status_code=500, detail="读取 NFO 信息失败")

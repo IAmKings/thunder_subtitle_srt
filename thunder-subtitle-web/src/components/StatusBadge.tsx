@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReviewState } from "@/lib/types";
+
 /**
  * Status label mapping for scan result statuses.
  */
@@ -33,6 +35,21 @@ export function getDryStateColor(dryState: string): string {
       return "bg-amber-500/15 text-amber-400";
     default:
       return "bg-tertiary/15 text-tertiary";
+  }
+}
+
+/**
+ * Review status color mapping for verification subtitle list.
+ */
+export function getReviewStatusColor(status: ReviewState): string {
+  switch (status) {
+    case "ok":
+      return "bg-green-500/15 text-green-400";
+    case "fail":
+      return "bg-error/15 text-error";
+    case "not_reviewed":
+    default:
+      return "bg-on-surface-variant/15 text-on-surface-variant";
   }
 }
 

@@ -15,6 +15,9 @@ from .utils import CJK_RE
 API_BASE_URL = "https://api-shoulei-ssl.xunlei.com/oracle"
 USER_AGENT = "thunder-subtitle/1.0.0"
 
+# 中文字幕语言/名称检测模式
+_CN_LANG_RE = re.compile(r"chinese|中文|简体|繁体|cn", re.IGNORECASE)
+
 
 def _default_timeout() -> int:
     """默认 API 超时：环境变量 > 默认 30s"""
@@ -31,10 +34,12 @@ class SubtitleApiClient:
         self.base_url = base_url
         self.timeout = timeout if timeout is not None else _default_timeout()
         self._session = requests.Session()
-        self._session.headers.update({
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json",
-        })
+        self._session.headers.update(
+            {
+                "User-Agent": USER_AGENT,
+                "Accept": "application/json",
+            }
+        )
 
     def close(self) -> None:
         """关闭 HTTP 会话，释放连接资源"""
@@ -80,10 +85,7 @@ class SubtitleApiClient:
 
     def is_chinese_subtitle(self, subtitle: Subtitle) -> bool:
         """判断单个字幕是否为中文"""
-        has_chinese_lang = any(
-            re.search(r"chinese|中文|简体|繁体|cn", lang, re.IGNORECASE)
-            for lang in subtitle.languages
-        )
+        has_chinese_lang = any(_CN_LANG_RE.search(lang) for lang in subtitle.languages)
         has_chinese_name = bool(
             CJK_RE.search(subtitle.name)
             or re.search(r"zh|cn|chinese|中文", subtitle.name, re.IGNORECASE)

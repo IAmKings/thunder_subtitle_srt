@@ -33,6 +33,7 @@ export function TopBar() {
           </button>
           <button
             type="button"
+            title="即将推出"
             className="text-on-surface-variant transition-all duration-200 hover:text-primary"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
@@ -40,6 +41,7 @@ export function TopBar() {
           </button>
           <button
             type="button"
+            title="即将推出"
             className="text-on-surface-variant transition-all duration-200 hover:text-primary"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >

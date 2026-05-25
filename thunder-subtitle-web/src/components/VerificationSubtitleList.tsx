@@ -1,7 +1,8 @@
 "use client";
 
 import { Star } from "lucide-react";
-import type { ReviewItem, ReviewState } from "@/lib/types";
+import type { ReviewItem } from "@/lib/types";
+import { getReviewStatusColor } from "@/components/StatusBadge";
 
 interface SubtitleListProps {
   paginatedItems: ReviewItem[];
@@ -9,18 +10,6 @@ interface SubtitleListProps {
   onSelectItem: (item: ReviewItem) => void;
   isPinned: (item: ReviewItem) => boolean;
   t: (key: string) => string;
-}
-
-function getReviewStatusColor(status: ReviewState) {
-  switch (status) {
-    case "ok":
-      return "bg-green-500/15 text-green-400";
-    case "fail":
-      return "bg-error/15 text-error";
-    case "not_reviewed":
-    default:
-      return "bg-on-surface-variant/15 text-on-surface-variant";
-  }
 }
 
 export function VerificationSubtitleList({

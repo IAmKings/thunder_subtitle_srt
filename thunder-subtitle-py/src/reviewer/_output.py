@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 
-from ..models import ReviewQuality, ReviewState
+from ..models import ReviewQuality
 from ..ui import BOLD, CYAN, DIM, GREEN, RED, RESET, YELLOW
 from ._review import ReviewItem
 
@@ -21,7 +21,11 @@ def _score_color(score: int) -> str:
 def _print_review_item(item: ReviewItem) -> None:
     """打印单条审查结果"""
     color = _score_color(item.score)
-    markers: dict[str, str] = {ReviewQuality.ok: f"{GREEN}✓{RESET}", ReviewQuality.warn: f"{YELLOW}⚠{RESET}", ReviewQuality.fail: f"{RED}✗{RESET}"}
+    markers: dict[str, str] = {
+        ReviewQuality.ok: f"{GREEN}✓{RESET}",
+        ReviewQuality.warn: f"{YELLOW}⚠{RESET}",
+        ReviewQuality.fail: f"{RED}✗{RESET}",
+    }
     marker = markers.get(item.status, "?")
 
     extra = []
@@ -37,11 +41,17 @@ def _print_review_item(item: ReviewItem) -> None:
         extra.append(f"中文{item.cn_ratio:.0%}")
 
     detail = ", ".join(extra)
-    review_tag = f"{GREEN}✓ Reviewed {item.reviewed_date}{RESET}" if item.reviewed else f"{DIM}◇ Not reviewed{RESET}"
-    print(f"  {marker} {item.filename} — {color}{item.score}/100{RESET} ({detail}) {review_tag}")
+    review_tag = (
+        f"{GREEN}✓ Reviewed {item.reviewed_date}{RESET}"
+        if item.reviewed
+        else f"{DIM}◇ Not reviewed{RESET}"
+    )
+    print(
+        f"  {marker} {item.filename} — {color}{item.score}/100{RESET} ({detail}) {review_tag}"
+    )
 
     for d in item.deductions:
-        c = RED if item.status == ReviewState.fail else YELLOW
+        c = RED if item.status == ReviewQuality.fail else YELLOW
         print(f"    {c}  - {d}{RESET}")
 
 
@@ -49,7 +59,7 @@ def _print_review_summary(items: list[ReviewItem]) -> None:
     """打印审查汇总"""
     ok_count = sum(1 for r in items if r.status == ReviewQuality.ok)
     warn_count = sum(1 for r in items if r.status == ReviewQuality.warn)
-    fail_count = sum(1 for r in items if r.status == ReviewState.fail)
+    fail_count = sum(1 for r in items if r.status == ReviewQuality.fail)
     avg_score = sum(r.score for r in items) // max(len(items), 1)
 
     print()
@@ -66,13 +76,19 @@ def _print_review_summary(items: list[ReviewItem]) -> None:
 def _write_review_log(log_path: str, item: ReviewItem) -> None:
     """写入单条日志"""
     ts = datetime.now().strftime("%H:%M:%S")
-    status_map: dict[str, str] = {ReviewQuality.ok: "OK", ReviewQuality.warn: "WARN", ReviewQuality.fail: "FAIL"}
+    status_map: dict[str, str] = {
+        ReviewQuality.ok: "OK",
+        ReviewQuality.warn: "WARN",
+        ReviewQuality.fail: "FAIL",
+    }
     tag = status_map.get(item.status, "??")
     ded = "; ".join(item.deductions) if item.deductions else ""
     try:
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{ts}] [{tag}] {item.movie_name}/{item.filename} "
-                    f"Score={item.score}/100 {ded}\n")
+            f.write(
+                f"[{ts}] [{tag}] {item.movie_name}/{item.filename} "
+                f"Score={item.score}/100 {ded}\n"
+            )
     except OSError:
         logger.warning("无法写入审查日志: %s", log_path)
 
@@ -81,13 +97,15 @@ def _write_review_summary(log_path: str, items: list[ReviewItem]) -> None:
     """写入审查汇总"""
     ok_count = sum(1 for r in items if r.status == ReviewQuality.ok)
     warn_count = sum(1 for r in items if r.status == ReviewQuality.warn)
-    fail_count = sum(1 for r in items if r.status == ReviewState.fail)
+    fail_count = sum(1 for r in items if r.status == ReviewQuality.fail)
     avg_score = sum(r.score for r in items) // max(len(items), 1)
     try:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write("\n--- Summary ---\n")
-            f.write(f"Total: {len(items)}  OK: {ok_count}  WARN: {warn_count}  "
-                    f"FAIL: {fail_count}  Avg Score: {avg_score}/100\n")
+            f.write(
+                f"Total: {len(items)}  OK: {ok_count}  WARN: {warn_count}  "
+                f"FAIL: {fail_count}  Avg Score: {avg_score}/100\n"
+            )
     except OSError:
         logger.warning("无法写入审查汇总: %s", log_path)
 

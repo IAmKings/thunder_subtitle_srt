@@ -1,5 +1,6 @@
-from __future__ import annotations
 """单部电影处理：NFO解析 → 跳过检查 → 搜索 → 下载"""
+
+from __future__ import annotations
 
 import hashlib
 import logging
@@ -14,16 +15,23 @@ from ..config import Config
 from ..download import download_subtitle, dump_subtitles
 from ..models import ScanStatus
 from ..ui import DIM, GREEN, RED, RESET
-from ..utils import NfoInfo, clear_file, filter_by_duration, matches, parse_nfo, seconds_to_duration_str
+from ..utils import (
+    NfoInfo,
+    clear_file,
+    filter_by_duration,
+    matches,
+    parse_nfo,
+    seconds_to_duration_str,
+)
 from ._skip import _ZH_PREFIX, _check_skip
 
 logger = logging.getLogger(__name__)
 
 
-
 @dataclass
 class ScanResult:
     """单个电影处理结果"""
+
     movie_path: str
     movie_name: str
     status: str = ScanStatus.skipped
@@ -34,6 +42,7 @@ class ScanResult:
 
 # ---- 字幕筛选辅助 ----
 
+
 def _has_preferred_group(subtitle, groups: list[str]) -> bool:
     """字幕名称是否来自偏好字幕组"""
     if not groups:
@@ -41,12 +50,29 @@ def _has_preferred_group(subtitle, groups: list[str]) -> bool:
     return any(matches(g, subtitle.name) for g in groups)
 
 
+# ---- 输出辅助 ----
+
+
+def _print_status(marker: str, msg: str, green: bool = False) -> None:
+    """统一状态输出"""
+    color = GREEN if green else DIM
+    print(f"{color}    {marker} {msg}{RESET}")
+
+
 # ---- 处理主循环 ----
 
+
 def _process_one_movie(
-    movie_path: str, movie_name: str, dry_run: bool, client: SubtitleApiClient,
-    config: Config, has_queried: bool, min_age_days: int = 0,
-    dump_mode: bool = False, force: bool = False, reset_fail: bool = False,
+    movie_path: str,
+    movie_name: str,
+    dry_run: bool,
+    client: SubtitleApiClient,
+    config: Config,
+    has_queried: bool,
+    min_age_days: int = 0,
+    dump_mode: bool = False,
+    force: bool = False,
+    reset_fail: bool = False,
 ) -> ScanResult:
     """处理单部电影：解析 NFO → 跳过检查 → 搜索 → 下载"""
 
@@ -56,31 +82,47 @@ def _process_one_movie(
         nfo = parse_nfo(nfo_path)
     except ET.ParseError as e:
         _print_status("✗", f"Invalid XML: {e}")
-        return ScanResult(movie_path, movie_name, ScanStatus.error, f"NFO parse error: {e}")
+        return ScanResult(
+            movie_path, movie_name, ScanStatus.error, f"NFO parse error: {e}"
+        )
     except FileNotFoundError:
         _print_status("✗", "movie.nfo not found")
-        return ScanResult(movie_path, movie_name, ScanStatus.error, "movie.nfo not found")
+        return ScanResult(
+            movie_path, movie_name, ScanStatus.error, "movie.nfo not found"
+        )
 
     # ---- 跳过检查 ----
-    skip_reason, dry_state = _check_skip(movie_path, movie_name, nfo, dry_run, min_age_days, force, reset_fail)
+    skip_reason, dry_state = _check_skip(
+        movie_path, movie_name, nfo, dry_run, min_age_days, force, reset_fail
+    )
     if skip_reason:
         _print_status("✓", skip_reason)
-        return ScanResult(movie_path, movie_name, ScanStatus.skipped, skip_reason, dry_state=dry_state)
+        return ScanResult(
+            movie_path, movie_name, ScanStatus.skipped, skip_reason, dry_state=dry_state
+        )
 
     duration_str = seconds_to_duration_str(nfo.duration_seconds)
     if not duration_str:
         _print_status("✗", "No duration info in NFO")
-        return ScanResult(movie_path, movie_name, ScanStatus.error, "Missing duration in movie.nfo")
+        return ScanResult(
+            movie_path, movie_name, ScanStatus.error, "Missing duration in movie.nfo"
+        )
 
     print(f"{DIM}    Duration: {duration_str}{RESET}")
 
     if dry_run:
-        print(f"{DIM}    [DRY RUN] Would search: \"{movie_name}\" -d {duration_str}{RESET}")
-        return ScanResult(movie_path, movie_name, ScanStatus.skipped, "dry-run", dry_state=dry_state)
+        print(
+            f'{DIM}    [DRY RUN] Would search: "{movie_name}" -d {duration_str}{RESET}'
+        )
+        return ScanResult(
+            movie_path, movie_name, ScanStatus.skipped, "dry-run", dry_state=dry_state
+        )
 
     # ---- 搜索 + 下载 ----
     try:
-        return _search_and_download(movie_path, movie_name, nfo, client, config, has_queried, dump_mode)
+        return _search_and_download(
+            movie_path, movie_name, nfo, client, config, has_queried, dump_mode
+        )
     except (ThunderSubtitleError, OSError) as e:
         print(f"{RED}    ✗ Error: {e}{RESET}")
         return ScanResult(movie_path, movie_name, ScanStatus.error, str(e))
@@ -88,24 +130,32 @@ def _process_one_movie(
 
 # ---- 字幕筛选 ----
 
+
 def _select_primary_alt(
-    subtitles: list, result, client: SubtitleApiClient, preferred_groups: list[str],
+    subtitles: list,
+    result,
+    client: SubtitleApiClient,
+    preferred_groups: list[str],
 ) -> tuple:
     """
     从筛选后的字幕中选择主力(API第一条) + 备选(算法最佳)
     返回 (primary, alt) 两个 Subtitle 对象
     """
     # 按 API 原始顺序排（第一条 = 最新上传）
-    orig_order = {id(s): i for i, s in enumerate(result.subtitles)}
-    by_api = sorted(subtitles, key=lambda s: orig_order.get(id(s), 9999))
+    orig_order = {s.gcid or s.url or str(i): i for i, s in enumerate(result.subtitles)}
+    by_api = sorted(
+        subtitles, key=lambda s: orig_order.get(s.gcid or s.url or "", 9999)
+    )
     primary = by_api[0]  # 主力：API 第一条
 
     # 按优先级排（偏好字幕组 > 中文 > duration）
-    subtitles.sort(key=lambda s: (
-        0 if _has_preferred_group(s, preferred_groups) else 1,
-        0 if client.is_chinese_subtitle(s) else 1,
-        -s.duration,
-    ))
+    subtitles.sort(
+        key=lambda s: (
+            0 if _has_preferred_group(s, preferred_groups) else 1,
+            0 if client.is_chinese_subtitle(s) else 1,
+            -s.duration,
+        )
+    )
     alt = subtitles[0]  # 备选：算法最佳
 
     # 去重：如果算法最佳和 API 第一条相同，取 API 第二条
@@ -117,9 +167,15 @@ def _select_primary_alt(
 
 # ---- 搜索 + 下载 ----
 
+
 def _search_and_download(
-    movie_path: str, movie_name: str, nfo: NfoInfo, client: SubtitleApiClient,
-    config: Config, needs_delay: bool = False, dump_mode: bool = False,
+    movie_path: str,
+    movie_name: str,
+    nfo: NfoInfo,
+    client: SubtitleApiClient,
+    config: Config,
+    needs_delay: bool = False,
+    dump_mode: bool = False,
 ) -> ScanResult:
     """搜索字幕并下载（主力+备选 或 dump全量）"""
     if needs_delay and config.rate_limit > 0:
@@ -129,7 +185,9 @@ def _search_and_download(
 
     if result.total == 0:
         _print_status("✗", "No subtitles found")
-        return ScanResult(movie_path, movie_name, ScanStatus.no_match, "No subtitles found")
+        return ScanResult(
+            movie_path, movie_name, ScanStatus.no_match, "No subtitles found"
+        )
 
     # ---- dump 模式：全量下载 + 内容去重（不按时长筛选） ----
     if dump_mode:
@@ -137,11 +195,15 @@ def _search_and_download(
 
     # 按时长筛选：有时长的在前，duration=0 的保留在后（仅 scan 模式）
     max_duration_ms = nfo.duration_seconds * 1000
-    subtitles = filter_by_duration(result.subtitles, max_duration_ms, client.filter_by_max_duration)
+    subtitles = filter_by_duration(
+        result.subtitles, max_duration_ms, client.filter_by_max_duration
+    )
 
     if not subtitles:
         _print_status("✗", "No subtitles found")
-        return ScanResult(movie_path, movie_name, ScanStatus.no_match, "No subtitles within duration")
+        return ScanResult(
+            movie_path, movie_name, ScanStatus.no_match, "No subtitles within duration"
+        )
 
     # ---- 选择主力+备选 ----
     preferred = config.preferred_groups_list
@@ -169,11 +231,15 @@ def _search_and_download(
     for sub, fname in to_download:
         tag = " [alt]" if "-alt" in fname else " [primary]"
         print(f"{DIM}    Downloading{tag}: {sub.name} → {fname}{RESET}")
-        dl = download_subtitle(sub, movie_path, custom_filename=fname,
-                               max_retries=config.retry_count,
-                               retry_delay=config.retry_delay,
-                               timeout=config.download_timeout,
-                               chunk_size=config.chunk_size)
+        dl = download_subtitle(
+            sub,
+            movie_path,
+            custom_filename=fname,
+            max_retries=config.retry_count,
+            retry_delay=config.retry_delay,
+            timeout=config.download_timeout,
+            chunk_size=config.chunk_size,
+        )
         if dl.success:
             downloaded_files.append(dl.filename)
         else:
@@ -181,13 +247,20 @@ def _search_and_download(
 
     if downloaded_files:
         _print_status("✓", f"Downloaded: {', '.join(downloaded_files)}", green=True)
-        return ScanResult(movie_path, movie_name, ScanStatus.downloaded, filename=", ".join(downloaded_files))
+        return ScanResult(
+            movie_path,
+            movie_name,
+            ScanStatus.downloaded,
+            filename=", ".join(downloaded_files),
+        )
 
     _print_status("✗", "All downloads failed")
     return ScanResult(movie_path, movie_name, ScanStatus.error, "All downloads failed")
 
 
-def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> ScanResult:
+def _dump_all_subtitles(
+    movie_path: str, movie_name: str, subtitles: list
+) -> ScanResult:
     """全量下载字幕，gcid 去重 + 增量跳过"""
     rejected = _load_gcids(movie_path, ".rejected")
     dumped_path = os.path.join(movie_path, ".dumped")
@@ -202,24 +275,30 @@ def _dump_all_subtitles(movie_path: str, movie_name: str, subtitles: list) -> Sc
     dup_msg = f" ({', '.join(parts)})" if parts else ""
 
     if r.downloaded > 0:
-        _print_status("✓", f"Dumped {r.downloaded}/{len(subtitles)}{dup_msg}", green=True)
-        return ScanResult(movie_path, movie_name, ScanStatus.downloaded, filename=f"dumped {r.downloaded} files")
+        _print_status(
+            "✓", f"Dumped {r.downloaded}/{len(subtitles)}{dup_msg}", green=True
+        )
+        return ScanResult(
+            movie_path,
+            movie_name,
+            ScanStatus.downloaded,
+            filename=f"dumped {r.downloaded} files",
+        )
 
     _print_status("✗", "All subtitles rejected or download failed")
-    return ScanResult(movie_path, movie_name, ScanStatus.no_match, "All subtitles rejected or download failed")
+    return ScanResult(
+        movie_path,
+        movie_name,
+        ScanStatus.no_match,
+        "All subtitles rejected or download failed",
+    )
 
 
 def _load_gcids(movie_path: str, filename: str) -> set[str]:
-    """加载 gcid 文件，每行一个"""
-    path = os.path.join(movie_path, filename)
-    if not os.path.isfile(path):
-        return set()
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return {line.strip() for line in f if line.strip()}
-    except OSError:
-        logger.warning("无法读取 GCID 文件: %s", path)
-        return set()
+    """加载 gcid 文件，每行一个（委托 utils.load_gcid_file）"""
+    from ..utils import load_gcid_file
+
+    return load_gcid_file(os.path.join(movie_path, filename))
 
 
 def _content_fingerprint(filepath: str) -> str | None:
@@ -253,8 +332,3 @@ def _content_fingerprint(filepath: str) -> str | None:
 
 
 # ---- 输出辅助 ----
-
-def _print_status(marker: str, msg: str, green: bool = False) -> None:
-    """统一状态输出"""
-    color = GREEN if green else DIM
-    print(f"{color}    {marker} {msg}{RESET}")

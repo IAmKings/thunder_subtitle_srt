@@ -1,5 +1,6 @@
 """Review operations endpoints — mark subtitle quality, browse review state."""
 
+import logging
 import os
 from typing import Optional
 
@@ -15,6 +16,8 @@ from app.models.schemas import (
 )
 from app.services.config_service import ConfigService
 from app.services.review_service import ReviewService
+
+logger = logging.getLogger(__name__)
 
 
 def _get_allowed_roots() -> list[str]:
@@ -96,8 +99,14 @@ async def list_reviews(
     try:
         result = service.list_reviews(base_dir=base_dir, name_filter=name_filter)
         return result
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="审核模块不可用",
+        )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.error("list_reviews failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
 
 
 @router.post("/mark", response_model=ReviewMarkResponse)
@@ -114,10 +123,16 @@ async def mark_review(
             status=body.status,
         )
         return result
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="审核模块不可用",
+        )
     except FileNotFoundError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Directory not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="目录不存在")
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.error("mark_review failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
 
 
 @router.get("/preview", response_model=SubtitlePreviewResponse)
@@ -128,9 +143,9 @@ async def preview_subtitle(
     """Preview first 50 lines of a subtitle file."""
     validated_path = _validate_subtitle_path(path)
     if not os.path.exists(validated_path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subtitle file not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="字幕文件不存在")
     if not os.path.isfile(validated_path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Path is not a file")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="路径不是文件")
 
     try:
         content, encoding, total_lines = _detect_and_read_preview(validated_path)
@@ -140,23 +155,32 @@ async def preview_subtitle(
             total_lines=total_lines,
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.error("preview_subtitle failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="读取预览失败",
+        )
 
 
 @router.delete("/file")
 async def delete_subtitle_file(
     path: str = Query(..., description="Full path to subtitle file"),
+    service: ReviewService = Depends(get_review_service),
     _user: str = Depends(get_current_user),
 ):
     """Delete a subtitle file from disk."""
     validated = _validate_subtitle_path(path)
     if not os.path.isfile(validated):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
     try:
-        os.remove(validated)
+        service.delete_file(validated)
         return {"success": True}
     except OSError as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.error("delete_file failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="删除文件失败",
+        )
 
 
 class RenameRequest(BaseModel):
@@ -167,20 +191,20 @@ class RenameRequest(BaseModel):
 @router.post("/rename")
 async def rename_subtitle_file(
     body: RenameRequest,
+    service: ReviewService = Depends(get_review_service),
     _user: str = Depends(get_current_user),
 ):
     """Rename a subtitle file. Returns error if target exists."""
     validated = _validate_subtitle_path(body.path)
     if not os.path.isfile(validated):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
     new_path = os.path.join(os.path.dirname(validated), body.new_name)
     new_path = _validate_subtitle_path(new_path)
     if os.path.exists(new_path):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Target file already exists"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="目标文件已存在")
     try:
-        os.rename(validated, new_path)
+        service.rename_file(validated, new_path)
         return {"success": True, "new_path": new_path}
     except OSError as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.error("rename_file failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="重命名失败")

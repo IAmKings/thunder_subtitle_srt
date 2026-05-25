@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { fastApiClient, SubtitleApiClient } from "@/lib/api";
 import type { Subtitle } from "@/lib/types";
 
@@ -37,23 +37,6 @@ function saveHistory(history: HistoryItem[]): void {
   } catch {
     // ignore
   }
-}
-
-function addToHistory(name: string): void {
-  const history = loadHistory();
-  const filtered = history.filter(
-    (h) => h.name.toLowerCase() !== name.toLowerCase()
-  );
-  const newItem: HistoryItem = {
-    id: Date.now().toString(),
-    name,
-    timestamp: Date.now(),
-  };
-  saveHistory([newItem, ...filtered]);
-}
-
-function removeFromHistory(id: string): void {
-  saveHistory(loadHistory().filter((h) => h.id !== id));
 }
 
 // ---- Context ----
@@ -98,6 +81,10 @@ export function SearchStateProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Sync history to localStorage on every change (read/write separation)
+  useEffect(() => {
+    saveHistory(history);
+  }, [history]);
 
   const handleSearch = useCallback(
     async (searchQuery?: string) => {
@@ -116,15 +103,35 @@ export function SearchStateProvider({ children }: { children: ReactNode }) {
           chineseOnly: false,
         });
         setAllSubtitles(result.subtitles);
-        addToHistory(trimmed);
-        setHistory(loadHistory());
+        // In-memory update: append to history, useEffect syncs to localStorage
+        setHistory((prev) => {
+          const filtered = prev.filter(
+            (h) => h.name.toLowerCase() !== trimmed.toLowerCase()
+          );
+          const newItem: HistoryItem = {
+            id: Date.now().toString(),
+            name: trimmed,
+            timestamp: Date.now(),
+          };
+          return [newItem, ...filtered];
+        });
       } catch {
+        console.warn("FastAPI search failed, falling back to legacy API");
         try {
           const legacyClient = new SubtitleApiClient();
           const result = await legacyClient.searchSubtitles(trimmed);
           setAllSubtitles(result.subtitles);
-          addToHistory(trimmed);
-          setHistory(loadHistory());
+          setHistory((prev) => {
+            const filtered = prev.filter(
+              (h) => h.name.toLowerCase() !== trimmed.toLowerCase()
+            );
+            const newItem: HistoryItem = {
+              id: Date.now().toString(),
+              name: trimmed,
+              timestamp: Date.now(),
+            };
+            return [newItem, ...filtered];
+          });
         } catch (legacyErr) {
           setError(
             legacyErr instanceof Error
@@ -149,13 +156,11 @@ export function SearchStateProvider({ children }: { children: ReactNode }) {
   );
 
   const handleClearHistory = useCallback(() => {
-    localStorage.removeItem(HISTORY_KEY);
     setHistory([]);
   }, []);
 
   const handleRemoveHistoryItem = useCallback((id: string) => {
-    removeFromHistory(id);
-    setHistory(loadHistory());
+    setHistory((prev) => prev.filter((h) => h.id !== id));
   }, []);
 
   const state = useMemo<SearchState>(

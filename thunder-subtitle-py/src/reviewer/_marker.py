@@ -1,11 +1,12 @@
-from __future__ import annotations
 """标记操作：审查状态标记/取消标记/归档"""
+
+from __future__ import annotations
 
 import logging
 import os
 from datetime import datetime
 
-from ..models import ReviewState, ReviewQuality
+from ..models import ReviewState
 from ..ui import BOLD, GREEN, RED, RESET, YELLOW
 
 logger = logging.getLogger(__name__)
@@ -40,15 +41,20 @@ def _is_reviewed(movie_path: str) -> tuple[str | None, str]:
     return status, dt
 
 
-def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: str = ReviewQuality.ok) -> None:
+def _batch_mark(
+    movie_dirs: list[str],
+    mark: bool,
+    keyword: str = "",
+    status: ReviewState = ReviewState.ok,
+) -> None:
     """批量标记/取消标记，status: ok=通过, fail=不及格"""
     action_map = {
-        (True, ReviewQuality.ok): "Marked",
-        (True, ReviewQuality.fail): "Marked as FAIL",
+        (True, ReviewState.ok): "Marked",
+        (True, ReviewState.fail): "Marked as FAIL",
         (False, ""): "Unmarked",
     }
     action = action_map.get((mark, status), "Updated")
-    kw_tag = f" matching \"{keyword}\"" if keyword else "s"
+    kw_tag = f' matching "{keyword}"' if keyword else "s"
     print(f"{BOLD}\n  {action} {len(movie_dirs)} movie{kw_tag}{RESET}\n")
     for d in movie_dirs:
         rf = os.path.join(d, REVIEWED_FILE)
@@ -62,7 +68,11 @@ def _batch_mark(movie_dirs: list[str], mark: bool, keyword: str = "", status: st
                 # mark-fail：归档 .dumped → .rejected
                 if status == ReviewState.fail:
                     _archive_dumped(d)
-                tag = f"{RED}✗ FAIL{RESET}" if status == ReviewState.fail else f"{GREEN}✓{RESET}"
+                tag = (
+                    f"{RED}✗ FAIL{RESET}"
+                    if status == ReviewState.fail
+                    else f"{GREEN}✓{RESET}"
+                )
                 print(f"  {tag} {name}")
             except OSError as e:
                 print(f"  {RED}✗{RESET} {name} — {e}")

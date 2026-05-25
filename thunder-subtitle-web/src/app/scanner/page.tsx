@@ -58,6 +58,15 @@ function dryStateLabel(dryState: string, t: (key: string) => string): string {
   }
 }
 
+// ---- Module-level constants ----
+
+const statusOrder: Record<string, number> = {
+  error: 0,
+  no_match: 1,
+  skipped: 2,
+  downloaded: 3,
+};
+
 function ScannerPage() {
   const t = useTranslations();
 
@@ -93,6 +102,10 @@ function ScannerPage() {
     window.addEventListener("resize", checkWidth);
     return () => window.removeEventListener("resize", checkWidth);
   }, []);
+
+  // HTTP polling management refs
+  const httpIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollFailCountRef = useRef(0);
 
   // Results table pagination
   const RESULTS_PER_PAGE = 10;
@@ -137,8 +150,8 @@ function ScannerPage() {
         if (pending.tasks.length > 0 && !result.tasks.length) {
           setActiveTask(pending.tasks[0]);
         }
-      } catch {
-        // Ignore — may not be authenticated yet
+      } catch (err) {
+        console.error("Failed to check running tasks on mount", err);
       }
     }
     checkRunning();
@@ -151,68 +164,105 @@ function ScannerPage() {
     }
 
     const taskId = activeTask.id;
+    pollFailCountRef.current = 0;
 
-    const interval = setInterval(async () => {
-      try {
-        const task = await fastApiClient.getTask(taskId);
-        setActiveTask(task);
-        setProgress(task.progress);
-        if (task.status === "completed" || task.status === "failed" || task.status === "cancelled") {
-          clearInterval(interval);
-          // HTTP polling fallback: populate findings when WebSocket is unavailable (e.g. local dev)
-          if (task.results && Array.isArray(task.results) && task.results.length > 0) {
-            const results = task.results as ScanResultItem[];
-            setFindings(results);
+    function startPolling() {
+      httpIntervalRef.current = setInterval(async () => {
+        try {
+          const task = await fastApiClient.getTask(taskId);
+          pollFailCountRef.current = 0;
+          setActiveTask(task);
+          setProgress(task.progress);
+          if (task.status === "completed" || task.status === "failed" || task.status === "cancelled") {
+            if (httpIntervalRef.current) {
+              clearInterval(httpIntervalRef.current);
+              httpIntervalRef.current = null;
+            }
+            // HTTP polling fallback: populate findings when WebSocket is unavailable (e.g. local dev)
+            if (task.results && Array.isArray(task.results) && task.results.length > 0) {
+              setFindings(task.results);
+            }
+          }
+        } catch {
+          pollFailCountRef.current++;
+          if (pollFailCountRef.current >= 3) {
+            if (httpIntervalRef.current) {
+              clearInterval(httpIntervalRef.current);
+              httpIntervalRef.current = null;
+            }
+            setError("Polling failed after 3 consecutive attempts");
           }
         }
-      } catch {
-        // Polling timeout — keep retrying, don't clear interval
+      }, 3000);
+    }
+
+    function stopPolling() {
+      if (httpIntervalRef.current) {
+        clearInterval(httpIntervalRef.current);
+        httpIntervalRef.current = null;
       }
-    }, 3000);
+    }
+
+    // Start HTTP polling initially
+    startPolling();
 
     // Also connect WebSocket for real-time updates
     const ws = new ProgressWebSocket();
-    ws.connect(taskId, (data: unknown) => {
-      const update = data as {
-        progress?: number;
-        message?: string;
-        status?: string;
-        result?: ScanResultItem;
-        total?: number;
-      };
-      if (update.total !== undefined && update.total > 0) {
-        setScanTotal(update.total);
-      }
-      if (update.progress !== undefined) {
-        setProgress(update.progress);
-      }
-      // Append per-movie result for progressive display
-      if (update.result && update.status !== "completed") {
-        setFindings((prev) => {
-          // Avoid duplicates by movie_name
-          if (prev.some((f) => f.movie_name === update.result!.movie_name)) {
-            return prev;
+    ws.connect(
+      taskId,
+      (data: unknown) => {
+        const update = data as {
+          progress?: number;
+          message?: string;
+          status?: string;
+          result?: ScanResultItem;
+          total?: number;
+        };
+        if (update.total !== undefined && update.total > 0) {
+          setScanTotal(update.total);
+        }
+        if (update.progress !== undefined) {
+          setProgress(update.progress);
+        }
+        // Append per-movie result for progressive display
+        const r = update.result;
+        if (r && update.status !== "completed") {
+          setFindings((prev) => {
+            // Avoid duplicates by movie_name
+            if (prev.some((f) => f.movie_name === r.movie_name)) {
+              return prev;
+            }
+            return [r, ...prev];
+          });
+        }
+        if (update.status === "completed" || update.status === "failed" || update.status === "cancelled") {
+          // Final state — do a final poll to get all results
+          fastApiClient.getTask(taskId).then((task) => {
+            setActiveTask(task);
+            setProgress(task.progress);
+            // If task has stored results, use those (more complete than WebSocket stream)
+            if (task.results && Array.isArray(task.results)) {
+              setFindings(task.results);
+            }
+          }).catch(() => {
+            console.error("Final task poll after WS completion failed");
+          });
+          ws.disconnect();
+        }
+      },
+      {
+        onOpen: () => stopPolling(),
+        onClose: () => {
+          // Fallback: restart HTTP polling when WebSocket disconnects
+          if (!httpIntervalRef.current) {
+            startPolling();
           }
-          return [update.result!, ...prev];
-        });
+        },
       }
-      if (update.status === "completed" || update.status === "failed" || update.status === "cancelled") {
-        // Final state — do a final poll to get all results
-        fastApiClient.getTask(taskId).then((task) => {
-          setActiveTask(task);
-          setProgress(task.progress);
-          // If task has stored results, use those (more complete than WebSocket stream)
-          if (task.results && Array.isArray(task.results)) {
-            const results = task.results as ScanResultItem[];
-            setFindings(results);
-          }
-        }).catch(() => {});
-        ws.disconnect();
-      }
-    });
+    );
 
     return () => {
-      clearInterval(interval);
+      stopPolling();
       ws.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -275,7 +325,9 @@ function ScannerPage() {
           setProgress(running.tasks[0].progress);
           return;
         }
-      } catch { /* ignore */ }
+      } catch (innerErr) {
+        console.error("Failed to check running tasks on scan start", innerErr);
+      }
       setError(err instanceof Error ? err.message : t("failed_start_scan"));
     } finally {
       setIsStartingScan(false);
@@ -296,12 +348,6 @@ function ScannerPage() {
   const totalFiles = mediaDirs.reduce((sum, d) => sum + d.movie_count, 0);
 
   // Sort findings: error first, then no_match, skipped, downloaded
-  const statusOrder: Record<string, number> = {
-    error: 0,
-    no_match: 1,
-    skipped: 2,
-    downloaded: 3,
-  };
   const sortedFindings = useMemo(() => {
     let list = [...findings].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
     if (statusFilter) {
@@ -594,8 +640,8 @@ function ScannerPage() {
             ))}
           </div>
 
-          {/* Filter keywords input (desktop) */}
-          <div className="relative hidden flex-1 min-w-0 md:block">
+          {/* Filter keywords input (responsive) */}
+          <div className="relative flex-1 min-w-0">
             <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
             <input
               type="text"
@@ -606,19 +652,6 @@ function ScannerPage() {
               disabled={isRunning}
             />
           </div>
-        </div>
-
-        {/* Mobile filter input */}
-        <div className="relative md:hidden">
-          <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-          <input
-            type="text"
-            value={filterKeywords}
-            onChange={(e) => setFilterKeywords(e.target.value)}
-            placeholder={t("filter_placeholder")}
-            className="w-full rounded-lg border border-outline-variant bg-surface-container-low py-2 pl-8 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
-            disabled={isRunning}
-          />
         </div>
 
         {/* Progress Bar */}

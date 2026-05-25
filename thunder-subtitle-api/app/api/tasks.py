@@ -1,6 +1,7 @@
 """Task management endpoints — scan, review, dump operations."""
 
 import asyncio
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,6 +14,8 @@ from app.models.schemas import (
     TaskResponse,
 )
 from app.services.scan_service import scan_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -35,12 +38,30 @@ async def create_task(
     _user: str = Depends(get_current_user),
 ):
     """Create a new task (scan, review, or dump) and start it in the background."""
-    task = scan_service.create_task(body)
+    try:
+        task = scan_service.create_task(body)
+    except Exception as e:
+        logger.error("Failed to create task: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="创建任务失败",
+        )
 
-    # Start the task in the background
-    asyncio.create_task(scan_service.start_task(task.id))
+    # Start the task in the background with error logging
+    background_task = asyncio.create_task(scan_service.start_task(task.id))
+    background_task.add_done_callback(_log_task_error)
 
     return task
+
+
+def _log_task_error(future: asyncio.Task) -> None:
+    """Log any unhandled exception from background tasks."""
+    try:
+        exc = future.exception()
+        if exc:
+            logger.error("Background task failed with unhandled exception: %s", exc)
+    except (asyncio.CancelledError, Exception):
+        pass
 
 
 @router.get("/{task_id}", response_model=TaskResponse)

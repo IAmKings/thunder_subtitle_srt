@@ -1,12 +1,15 @@
+import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+logger = logging.getLogger(__name__)
 
-from app.config import override_password_from_config, settings
-from app.ws.manager import manager as ws_manager
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+from app.config import override_password_from_config, settings  # noqa: E402
+from app.ws.manager import manager as ws_manager  # noqa: E402
 
 # Add thunder-subtitle-py/ to sys.path so `from src.config import Config` works
 _cli_src = Path(__file__).resolve().parent.parent.parent / "thunder-subtitle-py"
@@ -20,11 +23,49 @@ override_password_from_config()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup, cleanup on shutdown."""
+    # Startup: verify CLI imports are available
+    _verify_cli_imports()
+    # Startup: warn about default credentials
+    _check_default_secrets()
     # Startup: initialize services
     await ws_manager.start()
     yield
     # Shutdown: cleanup
     await ws_manager.stop()
+
+
+def _check_default_secrets() -> None:
+    """Warn if admin_password or jwt_secret still use default values."""
+    if settings.admin_password == "changeme":
+        logger.warning(
+            "ADMIN_PASSWORD is still the default ('changeme'). "
+            "Set it via environment variable for security."
+        )
+    if settings.jwt_secret == "thunder-subtitle-secret-change-in-production":
+        logger.warning(
+            "JWT_SECRET is still the default. Set JWT_SECRET environment variable for security."
+        )
+
+
+def _verify_cli_imports() -> None:
+    """Verify that key CLI modules can be imported. Raises RuntimeError if not."""
+    errors: list[str] = []
+    for module_name, fallback in [
+        ("src.config", "thunder_subtitle.config"),
+        ("src.reviewer", "thunder_subtitle.reviewer"),
+    ]:
+        try:
+            __import__(module_name)
+        except ImportError:
+            try:
+                __import__(fallback)
+            except ImportError:
+                errors.append(f"{module_name} (also tried {fallback})")
+    if errors:
+        raise RuntimeError(
+            f"CLI modules not available: {', '.join(errors)}. "
+            f"Ensure thunder-subtitle-py/ is in sys.path or the package is installed."
+        )
 
 
 app = FastAPI(

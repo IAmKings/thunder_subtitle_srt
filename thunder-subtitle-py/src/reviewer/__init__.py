@@ -1,20 +1,26 @@
-from __future__ import annotations
 """字幕审查器 — 深度检测已下载字幕文件质量，给出百分制评分"""
+
+from __future__ import annotations
 
 import os
 from datetime import datetime
 
 from ..scanner import scan_movie_dirs
-from ..models import ReviewState, ReviewQuality
-from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, CYAN
+from ..models import ReviewState
+from ..ui import BOLD, DIM, RED, RESET, YELLOW
 from ..utils import matches
 
-from ..scanner._skip import _existing_subtitle_file, _find_dump_subtitle
+from ..scanner import _existing_subtitle_file, _find_dump_subtitle
 from ..utils import parse_nfo
 
 from ._marker import _batch_mark, _is_reviewed
 from ._review import _find_all_subtitle_files, _review_one_file, ReviewItem
-from ._output import _print_review_item, _print_review_summary, _write_review_log, _write_review_summary
+from ._output import (
+    _print_review_item,
+    _print_review_summary,
+    _write_review_log,
+    _write_review_summary,
+)
 
 __all__ = ["mark_directory", "review_directory", "ReviewItem"]
 
@@ -33,7 +39,15 @@ def mark_directory(
 
     支持精确路径和关键词模糊匹配两种方式。
     """
-    has_op = mark or unmark or mark_all or mark_path or unmark_path or mark_fail or mark_fail_path
+    has_op = (
+        mark
+        or unmark
+        or mark_all
+        or mark_path
+        or unmark_path
+        or mark_fail
+        or mark_fail_path
+    )
     if not has_op:
         return
 
@@ -45,7 +59,11 @@ def mark_directory(
 
     # ---- 精确路径操作 ----
     if mark_fail_path:
-        full = os.path.join(base_dir, mark_fail_path) if not os.path.isabs(mark_fail_path) else mark_fail_path
+        full = (
+            os.path.join(base_dir, mark_fail_path)
+            if not os.path.isabs(mark_fail_path)
+            else mark_fail_path
+        )
         if os.path.isdir(full):
             _batch_mark([full], True, status=ReviewState.fail)
         else:
@@ -53,7 +71,11 @@ def mark_directory(
         return
 
     if mark_path:
-        full = os.path.join(base_dir, mark_path) if not os.path.isabs(mark_path) else mark_path
+        full = (
+            os.path.join(base_dir, mark_path)
+            if not os.path.isabs(mark_path)
+            else mark_path
+        )
         if os.path.isdir(full):
             _batch_mark([full], True, status=mark_status)
         else:
@@ -61,7 +83,11 @@ def mark_directory(
         return
 
     if unmark_path:
-        full = os.path.join(base_dir, unmark_path) if not os.path.isabs(unmark_path) else unmark_path
+        full = (
+            os.path.join(base_dir, unmark_path)
+            if not os.path.isabs(unmark_path)
+            else unmark_path
+        )
         if os.path.isdir(full):
             _batch_mark([full], False)
         else:
@@ -89,7 +115,8 @@ def review_directory(
     movie_dirs = scan_movie_dirs(base_dir)
     if name_filters:
         movie_dirs = [
-            d for d in movie_dirs
+            d
+            for d in movie_dirs
             if any(matches(f, os.path.basename(d)) for f in name_filters)
         ]
 
@@ -100,7 +127,9 @@ def review_directory(
         return []
 
     if name_filters:
-        print(f"{BOLD}\n  Reviewing {len(movie_dirs)} movie(s) matching [{', '.join(name_filters)}]{RESET}\n")
+        print(
+            f"{BOLD}\n  Reviewing {len(movie_dirs)} movie(s) matching [{', '.join(name_filters)}]{RESET}\n"
+        )
     else:
         print(f"{BOLD}\n  Reviewing {len(movie_dirs)} movie(s){RESET}\n")
 
@@ -119,7 +148,10 @@ def review_directory(
         # 轻量 dry_state 检查：无字幕或已审查通过 → 跳过
         try:
             nfo = parse_nfo(os.path.join(movie_path, "movie.nfo"))
-            has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
+            has_sub = (
+                bool(_existing_subtitle_file(movie_path, movie_name))
+                or nfo.has_chinese_subtitle
+            )
         except Exception:
             has_sub = bool(_existing_subtitle_file(movie_path, movie_name))
 
@@ -141,7 +173,9 @@ def review_directory(
                 continue
             # 审查失败：只有存在 dump 数字字幕时才需要重审
             if not _find_dump_subtitle(movie_path):
-                print(f"{DIM}    ✗ Review FAILED — no new subtitles to re-review{RESET}")
+                print(
+                    f"{DIM}    ✗ Review FAILED — no new subtitles to re-review{RESET}"
+                )
                 continue
 
         sub_files = _find_all_subtitle_files(movie_path, movie_name)

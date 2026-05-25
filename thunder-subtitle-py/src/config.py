@@ -3,12 +3,15 @@
 """
 
 import json
+import logging
 import os
 import stat
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from .ui import BOLD, RESET, YELLOW
+
+logger = logging.getLogger(__name__)
 
 CONFIG_PATH: str = os.environ.get(
     "THUNDER_SUBTITLE_CONFIG",
@@ -65,7 +68,7 @@ class Config:
                     if hasattr(config, key):
                         setattr(config, key, value)
             except (json.JSONDecodeError, OSError):
-                pass  # 文件损坏则用默认值
+                logger.warning("Config file corrupted, using defaults")
         return config
 
     def save(self) -> None:

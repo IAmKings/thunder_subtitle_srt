@@ -72,8 +72,9 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
     try:
         while True:
             # Keep the connection alive; client can send pings
-            await websocket.receive_text()
-    except WebSocketDisconnect:
+            # Timeout after 30s of inactivity to detect stale connections
+            await asyncio.wait_for(websocket.receive_text(), timeout=30)
+    except (WebSocketDisconnect, asyncio.TimeoutError):
         pass
     finally:
         await manager.disconnect(websocket, task_id)

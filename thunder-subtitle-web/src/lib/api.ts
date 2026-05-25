@@ -71,13 +71,26 @@ async function fastApiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${FASTAPI_BASE_URL}${path}`, {
-    ...options,
-    headers,
-    signal: options.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${FASTAPI_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      signal: options.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new Error("请求超时");
+    }
+    throw error;
+  }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthToken();
+      window.location.href = "/login";
+      throw new Error("未授权，正在跳转登录页");
+    }
     throw new Error(`API request failed: ${response.status} ${response.statusText}`);
   }
 
@@ -328,12 +341,20 @@ export class ProgressWebSocket {
     this.baseUrl = baseUrl.replace(/^http/, "ws");
   }
 
-  connect(taskId: string, onProgress: (data: unknown) => void): void {
+  connect(
+    taskId: string,
+    onProgress: (data: unknown) => void,
+    options?: { onOpen?: () => void; onClose?: () => void }
+  ): void {
     if (this.ws) {
       this.ws.close();
     }
 
     this.ws = new WebSocket(`${this.baseUrl}/ws/progress/${taskId}`);
+
+    this.ws.onopen = () => {
+      options?.onOpen?.();
+    };
 
     this.ws.onmessage = (event) => {
       try {
@@ -345,11 +366,12 @@ export class ProgressWebSocket {
     };
 
     this.ws.onerror = () => {
-      // Connection error - will be handled by reconnect logic
+      // Connection error - will be followed by onclose
     };
 
     this.ws.onclose = () => {
       this.ws = null;
+      options?.onClose?.();
     };
   }
 

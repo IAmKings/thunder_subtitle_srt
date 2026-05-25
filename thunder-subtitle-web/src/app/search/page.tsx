@@ -12,7 +12,6 @@ import {
   Zap,
   CheckCircle,
 } from "lucide-react";
-import { SubtitleApiClient } from "@/lib/api";
 import type { Subtitle } from "@/lib/types";
 import { useTranslations } from "@/lib/i18n";
 import { useSearchState, useSearchActions, type FilterMode, type SortMode, type HistoryItem } from "@/lib/search-state";
@@ -34,6 +33,18 @@ function isChineseLang(lang: string): boolean {
   return /chinese|中文|简体|繁体|cn|zh/i.test(lang);
 }
 
+/** Pure function: filter subtitles that are Chinese (by language or name pattern). */
+function filterChineseSubtitles(subs: Subtitle[]): Subtitle[] {
+  return subs.filter((subtitle) => {
+    const hasChineseLang = subtitle.languages.some((lang) =>
+      /chinese|中文|简体|繁体|cn/i.test(lang)
+    );
+    const hasChineseName = /[\u4e00-\u9fa5]/.test(subtitle.name);
+    const isEmptyLang = subtitle.languages.length === 0 || subtitle.languages[0] === "";
+    return hasChineseLang || (hasChineseName && isEmptyLang);
+  });
+}
+
 function filterSubtitles(
   subs: Subtitle[],
   mode: FilterMode,
@@ -42,11 +53,9 @@ function filterSubtitles(
   let filtered = [...subs];
 
   if (mode === "chinese_only") {
-    const client = new SubtitleApiClient();
-    filtered = client.filterChineseSubtitles(filtered);
+    filtered = filterChineseSubtitles(filtered);
   } else if (mode === "chinese_first") {
-    const client = new SubtitleApiClient();
-    const chinese = client.filterChineseSubtitles(filtered);
+    const chinese = filterChineseSubtitles(filtered);
     const chineseGcids = new Set(chinese.map((s) => s.gcid));
     const others = filtered.filter((s) => !chineseGcids.has(s.gcid));
     filtered = [...chinese, ...others];
@@ -133,7 +142,7 @@ export default function SearchPage() {
                 type="button"
                 onClick={() => handleSearch()}
                 disabled={isLoading}
-                className="h-12 rounded-lg bg-primary-container px-5 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:px-8"
+                className="h-12 rounded-lg bg-primary-container px-5 text-sm font-bold text-on-primary-container transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:px-8"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
                 {isLoading ? t("scanning") : t("search_btn")}
@@ -332,7 +341,6 @@ export default function SearchPage() {
           onHistoryClick={handleHistoryClick}
           onRemoveItem={handleRemoveHistoryItem}
           onClearHistory={handleClearHistory}
-          t={t}
         />
       ) : null}
 
@@ -374,14 +382,13 @@ function HistoryPanel({
   onHistoryClick,
   onRemoveItem,
   onClearHistory,
-  t,
 }: {
   history: HistoryItem[];
   onHistoryClick: (name: string) => void;
   onRemoveItem: (id: string) => void;
   onClearHistory: () => void;
-  t: (key: string) => string;
 }) {
+  const t = useTranslations();
   if (history.length === 0) return null;
 
   return (

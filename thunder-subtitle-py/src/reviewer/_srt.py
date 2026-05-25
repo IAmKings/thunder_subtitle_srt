@@ -11,29 +11,31 @@ if TYPE_CHECKING:
 MIN_SUB_DURATION_MS = 500  # 单条字幕最短推荐时长
 MAX_LINE_LENGTH = 60  # 单行最大推荐字符数
 
+# SRT 格式：序号\n时间轴\n文本\n\n
+_SRT_PATTERN = re.compile(
+    r"(\d+)\s*\n"
+    r"(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*\n"
+    r"((?:(?!\n\n).)+)",
+    re.MULTILINE | re.DOTALL,
+)
+
 
 def _parse_srt_entries(text: str) -> list[dict]:
     """解析 SRT 文件为条目列表"""
     entries = []
-    # SRT 格式：序号\n时间轴\n文本\n\n
-    pattern = re.compile(
-        r"(\d+)\s*\n"
-        r"(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*\n"
-        r"((?:(?!\n\n).)+)",
-        re.MULTILINE | re.DOTALL,
-    )
-
-    for m in pattern.finditer(text):
+    for m in _SRT_PATTERN.finditer(text):
         idx = int(m.group(1))
         start = _ts_to_ms(m.group(2))
         end = _ts_to_ms(m.group(3))
         content = m.group(4).strip()
-        entries.append({
-            "index": idx,
-            "start_ms": start,
-            "end_ms": end,
-            "content": content,
-        })
+        entries.append(
+            {
+                "index": idx,
+                "start_ms": start,
+                "end_ms": end,
+                "content": content,
+            }
+        )
 
     return entries
 
@@ -47,8 +49,6 @@ def _ts_to_ms(ts: str) -> int:
 
 def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> None:
     """SRT 质量深度检测"""
-    from ..models import ReviewState
-
     gaps = 0
     missing = 0
     overlaps = 0
@@ -101,7 +101,9 @@ def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> None:
     if too_short > 0:
         penalty = min(too_short, 5)
         item.score -= penalty
-        item.deductions.append(f"时长过短({too_short}处<{MIN_SUB_DURATION_MS}ms) -{penalty}")
+        item.deductions.append(
+            f"时长过短({too_short}处<{MIN_SUB_DURATION_MS}ms) -{penalty}"
+        )
 
     if too_long > 0:
         penalty = min(too_long, 10)

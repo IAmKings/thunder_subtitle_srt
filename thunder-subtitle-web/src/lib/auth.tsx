@@ -177,7 +177,11 @@ export function withAuth<T extends object>(
     }
 
     if (!isAuthenticated) {
-      return null; // Will be redirected by AuthProvider
+      return (
+        <div className="flex h-screen items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ); // Will be redirected by AuthProvider
     }
 
     return <Component {...props} />;

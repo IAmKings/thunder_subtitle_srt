@@ -1,5 +1,6 @@
-from __future__ import annotations
 """跳过检查：决定是否跳过一部电影的下载"""
+
+from __future__ import annotations
 
 import logging
 import os
@@ -35,9 +36,25 @@ def _find_dump_subtitle(movie_path: str) -> str | None:
 
 
 def _existing_subtitle_file(movie_path: str, movie_name: str) -> str | None:
-    """检查目录中是否已有字幕文件（含标准命名和dump数字命名）"""
+    """检查目录中是否已有字幕文件（含标准命名和dump数字命名）
+
+    注意：与 reviewer/_review.py 的 _find_all_subtitle_files 的区别 —
+          _existing_subtitle_file 仅检查有无（返回首个匹配的文件名），
+          _find_all_subtitle_files 返回所有匹配文件的 (完整路径, 文件名) 列表。
+    """
     # 标准命名：{movie_name}{.zh}.{ext}
-    for ext in ("zh.srt", "srt", "zh.ass", "ass", "zh.ssa", "ssa", "zh.sub", "sub", "zh.vtt", "vtt"):
+    for ext in (
+        "zh.srt",
+        "srt",
+        "zh.ass",
+        "ass",
+        "zh.ssa",
+        "ssa",
+        "zh.sub",
+        "sub",
+        "zh.vtt",
+        "vtt",
+    ):
         path = os.path.join(movie_path, f"{movie_name}.{ext}")
         if os.path.isfile(path):
             return f"{movie_name}.{ext}"
@@ -57,16 +74,16 @@ def _is_review_fail(reviewed_file: str) -> bool:
 
 # ---- _check_skip 拆分后的子函数 ----
 
-def _handle_reset_fail(movie_path: str, dry_run: bool) -> bool:
+
+def _handle_reset_fail(movie_path: str, dry_run: bool, is_fail: bool) -> bool:
     """处理 reset-fail：清除审查失败标记，返回是否执行了重置"""
-    reviewed_file = os.path.join(movie_path, ".reviewed")
-    is_fail = _is_review_fail(reviewed_file)
     if not is_fail:
         return False
 
     if dry_run:
         print(f"{YELLOW}    ⚠ Would reset mark-fail → need review{RESET}")
     else:
+        reviewed_file = os.path.join(movie_path, ".reviewed")
         os.remove(reviewed_file)
         rejected = os.path.join(movie_path, ".rejected")
         if os.path.isfile(rejected):
@@ -75,11 +92,10 @@ def _handle_reset_fail(movie_path: str, dry_run: bool) -> bool:
     return True
 
 
-def _check_fail_skip(movie_path: str, force: bool, dry_run: bool) -> tuple[str, str] | None:
+def _check_fail_skip(
+    movie_path: str, force: bool, dry_run: bool, is_fail: bool
+) -> tuple[str, str] | None:
     """检查审查失败导致的跳过，返回 (reason, dry_state) 或 None"""
-    reviewed_file = os.path.join(movie_path, ".reviewed")
-    is_fail = _is_review_fail(reviewed_file)
-
     if not is_fail:
         return None
 
@@ -92,17 +108,24 @@ def _check_fail_skip(movie_path: str, force: bool, dry_run: bool) -> tuple[str, 
     if dry_run:
         has_new_subs = bool(_find_dump_subtitle(movie_path))
         if has_new_subs:
-            print(f"{YELLOW}    ⚠ Review FAILED but new subtitles exist — needs re-review{RESET}")
-            return ("New subtitles exist — needs re-review", DryState.reviewed_fail_new_subs)
+            print(
+                f"{YELLOW}    ⚠ Review FAILED but new subtitles exist — needs re-review{RESET}"
+            )
+            return (
+                "New subtitles exist — needs re-review",
+                DryState.reviewed_fail_new_subs,
+            )
         else:
             print(f"{RED}    ✗ Review FAILED — find subtitles elsewhere{RESET}")
     return ("Review FAILED — find subtitles elsewhere", DryState.reviewed_fail)
 
 
-def _get_dry_state(movie_path: str, movie_name: str, nfo) -> str:
+def _get_dry_state(
+    movie_path: str, movie_name: str, nfo, existing_sub: str | None
+) -> str:
     """dry-run 模式下确定电影的字幕状态"""
     review_file = os.path.join(movie_path, ".reviewed")
-    has_sub = bool(_existing_subtitle_file(movie_path, movie_name)) or nfo.has_chinese_subtitle
+    has_sub = bool(existing_sub) or nfo.has_chinese_subtitle
 
     if not has_sub:
         print(f"{DIM}    ◇ No subtitles — will download{RESET}")
@@ -132,50 +155,69 @@ def _check_release_age(nfo, min_age_days: int) -> str | None:
         age = (datetime.now() - rd).days
         if age < min_age_days:
             return f"Released {age}d ago (< {min_age_days}d), skip"
-    except (ValueError, IndexError):
-        pass
+    except (ValueError, IndexError) as exc:
+        logger.debug("release_date 解析失败: date=%r, error=%s", nfo.release_date, exc)
     return None
 
 
 def _check_existing_skip(
-    movie_path: str, movie_name: str, force: bool, is_fail: bool, dry_run: bool,
+    movie_path: str,
+    movie_name: str,
+    force: bool,
+    is_fail: bool,
+    dry_run: bool,
+    existing: str | None,
 ) -> str | None:
     """检查是否已有字幕文件，返回跳过原因或 None"""
-    existing = _existing_subtitle_file(movie_path, movie_name)
     if not existing:
         return None
     if force and is_fail:
         return None
     if dry_run and not _has_zh_prefix(existing):
-        print(f"{YELLOW}    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle{RESET}")
+        print(
+            f"{YELLOW}    ⚠ {existing} lacks .zh prefix, may not be Chinese subtitle{RESET}"
+        )
     return f"{existing} already exists"
 
 
 # ---- 主入口 ----
 
+
 def _check_skip(
-    movie_path: str, movie_name: str, nfo, dry_run: bool = False,
-    min_age_days: int = 0, force: bool = False, reset_fail: bool = False,
+    movie_path: str,
+    movie_name: str,
+    nfo,
+    dry_run: bool = False,
+    min_age_days: int = 0,
+    force: bool = False,
+    reset_fail: bool = False,
 ) -> tuple[str | None, str]:
     """
     检查是否应跳过该电影，返回 (跳过原因或None, dry_run_state)
     dry_state: need_download / need_review / reviewed_ok / reviewed_fail / skipped / ""
     """
+    # 一次性读取审查状态
+    reviewed_file = os.path.join(movie_path, ".reviewed")
+    is_fail = _is_review_fail(reviewed_file)
+
     # reset-fail：清除审查失败标记（最优先）
     if reset_fail:
-        _handle_reset_fail(movie_path, dry_run)
+        _handle_reset_fail(movie_path, dry_run, is_fail)
+        # 清除后需重新读取
+        is_fail = _is_review_fail(reviewed_file)
 
     # 审查失败硬跳过
-    fail_result = _check_fail_skip(movie_path, force, dry_run)
+    fail_result = _check_fail_skip(movie_path, force, dry_run, is_fail)
     if fail_result:
         return fail_result
 
-    # dry-run 状态判定
-    dry_state = _get_dry_state(movie_path, movie_name, nfo) if dry_run else ""
+    # 一次性检查已有字幕文件
+    existing_sub = _existing_subtitle_file(movie_path, movie_name)
 
-    # 重新读取 is_fail（可能已被 reset-fail 清除）
-    reviewed_file = os.path.join(movie_path, ".reviewed")
-    is_fail = _is_review_fail(reviewed_file)
+    # dry-run 状态判定
+    dry_state = (
+        _get_dry_state(movie_path, movie_name, nfo, existing_sub) if dry_run else ""
+    )
 
     # NFO 中文标记
     reason = _check_nfo_skip(nfo, force, is_fail)
@@ -187,8 +229,10 @@ def _check_skip(
     if reason:
         return (reason, ScanStatus.skipped)
 
-    # 已有字幕文件检查
-    reason = _check_existing_skip(movie_path, movie_name, force, is_fail, dry_run)
+    # 已有字幕文件检查（使用已缓存的结果）
+    reason = _check_existing_skip(
+        movie_path, movie_name, force, is_fail, dry_run, existing_sub
+    )
     if reason:
         return (reason, dry_state)
 

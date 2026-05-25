@@ -544,7 +544,7 @@ function SettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-8 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(0,164,220,0.3)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-8 py-3 text-sm font-bold text-on-primary-container shadow-[0_0_20px_rgba(0,164,220,0.3)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 md:w-auto"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}

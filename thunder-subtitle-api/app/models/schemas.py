@@ -1,7 +1,7 @@
 """Pydantic schemas for API request/response models."""
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -104,7 +104,7 @@ class TaskResponse(BaseModel):
     params: dict = Field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""
-    results: Optional[list[dict]] = None
+    results: Optional[list[ScanResultItem]] = None
 
 
 class TaskListResponse(BaseModel):
@@ -142,11 +142,6 @@ class NfoInfoResponse(BaseModel):
 # ---- Review ----
 
 
-class ReviewListRequest(BaseModel):
-    base_dir: str
-    name_filter: Optional[str] = None
-
-
 class ReviewItemResponse(BaseModel):
     file_path: str
     file_name: str
@@ -167,7 +162,11 @@ class ReviewListResponse(BaseModel):
 class ReviewMarkRequest(BaseModel):
     base_dir: str
     path: str
-    status: str  # "ok" or "fail"
+    status: Literal["ok", "fail"]
+
+
+class TokenVerifyRequest(BaseModel):
+    token: str
 
 
 class ReviewMarkResponse(BaseModel):

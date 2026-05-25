@@ -1,7 +1,8 @@
-from __future__ import annotations
 """
 Download logic for Thunder Subtitle Python CLI
 """
+
+from __future__ import annotations
 
 import hashlib
 import logging
@@ -19,7 +20,9 @@ from .ui import DIM, RESET, YELLOW, display_download_progress, display_download_
 logger = logging.getLogger(__name__)
 
 # 默认下载超时（环境变量可覆盖）
-_DEFAULT_DOWNLOAD_TIMEOUT = int(os.environ.get("THUNDER_SUBTITLE_DOWNLOAD_TIMEOUT", "60"))
+_DEFAULT_DOWNLOAD_TIMEOUT = int(
+    os.environ.get("THUNDER_SUBTITLE_DOWNLOAD_TIMEOUT", "60")
+)
 _DEFAULT_CHUNK_SIZE = int(os.environ.get("THUNDER_SUBTITLE_CHUNK_SIZE", "8192"))
 
 
@@ -70,7 +73,9 @@ def download_subtitle(
     last_error = ""
     for attempt in range(1, max_retries + 1):
         try:
-            response = requests.get(subtitle.url, stream=True, timeout=_timeout, headers=headers)
+            response = requests.get(
+                subtitle.url, stream=True, timeout=_timeout, headers=headers
+            )
             response.raise_for_status()
 
             total_size = int(response.headers.get("content-length", 0))
@@ -102,7 +107,9 @@ def download_subtitle(
 
             if attempt < max_retries:
                 delay = retry_delay * (2 ** (attempt - 1))  # 指数退避: 2s, 4s, 8s, ...
-                print(f"{YELLOW}    ⚠ Retry {attempt}/{max_retries} after {delay}s: {last_error}{RESET}")
+                print(
+                    f"{YELLOW}    ⚠ Retry {attempt}/{max_retries} after {delay}s: {last_error}{RESET}"
+                )
                 time.sleep(delay)
 
     return DownloadResult(success=False, filename=safe_name, error=last_error)
@@ -114,6 +121,7 @@ def download_batch(
     filenames: Optional[list[str]] = None,
 ) -> dict:
     """
+    # Deprecated: not used in CLI or Web API
     批量下载字幕
     返回 { 'successful': int, 'failed': int, 'results': list[DownloadResult] }
     """
@@ -136,9 +144,10 @@ def download_batch(
 @dataclass
 class DumpResult:
     """dump 下载结果"""
+
     downloaded: int = 0
-    dupes: int = 0       # 会话内重复
-    skipped: int = 0     # 已拒绝跳过
+    dupes: int = 0  # 会话内重复
+    skipped: int = 0  # 已拒绝跳过
     gcids: set | None = None  # 本次下载的 gcid 集合
 
     def __post_init__(self):

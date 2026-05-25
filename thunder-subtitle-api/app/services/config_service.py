@@ -2,11 +2,18 @@
 
 import os
 
+from app._cli_imports import cli_import
 from app.models.schemas import AppConfig, AppConfigUpdate
 
 
 class ConfigService:
     """Service for reading and writing application configuration."""
+
+    @staticmethod
+    def _load_cli_config():
+        """Load CLI Config object with dual-import fallback."""
+        mod = cli_import("src.config")
+        return mod.Config.load()
 
     @staticmethod
     def _effective_media_paths(config: object) -> str:
@@ -16,34 +23,29 @@ class ConfigService:
             return json_val
         return os.environ.get("MEDIA_PATHS", "").strip()
 
+    @staticmethod
+    def _to_app_config(config: object) -> AppConfig:
+        """Build an AppConfig Pydantic model from a CLI Config dataclass."""
+        return AppConfig(
+            output_dir=getattr(config, "output_dir", ""),
+            timeout=getattr(config, "timeout", 30),
+            download_timeout=getattr(config, "download_timeout", 60),
+            chunk_size=getattr(config, "chunk_size", 8192),
+            rate_limit=getattr(config, "rate_limit", 3),
+            retry_count=getattr(config, "retry_count", 3),
+            retry_delay=getattr(config, "retry_delay", 2),
+            preferred_groups=getattr(config, "preferred_groups", ""),
+            media_paths=ConfigService._effective_media_paths(config),
+        )
+
     def get_config(self) -> AppConfig:
         """Load current configuration."""
-        try:
-            from src.config import Config
-        except ImportError:
-            from thunder_subtitle.config import Config  # type: ignore[import-untyped]
-
-        config = Config.load()
-        return AppConfig(
-            output_dir=config.output_dir,
-            timeout=config.timeout,
-            download_timeout=config.download_timeout,
-            chunk_size=config.chunk_size,
-            rate_limit=config.rate_limit,
-            retry_count=config.retry_count,
-            retry_delay=config.retry_delay,
-            preferred_groups=config.preferred_groups,
-            media_paths=self._effective_media_paths(config),
-        )
+        config = self._load_cli_config()
+        return self._to_app_config(config)
 
     def update_config(self, update: AppConfigUpdate) -> AppConfig:
         """Update configuration fields and save to disk."""
-        try:
-            from src.config import Config
-        except ImportError:
-            from thunder_subtitle.config import Config  # type: ignore[import-untyped]
-
-        config = Config.load()
+        config = self._load_cli_config()
 
         # Apply updates
         if update.output_dir is not None:
@@ -66,26 +68,11 @@ class ConfigService:
             config.media_paths = update.media_paths
 
         config.save()
-        return AppConfig(
-            output_dir=config.output_dir,
-            timeout=config.timeout,
-            download_timeout=config.download_timeout,
-            chunk_size=config.chunk_size,
-            rate_limit=config.rate_limit,
-            retry_count=config.retry_count,
-            retry_delay=config.retry_delay,
-            preferred_groups=config.preferred_groups,
-            media_paths=self._effective_media_paths(config),
-        )
+        return self._to_app_config(config)
 
     def save_password(self, password: str) -> None:
         """Persist admin password to config file."""
-        try:
-            from src.config import Config
-        except ImportError:
-            from thunder_subtitle.config import Config  # type: ignore[import-untyped]
-
-        config = Config.load()
+        config = self._load_cli_config()
         config.password = password
         config.save()
 

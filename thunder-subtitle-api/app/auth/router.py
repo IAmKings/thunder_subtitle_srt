@@ -5,11 +5,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 
+from app.auth.dependencies import get_current_user
 from app.config import settings
+from app.models.schemas import TokenVerifyRequest
 
 router = APIRouter()
 
@@ -92,32 +94,18 @@ async def login(body: LoginRequest):
 
 
 @router.get("/verify", response_model=VerifyResponse)
-async def verify_token_get(request: Request):
+async def verify_token_get(username: str = Depends(get_current_user)):
     """Verify a JWT token from Authorization header. GET method for easy checking."""
-    token = extract_token_from_request(request)
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header",
-        )
-
-    payload = verify_access_token(token)
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        )
-
     return VerifyResponse(
         valid=True,
-        username=payload.get("sub", ""),
+        username=username,
     )
 
 
 @router.post("/verify", response_model=VerifyResponse)
-async def verify_token_post(body: dict):
-    """Verify a JWT token. Body: {"token": "..."}"""
-    token = body.get("token", "")
+async def verify_token_post(body: TokenVerifyRequest):
+    """Verify a JWT token."""
+    token = body.token
     payload = verify_access_token(token)
     if payload is None:
         return VerifyResponse(valid=False)
@@ -129,22 +117,11 @@ async def verify_token_post(body: dict):
 
 
 @router.post("/change-password")
-async def change_password(request: Request, body: ChangePasswordRequest):
+async def change_password(
+    body: ChangePasswordRequest,
+    _user: str = Depends(get_current_user),
+):
     """Change the admin password. Requires authentication."""
-    # Verify auth
-    token = extract_token_from_request(request)
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header",
-        )
-    payload = verify_access_token(token)
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        )
-
     # Verify old password
     if body.old_password != settings.admin_password:
         raise HTTPException(

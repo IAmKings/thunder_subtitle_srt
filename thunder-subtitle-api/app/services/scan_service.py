@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
+from app._cli_imports import cli_import
 from app.models.schemas import (
     MediaDirectory,
     NfoInfoResponse,
@@ -24,17 +25,15 @@ logger = logging.getLogger(__name__)
 
 def _get_media_paths() -> list[str]:
     """Helper: load media paths from CLI config (env var > JSON)."""
-    try:
-        from src.config import Config
-    except ImportError:
-        from thunder_subtitle.config import Config  # type: ignore[import-untyped]
-    return Config.load().media_paths_list
+    mod = cli_import("src.config")
+    return mod.Config.load().media_paths_list
 
 
 class ScanService:
     """Service that wraps the CLI scanner for media library operations."""
 
-    # Class-level task storage (shared across all instances)
+    # 单例模式 — _tasks 在所有实例间共享
+    # (ScanService is a singleton via scan_service module-level instance)
     _tasks: dict[str, TaskResponse] = {}
     _task_handles: dict[str, asyncio.Task] = {}
 
@@ -136,21 +135,12 @@ class ScanService:
 
     async def _execute_scan(self, task: TaskResponse) -> None:
         """Execute a scan task — process movies one by one for real-time progress."""
-        try:
-            from src.api import SubtitleApiClient
-            from src.config import Config
-            from src.scanner import scan_movie_dirs
-            from src.scanner._processor import _process_one_movie
-        except ImportError:
-            try:
-                from thunder_subtitle.api import SubtitleApiClient  # type: ignore[import-untyped]
-                from thunder_subtitle.config import Config  # type: ignore[import-untyped]
-                from thunder_subtitle.scanner import scan_movie_dirs  # type: ignore[import-untyped]
-                from thunder_subtitle.scanner._processor import (
-                    _process_one_movie,  # type: ignore[import-untyped]
-                )
-            except ImportError:
-                raise RuntimeError("Scanner module not available")
+        api_mod = cli_import("src.api")
+        config_mod = cli_import("src.config")
+        scanner_mod = cli_import("src.scanner")
+        processor_mod = cli_import("src.scanner._processor")
+        scan_movie_dirs = scanner_mod.scan_movie_dirs
+        _process_one_movie = processor_mod._process_one_movie
 
         # Determine which path(s) to scan
         paths_param = task.params.get("paths", None)
@@ -182,9 +172,9 @@ class ScanService:
         dump_mode = mode in ("dump", "dump_force")
         force = mode == "dump_force"
 
-        config = Config.load()
-        client = SubtitleApiClient(timeout=config.timeout)
-        all_results: list[dict] = []
+        config = config_mod.Config.load()
+        client = api_mod.SubtitleApiClient(timeout=config.timeout)
+        all_results: list[ScanResultItem] = []
 
         try:
             # Pre-scan all paths → collect movie directories
@@ -197,12 +187,8 @@ class ScanService:
 
             # Apply name filters
             if filters:
-                try:
-                    from src.utils import matches
-                except ImportError:
-                    from thunder_subtitle.utils import (  # type: ignore[import-untyped,no-reimport]
-                        matches,
-                    )
+                utils_mod = cli_import("src.utils")
+                matches = utils_mod.matches
                 all_movie_dirs = [
                     d
                     for d in all_movie_dirs
@@ -227,6 +213,10 @@ class ScanService:
                 task.message = f"Processing: {movie_name}"
                 task.updated_at = datetime.now(timezone.utc).isoformat()
 
+                # Extract optional scan params
+                min_age_days = int(task.params.get("min_age_days", 0))
+                reset_fail = bool(task.params.get("reset_fail", False))
+
                 # Process single movie in thread (blocking)
                 result = await asyncio.to_thread(
                     _process_one_movie,
@@ -236,19 +226,21 @@ class ScanService:
                     client=client,
                     config=config,
                     has_queried=False,
+                    min_age_days=min_age_days,
                     dump_mode=bool(dump_mode),
                     force=bool(force),
+                    reset_fail=reset_fail,
                 )
 
                 processed += 1
                 all_results.append(
-                    {
-                        "movie_name": result.movie_name,
-                        "status": result.status,
-                        "reason": result.reason,
-                        "filename": result.filename,
-                        "dry_state": getattr(result, "dry_state", ""),
-                    }
+                    ScanResultItem(
+                        movie_name=result.movie_name,
+                        status=result.status,
+                        reason=result.reason,
+                        filename=result.filename,
+                        dry_state=getattr(result, "dry_state", ""),
+                    )
                 )
 
                 # Calculate progress AFTER download completes
@@ -289,15 +281,8 @@ class ScanService:
 
     async def _execute_review(self, task: TaskResponse) -> None:
         """Execute a review task using the CLI reviewer."""
-        try:
-            from src.reviewer import review_directory
-        except ImportError:
-            try:
-                from thunder_subtitle.reviewer import (
-                    review_directory,  # type: ignore[import-untyped]
-                )
-            except ImportError:
-                raise RuntimeError("Reviewer module not available")
+        reviewer_mod = cli_import("src.reviewer")
+        review_directory = reviewer_mod.review_directory
 
         base_dir = task.params.get("path", "")
         if not base_dir:
@@ -333,23 +318,15 @@ class ScanService:
     async def _execute_dump(self, task: TaskResponse) -> None:
         """Execute a dump task (download all subtitles for a path)."""
         # Dump is similar to scan but with dump_mode=True
-        try:
-            from src.config import Config
-            from src.scanner import process_scanned_movies, scan_movie_dirs
-        except ImportError:
-            try:
-                from thunder_subtitle.config import Config  # type: ignore[import-untyped]
-                from thunder_subtitle.scanner import (  # type: ignore[import-untyped]
-                    process_scanned_movies,
-                    scan_movie_dirs,
-                )
-            except ImportError:
-                raise RuntimeError("Scanner module not available")
+        config_mod = cli_import("src.config")
+        scanner_mod = cli_import("src.scanner")
+        scan_movie_dirs = scanner_mod.scan_movie_dirs
+        process_scanned_movies = scanner_mod.process_scanned_movies
 
         scan_path = task.params.get("path", "")
         paths = [scan_path] if scan_path else _get_media_paths()
 
-        config = Config.load()
+        config = config_mod.Config.load()
         total_processed = 0
 
         for path in paths:
@@ -422,11 +399,8 @@ class ScanService:
 
     def get_nfo_info(self, path: str) -> NfoInfoResponse:
         """Parse movie.nfo from a media directory."""
-        try:
-            from src.utils import parse_nfo
-        except ImportError:
-            from thunder_subtitle.utils import parse_nfo  # type: ignore[import-untyped]
-
+        utils_mod = cli_import("src.utils")
+        parse_nfo = utils_mod.parse_nfo
         nfo_path = os.path.join(path, "movie.nfo")
         nfo = parse_nfo(nfo_path)
         return NfoInfoResponse(

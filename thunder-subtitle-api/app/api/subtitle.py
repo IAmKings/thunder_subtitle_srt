@@ -1,5 +1,7 @@
 """Subtitle search proxy endpoint — wraps the Xunlei API."""
 
+import asyncio
+import logging
 from typing import Optional
 
 import httpx
@@ -12,7 +14,23 @@ from app.models.schemas import (
 )
 from app.services.subtitle_service import SubtitleService
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+# Module-level lazy httpx client reuse
+_httpx_client: Optional[httpx.AsyncClient] = None
+_httpx_client_lock = asyncio.Lock()
+
+
+async def _get_httpx_client() -> httpx.AsyncClient:
+    """Get or create the shared httpx AsyncClient instance."""
+    global _httpx_client
+    if _httpx_client is None:
+        async with _httpx_client_lock:
+            if _httpx_client is None:
+                _httpx_client = httpx.AsyncClient(timeout=60.0)
+    return _httpx_client
 
 
 def get_subtitle_service() -> SubtitleService:
@@ -38,11 +56,13 @@ async def search_subtitles(
         )
         return result
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        logger.error("Search failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="操作失败")
     except Exception as e:
+        logger.error("Search failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Search failed: {e}",
+            detail="搜索失败",
         )
 
 
@@ -61,9 +81,10 @@ async def get_subtitle_detail(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Detail lookup failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Detail lookup failed: {e}",
+            detail="查询详情失败",
         )
 
 
@@ -75,9 +96,9 @@ async def download_subtitle(
 ):
     """Proxy download a subtitle file from the given URL."""
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.get(url, follow_redirects=True)
-            response.raise_for_status()
+        client = await _get_httpx_client()
+        response = await client.get(url, follow_redirects=True)
+        response.raise_for_status()
 
         # Determine content type and filename
         content_type = response.headers.get("content-type", "application/octet-stream")
@@ -106,12 +127,14 @@ async def download_subtitle(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
     except httpx.HTTPStatusError as e:
+        logger.error("Download failed: upstream returned %s", e.response.status_code)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Download failed: upstream returned {e.response.status_code}",
+            detail="下载失败，上游服务异常",
         )
     except httpx.RequestError as e:
+        logger.error("Download failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail=f"Download failed: {e}",
+            detail="下载超时",
         )

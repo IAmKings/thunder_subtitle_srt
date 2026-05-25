@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
 import type { ReviewItem } from "@/lib/types";
 
 const PINNED_KEY = "thunder-subtitle-pinned-items";
@@ -19,6 +19,8 @@ interface VerificationActions {
   setError: (e: string | null) => void;
   setSelectedMovie: (path: string | null) => void;
   setPinnedItems: (keys: string[] | ((prev: string[]) => string[])) => void;
+  isPinned: (item: ReviewItem) => boolean;
+  togglePin: (item: ReviewItem) => void;
 }
 
 const VerificationStateContext = createContext<VerificationState | null>(null);
@@ -53,9 +55,24 @@ export function VerificationStateProvider({ children }: { children: ReactNode })
     [items, isLoading, error, selectedMovie, pinnedItems]
   );
 
+  const isPinned = useCallback((item: ReviewItem) => {
+    const key = `${item.file_path}/${item.file_name}`;
+    return pinnedItems.includes(key);
+  }, [pinnedItems]);
+
+  const togglePin = useCallback((item: ReviewItem) => {
+    const key = `${item.file_path}/${item.file_name}`;
+    setPinnedItems((prev) => {
+      const set = new Set(prev);
+      if (set.has(key)) set.delete(key); else set.add(key);
+      return [...set];
+    });
+  }, [setPinnedItems]);
+
   const actions = useMemo<VerificationActions>(
-    () => ({ setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems }),
-    []
+    () => ({ setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems, isPinned, togglePin }),
+    // useState setters are stable refs
+    [isPinned, togglePin]
   );
 
   return (

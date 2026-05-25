@@ -26,12 +26,18 @@ import { VerificationSubtitleList } from "@/components/VerificationSubtitleList"
 import { VerificationFilterBar, BatchActionBar } from "@/components/VerificationFilterBar";
 import { VerificationStats } from "@/components/VerificationStats";
 import type { ReviewItem } from "@/lib/types";
+import { getMovieName } from "@/lib/utils";
 
 // ---- Helpers ----
 
-function getMovieName(filePath: string): string {
-  const parts = filePath.split("/");
-  return parts[parts.length - 1] || filePath;
+function getDisabledPaths(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem("thunder-subtitle-disabled-paths");
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
 }
 
 /** Filter items for a movie path, optionally by status, then optionally sort by size. */
@@ -96,7 +102,7 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
 function VerificationPage() {
   const t = useTranslations();
   const { items, isLoading, error, selectedMovie, pinnedItems: pinnedKeys } = useVerificationState();
-  const { setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems } = useVerificationActions();
+  const { setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems, isPinned, togglePin } = useVerificationActions();
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [baseDir, setBaseDir] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -124,18 +130,15 @@ function VerificationPage() {
   const [isMarkingAllFail, setIsMarkingAllFail] = useState(false);
   const [confirmKeepOnly, setConfirmKeepOnly] = useState(false);
   const [isKeepingOnly, setIsKeepingOnly] = useState(false);
-  function getDisabledPaths(): Set<string> {
-    try {
-      const raw = localStorage.getItem("thunder-subtitle-disabled-paths");
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch { return new Set(); }
-  }
 
-  const loadReviews = useCallback(async () => {
+  const loadReviews = useCallback(async (enabledDirsParam?: Array<{ path: string; name: string; movie_count: number }>) => {
     try {
-      const dirs = await fastApiClient.listMediaDirectories();
-      const disabled = getDisabledPaths();
-      const enabledDirs = dirs.filter((d) => !disabled.has(d.path));
+      let enabledDirs = enabledDirsParam;
+      if (!enabledDirs) {
+        const dirs = await fastApiClient.listMediaDirectories();
+        const disabled = getDisabledPaths();
+        enabledDirs = dirs.filter((d) => !disabled.has(d.path));
+      }
       if (enabledDirs.length === 0) {
         setItems([]);
         setIsLoading(false);
@@ -164,10 +167,14 @@ function VerificationPage() {
       if (enabledDirs.length > 0) {
         setBaseDir(enabledDirs[0].path);
       }
-      if (items.length === 0 && isLoading) {
-        startTransition(() => { loadReviews(); });
+      if (items.length === 0) {
+        startTransition(() => { loadReviews(enabledDirs); });
+      } else {
+        setIsLoading(false);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      setIsLoading(false);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -263,20 +270,6 @@ function VerificationPage() {
       setIsKeepingOnly(false);
     }
   }, [selectedMovie, pinnedKeys, items, setItems, setError, t]);
-
-  // ---- Pin toggle ----
-  const togglePin = useCallback((item: ReviewItem) => {
-    const key = `${item.file_path}/${item.file_name}`;
-    setPinnedItems((prev) => {
-      const set = new Set(prev);
-      if (set.has(key)) set.delete(key); else set.add(key);
-      return [...set];
-    });
-  }, [setPinnedItems]);
-
-  const isPinned = useCallback((item: ReviewItem) => {
-    return pinnedKeys.includes(`${item.file_path}/${item.file_name}`);
-  }, [pinnedKeys]);
 
   // ---- Reject: delete file, optionally mark fail, jump to next ----
   const handleReject = useCallback(async () => {

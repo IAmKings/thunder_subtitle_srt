@@ -1,10 +1,14 @@
 """Configuration CRUD endpoints."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import AppConfig, AppConfigUpdate
 from app.services.config_service import ConfigService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -24,9 +28,10 @@ async def get_config(
         config = service.get_config()
         return config
     except Exception as e:
+        logger.error("Failed to load configuration: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load configuration: {e}",
+            detail="加载配置失败",
         )
 
 
@@ -41,11 +46,13 @@ async def update_config(
         config = service.update_config(body)
         return config
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        logger.error("Config update failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="参数错误")
     except Exception as e:
+        logger.error("Failed to update configuration: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update configuration: {e}",
+            detail="更新配置失败",
         )
 
 
@@ -59,7 +66,8 @@ async def reload_config(
         config = service.reload_config()
         return config
     except Exception as e:
+        logger.error("Failed to reload configuration: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to reload configuration: {e}",
+            detail="重载配置失败",
         )

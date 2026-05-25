@@ -1,5 +1,6 @@
-from __future__ import annotations
 """扫描循环：串行/并行执行，过滤器，进度管理"""
+
+from __future__ import annotations
 
 import os
 import threading
@@ -10,7 +11,7 @@ from ..exceptions import ThunderSubtitleError
 from ..config import Config
 from ..api import SubtitleApiClient
 from ..models import ScanStatus
-from ..ui import BOLD, DIM, GREEN, RED, RESET, YELLOW, BOLD_CYAN
+from ..ui import BOLD, DIM, RESET, YELLOW
 from ..utils import matches
 
 from ._dir import scan_movie_dirs
@@ -38,6 +39,7 @@ def process_scanned_movies(
     log_path = ""
     if log:
         from datetime import datetime
+
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_path = os.path.join(base_dir, f"scan_{ts}.log")
 
@@ -55,7 +57,9 @@ def process_scanned_movies(
         skipped_count = sum(1 for d in movie_dirs if d in completed_paths)
         movie_dirs = [d for d in movie_dirs if d not in completed_paths]
         if skipped_count > 0:
-            print(f"{DIM}  Resuming: {skipped_count} already done, {len(movie_dirs)} remaining{RESET}")
+            print(
+                f"{DIM}  Resuming: {skipped_count} already done, {len(movie_dirs)} remaining{RESET}"
+            )
 
     if not movie_dirs:
         print(f"{DIM}  All movies already processed, nothing to do.{RESET}\n")
@@ -64,9 +68,20 @@ def process_scanned_movies(
     client = SubtitleApiClient(timeout=config.timeout)
 
     try:
-        results = _do_scan_loop(movie_dirs, dry_run, client, config,
-                                min_age_days, dump_mode, force, reset_fail,
-                                parallel, resume, progress_file, log_path)
+        results = _do_scan_loop(
+            movie_dirs,
+            dry_run,
+            client,
+            config,
+            min_age_days,
+            dump_mode,
+            force,
+            reset_fail,
+            parallel,
+            resume,
+            progress_file,
+            log_path,
+        )
     except KeyboardInterrupt:
         print(f"\n{YELLOW}  ⚠ Interrupted. Progress saved.{RESET}\n")
         return []
@@ -75,16 +90,36 @@ def process_scanned_movies(
 
 
 def _do_scan_loop(
-    movie_dirs, dry_run, client, config,
-    min_age_days, dump_mode, force, reset_fail,
-    parallel, resume, progress_file, log_path,
-) -> list:
+    movie_dirs: list[str],
+    dry_run: bool,
+    client: SubtitleApiClient,
+    config: Config,
+    min_age_days: int,
+    dump_mode: bool,
+    force: bool,
+    reset_fail: bool,
+    parallel: int,
+    resume: bool,
+    progress_file: str,
+    log_path: str,
+) -> list[ScanResult]:
     """执行扫描循环（串行或并行）"""
 
     if parallel > 1 and not dry_run:
-        parallel_results = _process_parallel(movie_dirs, dry_run, client, config,
-                                             min_age_days, dump_mode, force, reset_fail,
-                                             parallel, resume, progress_file, log_path)
+        parallel_results = _process_parallel(
+            movie_dirs,
+            dry_run,
+            client,
+            config,
+            min_age_days,
+            dump_mode,
+            force,
+            reset_fail,
+            parallel,
+            resume,
+            progress_file,
+            log_path,
+        )
         _print_scan_summary(parallel_results)
         return parallel_results
 
@@ -97,10 +132,21 @@ def _do_scan_loop(
         movie_name = os.path.basename(movie_path)
         label = f"{actor_name}/{movie_name}"
 
-        print(f"{YELLOW}  [{i}/{len(movie_dirs)}]{RESET} {BOLD}{label}{RESET}", flush=True)
+        print(
+            f"{YELLOW}  [{i}/{len(movie_dirs)}]{RESET} {BOLD}{label}{RESET}", flush=True
+        )
 
         result = _process_one_movie(
-            movie_path, movie_name, dry_run, client, config, has_queried, min_age_days, dump_mode, force, reset_fail
+            movie_path,
+            movie_name,
+            dry_run,
+            client,
+            config,
+            has_queried,
+            min_age_days,
+            dump_mode,
+            force,
+            reset_fail,
         )
         results.append(result)
 
@@ -139,7 +185,8 @@ def _apply_filters(movie_dirs: list[str], name_filters: list[str] | None) -> lis
         return movie_dirs
 
     filtered = [
-        d for d in movie_dirs
+        d
+        for d in movie_dirs
         if any(matches(f, os.path.basename(d)) for f in name_filters)
     ]
     if filtered:
@@ -167,9 +214,18 @@ def _rate_limit_wait(interval: float) -> None:
 
 
 def _process_parallel(
-    movie_dirs: list[str], dry_run: bool, client, config,
-    min_age_days: int, dump_mode: bool, force: bool, reset_fail: bool,
-    workers: int, resume: bool, progress_file: str, log_path: str,
+    movie_dirs: list[str],
+    dry_run: bool,
+    client,
+    config,
+    min_age_days: int,
+    dump_mode: bool,
+    force: bool,
+    reset_fail: bool,
+    workers: int,
+    resume: bool,
+    progress_file: str,
+    log_path: str,
 ) -> list:
     """并行处理多部电影"""
     results: list = []
@@ -184,21 +240,40 @@ def _process_parallel(
         _rate_limit_wait(float(config.rate_limit))
         with lock:
             done += 1
-            print(f"{YELLOW}  [{done}/{total}]{RESET} {BOLD}{actor}/{name}{RESET}", flush=True)
-        return _process_one_movie(movie_path, name, dry_run, client, config,
-                                  False, min_age_days, dump_mode, force, reset_fail)
+            print(
+                f"{YELLOW}  [{done}/{total}]{RESET} {BOLD}{actor}/{name}{RESET}",
+                flush=True,
+            )
+        return _process_one_movie(
+            movie_path,
+            name,
+            dry_run,
+            client,
+            config,
+            False,
+            min_age_days,
+            dump_mode,
+            force,
+            reset_fail,
+        )
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = {executor.submit(process_one, i, d): (i, d)
-                   for i, d in enumerate(movie_dirs, 1)}
+        futures = {
+            executor.submit(process_one, i, d): (i, d)
+            for i, d in enumerate(movie_dirs, 1)
+        }
         try:
             for future in as_completed(futures):
                 _, movie_path = futures[future]
                 try:
                     r = future.result()
                 except (ThunderSubtitleError, OSError) as e:
-                    r = ScanResult(movie_path, os.path.basename(movie_path),
-                                   ScanStatus.error, str(e))
+                    r = ScanResult(
+                        movie_path,
+                        os.path.basename(movie_path),
+                        ScanStatus.error,
+                        str(e),
+                    )
                 results.append(r)
                 if resume and r.status != ScanStatus.error:
                     _save_progress(progress_file, movie_path)
