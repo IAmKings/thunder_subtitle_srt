@@ -423,6 +423,12 @@ function VerificationPage() {
     dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
   }, [setSelectedMovie, dispatchFilter]);
 
+  const handleBackToSubtitles = useCallback(() => {
+    setSelectedItem(null);
+    setPreviewContent(null);
+    setPreviewPart(0);
+  }, [setSelectedItem]);
+
   const handleSelectMovie = useCallback((filePath: string) => {
     setSelectedMovie(filePath);
     setSelectedItem(null);
@@ -435,8 +441,8 @@ function VerificationPage() {
 
   return (
     <div className="grid grid-cols-12 gap-8 h-full">
-      {/* Left Panel */}
-      <section className="col-span-12 flex flex-col gap-4 lg:col-span-4">
+      {/* Left Panel — hide on mobile when preview is open */}
+      <section className={`col-span-12 flex flex-col gap-4 lg:col-span-4 ${selectedItem ? 'hidden lg:flex' : ''}`}>
         {/* Title row */}
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg md:text-xl font-bold">
@@ -611,10 +617,19 @@ function VerificationPage() {
         )}
       </section>
 
-      {/* Right Panel: Preview + Actions */}
-      <section className="col-span-12 flex flex-col gap-4 lg:col-span-8">
+      {/* Right Panel: Preview + Actions — hide on mobile when nothing selected */}
+      <section className={`col-span-12 flex flex-col gap-4 lg:col-span-8 ${!selectedItem ? 'hidden lg:flex' : ''}`}>
         <div className="ghost-border flex items-center justify-between rounded-xl bg-surface-container-high p-3 md:p-4">
           <div className="flex items-center gap-4">
+            {/* Mobile back button (lg:hidden) */}
+            <button
+              type="button"
+              onClick={handleBackToSubtitles}
+              className="lg:hidden rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-highest transition-colors"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              <ArrowLeft size={20} />
+            </button>
             <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-outline-variant/20 bg-surface-container-highest">
               {selectedItem ? (
                 <FileText className="text-primary" size={24} />

@@ -718,7 +718,7 @@ function ScannerPage() {
 
       {/* Recent Findings Table */}
       <section className="ghost-border overflow-hidden rounded-xl bg-surface-container">
-        <div className="flex items-center justify-between bg-surface-container-high px-6 py-4">
+        <div className="flex flex-col gap-2 bg-surface-container-high px-6 py-4 md:flex-row md:items-center md:justify-between">
           <h4 className="text-lg font-bold">{t("recent_findings")}</h4>
           {findings.length > 0 && (
             <div className="flex rounded-lg border border-outline-variant/30 bg-surface-container p-1">
@@ -741,7 +741,7 @@ function ScannerPage() {
           )}
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left">
             <thead className="border-b border-outline-variant/30 bg-surface-container-high/50 text-xs font-bold uppercase text-on-surface-variant">
               <tr>
@@ -820,6 +820,94 @@ function ScannerPage() {
                 onClick={() => setResultsPage((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={resultsPage >= totalPages - 1}
                 className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Mobile Card List (hidden md:block on desktop) */}
+      <section className="ghost-border overflow-hidden rounded-xl bg-surface-container md:hidden">
+        <div className="flex flex-col gap-2 bg-surface-container-high px-4 py-3">
+          <h4 className="text-base font-bold">{t("recent_findings")}</h4>
+        </div>
+        <div className="space-y-3 p-4">
+          {paginatedFindings.length === 0 ? (
+            <div className="py-8 text-center text-sm text-on-surface-variant">
+              {activeTask?.status === "running"
+                ? t("scan_progress")
+                : t("no_results_scan")}
+            </div>
+          ) : (
+            paginatedFindings.map((finding, idx) => (
+              <div
+                key={`card-${idx}-${finding.movie_name}`}
+                className="ghost-border rounded-xl bg-surface-container-low p-4"
+              >
+                {/* Top row: film icon + name + status badge */}
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <Film size={16} className="flex-shrink-0 text-primary" />
+                    <span className="truncate text-sm font-medium">{finding.movie_name}</span>
+                  </div>
+                  <StatusBadge status={finding.status} label={statusLabel(finding.status, t)} />
+                </div>
+
+                {/* Subtitle filename */}
+                <div className="mb-1 text-xs text-on-surface-variant">
+                  {finding.filename || "—"}
+                </div>
+
+                {/* Reason + dry_state + View button row */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="truncate text-xs text-on-surface-variant">
+                      {finding.reason === "dry-run" ? t("scan_mode_dry_run") : (finding.reason || "—")}
+                    </span>
+                    {finding.dry_state && (
+                      <DryStateBadge dryState={finding.dry_state} label={dryStateLabel(finding.dry_state, t)} />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDetailItem(finding)}
+                    className="flex-shrink-0 text-xs text-primary hover:underline"
+                    style={{ WebkitTapHighlightColor: "transparent" }}
+                  >
+                    {t("view")}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        {/* Mobile pagination */}
+        <div className="flex items-center justify-between bg-surface-container-low px-4 py-3 text-xs text-on-surface-variant">
+          <span>
+            {sortedFindings.length > 0
+              ? `${resultsPage * RESULTS_PER_PAGE + 1}-${Math.min((resultsPage + 1) * RESULTS_PER_PAGE, sortedFindings.length)} / ${sortedFindings.length}`
+              : t("x_results").replace("{x}", "0")}
+          </span>
+          {sortedFindings.length > RESULTS_PER_PAGE && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setResultsPage((p) => Math.max(0, p - 1))}
+                disabled={resultsPage === 0}
+                className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="px-1 tabular-nums">{resultsPage + 1}/{totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setResultsPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={resultsPage >= totalPages - 1}
+                className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
+                style={{ WebkitTapHighlightColor: "transparent" }}
               >
                 <ChevronRight size={16} />
               </button>
