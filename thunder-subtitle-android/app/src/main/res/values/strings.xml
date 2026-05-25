@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Thunder Subtitle</string>
+    <string name="server_url_hint">http://192.168.1.100:3000</string>
+    <string name="connect">连接</string>
+    <string name="server_address_hint">服务器地址</string>
+    <string name="current_server">当前服务器: %s</string>
+    <string name="tap_to_change">点按修改地址</string>
+    <string name="invalid_url">请输入有效的服务器地址</string>
+    <string name="loading">正在加载…</string>
+    <string name="network_error">无法连接到服务器，请检查地址和网络</string>
+    <string name="settings_activity">com.thundersubtitle.app.SettingsActivity</string>
+</resources>
