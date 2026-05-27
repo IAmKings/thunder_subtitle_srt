@@ -6,7 +6,9 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-from fastapi import FastAPI  # noqa: E402
+import time  # noqa: E402
+
+from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from app.config import override_password_from_config, settings  # noqa: E402
@@ -84,6 +86,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Timing middleware — log request duration
+@app.middleware("http")
+async def log_request_time(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = (time.time() - start) * 1000
+    logger.info(f"{request.method} {request.url.path} → {response.status_code} ({duration:.0f}ms)")
+    return response
+
 
 # Register routers
 from app.api.config import router as config_router  # noqa: E402
