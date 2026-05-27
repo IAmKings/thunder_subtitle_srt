@@ -1042,3 +1042,36 @@ _io.py mypy类型错误修复(string键+f-string兼容)、测试同步_check_fai
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: 审查性能优化：轻量发现+按需深审+.preferred标记
+
+**Date**: 2026-05-27
+**Task**: 审查性能优化：轻量发现+按需深审+.preferred标记
+**Branch**: `master`
+
+### Summary
+
+PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR2：拆分list_review_movies(文件系统5s) + review_subtitle_file(按需深审)，电影列表从24分钟→5秒。.preferred独立文件存偏好字幕组标记(文件名→原名映射)，每次dump清空重建，不影响.dumped增量逻辑。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `HEAD~1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

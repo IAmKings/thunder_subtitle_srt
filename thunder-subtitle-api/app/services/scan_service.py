@@ -265,8 +265,6 @@ class ScanService:
                         ),
                     ).model_dump(),
                 )
-                await asyncio.sleep(0.05)
-
             # Small delay to ensure all WebSocket results arrive before COMPLETED
             await asyncio.sleep(0.2)
 

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 30
-- **Last Active**: 2026-05-25
+- **Total Sessions**: 31
+- **Last Active**: 2026-05-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1044 | Active |
+| `journal-1.md` | ~1077 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 31 | 2026-05-27 | 审查性能优化：轻量发现+按需深审+.preferred标记 | HEAD~1 | `master` |
 | 30 | 2026-05-25 | Android WebView壳工程创建 | HEAD~1 | `master` |
 | 29 | 2026-05-25 | CI修复：mypy+测试签名+PNG图标 | `8d87013`, `ea3aadf`, `8958912` | `master` |
 | 28 | 2026-05-25 | 1.2.0 预发布版本更新与文档同步 | HEAD~1 | `master` |
