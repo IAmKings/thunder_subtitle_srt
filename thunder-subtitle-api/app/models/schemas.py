@@ -152,6 +152,7 @@ class ReviewItemResponse(BaseModel):
     encoding: str = ""
     review_status: ReviewState = ReviewState.not_reviewed
     review_date: str = ""
+    preferred: bool = False
 
 
 class MovieEntryResponse(BaseModel):

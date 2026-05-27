@@ -37,6 +37,7 @@ export function VerificationSubtitleList({
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1 truncate text-xs md:text-sm font-bold">
                 {isPinned(item) && <Star size={12} className="flex-shrink-0 text-amber-400" fill="currentColor" />}
+                {item.preferred && <Star size={12} className="flex-shrink-0 text-primary" fill="currentColor" />}
                 <span className="truncate">{item.file_name}</span>
               </p>
               <p className="mt-1 truncate text-[10px] text-on-surface-variant">{item.file_path}</p>

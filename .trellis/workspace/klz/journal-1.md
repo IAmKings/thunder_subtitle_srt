@@ -1075,3 +1075,36 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 32: 1.3.0 预发布版本更新
+
+**Date**: 2026-05-27
+**Task**: 1.3.0 预发布版本更新
+**Branch**: `master`
+
+### Summary
+
+1.2.1→1.3.0：审查性能优化(轻量发现+按需深审)、扫描sleep移除(48s→5s)、.preferred偏好标记、API timing middleware、日志修复、422修复。三包版本统一至1.3.0。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f484014` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

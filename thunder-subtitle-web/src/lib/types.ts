@@ -87,6 +87,7 @@ export interface ReviewItem {
   encoding: string;
   review_status: ReviewState;
   review_date: string;
+  preferred?: boolean;
 }
 
 // ---- Review MovieEntry (lightweight for movie list) ----

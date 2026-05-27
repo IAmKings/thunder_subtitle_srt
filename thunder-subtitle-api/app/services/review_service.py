@@ -130,6 +130,19 @@ class ReviewService:
         item = _review_one(full_filepath, file_name, full_movie_path, movie_name)
         quality_display = str(item.status) if item.status else "unknown"
 
+        # Check .preferred for preferred group marker
+        preferred = False
+        preferred_file = os.path.join(full_movie_path, ".preferred")
+        if os.path.isfile(preferred_file):
+            try:
+                with open(preferred_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if ":" in line and line.split(":", 1)[0].strip() == file_name:
+                            preferred = True
+                            break
+            except OSError:
+                pass
+
         return ReviewItemResponse(
             file_path=item.movie_path,
             file_name=item.filename,
@@ -140,6 +153,7 @@ class ReviewService:
             encoding=item.encoding,
             review_status=review_status,
             review_date=review_date,
+            preferred=preferred,
         )
 
     def mark_review(
