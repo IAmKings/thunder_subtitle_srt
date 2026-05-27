@@ -299,8 +299,8 @@ export class FastApiClient {
   }
 
   /** 按需深审单个字幕文件（编码+SRT+CJK），用于验证页字幕详情 */
-  async reviewSubtitleFile(filePath: string, fileName: string): Promise<ReviewItem> {
-    const params = new URLSearchParams({ path: filePath, file_name: fileName });
+  async reviewSubtitleFile(baseDir: string, filePath: string, fileName: string): Promise<ReviewItem> {
+    const params = new URLSearchParams({ base_dir: baseDir, path: filePath, file_name: fileName });
     return fastApiFetch<ReviewItem>(`/api/review/subtitle/file?${params.toString()}`);
   }
 

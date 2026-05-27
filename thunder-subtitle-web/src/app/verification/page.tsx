@@ -445,7 +445,7 @@ function VerificationPage() {
     try {
       const results = await Promise.all(
         movie.sub_files.map((fname) =>
-          fastApiClient.reviewSubtitleFile(filePath, fname).catch(() => null)
+          fastApiClient.reviewSubtitleFile(baseDir, filePath, fname).catch(() => null)
         )
       );
       const validItems = results.filter((r): r is ReviewItem => r !== null);
@@ -455,7 +455,7 @@ function VerificationPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [movies, setSelectedMovie, setPinnedItems, setItems, setIsLoading, dispatchFilter]);
+  }, [movies, baseDir, setSelectedMovie, setPinnedItems, setItems, setIsLoading, dispatchFilter]);
 
   return (
     <div className="grid grid-cols-12 gap-8 h-full">
