@@ -13,13 +13,14 @@ import type {
   TaskResponse,
   AppConfig,
   ReviewItem,
+  MovieEntry,
 } from "@/lib/types";
 
-export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem };
+export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem, MovieEntry };
 
 const FASTAPI_BASE_URL = "";  // Relative path, proxied via Nginx
 const NEXTJS_API_BASE_URL = "/api";
-const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_TIMEOUT = 90000;
 
 // ---- Token Management ----
 
@@ -289,6 +290,19 @@ export class FastApiClient {
   }
 
   // ---- Reviews ----
+
+  /** 轻量电影发现 — 只做文件系统操作，不做深审（用于验证页电影列表） */
+  async listMovies(baseDir: string, nameFilter?: string): Promise<{ movies: MovieEntry[] }> {
+    const params = new URLSearchParams({ base_dir: baseDir });
+    if (nameFilter) params.set("name_filter", nameFilter);
+    return fastApiFetch<{ movies: MovieEntry[] }>(`/api/review/movies?${params.toString()}`);
+  }
+
+  /** 按需深审单个字幕文件（编码+SRT+CJK），用于验证页字幕详情 */
+  async reviewSubtitleFile(filePath: string, fileName: string): Promise<ReviewItem> {
+    const params = new URLSearchParams({ path: filePath, file_name: fileName });
+    return fastApiFetch<ReviewItem>(`/api/review/subtitle/file?${params.toString()}`);
+  }
 
   async listReviews(baseDir: string, nameFilter?: string): Promise<{
     items: ReviewItem[];

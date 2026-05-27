@@ -1,44 +1,39 @@
 "use client";
 
-import type { ReviewItem } from "@/lib/types";
+import type { MovieEntry } from "@/lib/types";
 
 interface MovieListProps {
-  paginatedMovies: [string, ReviewItem[]][];
+  paginatedMovies: MovieEntry[];
   handleSelectMovie: (filePath: string) => void;
   t: (key: string) => string;
-}
-
-function getMovieName(filePath: string): string {
-  const parts = filePath.split("/");
-  return parts[parts.length - 1] || filePath;
 }
 
 export function MovieList({ paginatedMovies, handleSelectMovie, t }: MovieListProps) {
   return (
     <>
-      {paginatedMovies.map(([filePath, movieItems], i) => (
+      {paginatedMovies.map((movie, i) => (
         <button
-          key={`${i}-${filePath}`}
+          key={`${i}-${movie.path}`}
           type="button"
-          onClick={() => handleSelectMovie(filePath)}
+          onClick={() => handleSelectMovie(movie.path)}
           className="rounded-lg border border-outline-variant/30 bg-surface-container p-3 text-left transition-all hover:border-primary/50 md:p-5"
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-bold">{getMovieName(filePath)}</p>
-              <p className="mt-1 truncate text-[11px] text-on-surface-variant">{filePath}</p>
+              <p className="truncate text-base font-bold">{movie.name}</p>
+              <p className="mt-1 truncate text-[11px] text-on-surface-variant">{movie.path}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
               <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold text-primary">
-                {movieItems.length} {t("files")}
+                {movie.sub_files.length} {t("files")}
               </span>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-3 text-[10px] text-on-surface-variant">
-            <span className="text-green-400">✓ {movieItems.filter(i => i.review_status === "ok").length}</span>
-            <span className="text-error">✗ {movieItems.filter(i => i.review_status === "fail").length}</span>
-            <span>{t("untagged")}: {movieItems.filter(i => i.review_status === "not_reviewed").length}</span>
+            <span className="text-green-400">✓ {movie.review_status === "ok" ? "1" : "0"}</span>
+            <span className="text-error">✗ {movie.review_status === "fail" ? "1" : "0"}</span>
+            <span>{t("untagged")}: {movie.review_status === "not_reviewed" ? movie.sub_files.length : "0"}</span>
           </div>
         </button>
       ))}

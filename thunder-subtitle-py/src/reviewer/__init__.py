@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from ..scanner import scan_movie_dirs
@@ -22,7 +23,25 @@ from ._output import (
     _write_review_summary,
 )
 
-__all__ = ["mark_directory", "review_directory", "ReviewItem"]
+__all__ = [
+    "mark_directory",
+    "review_directory",
+    "list_review_movies",
+    "review_subtitle_file",
+    "MovieEntry",
+    "ReviewItem",
+]
+
+
+@dataclass
+class MovieEntry:
+    """轻量电影条目 — 仅文件系统操作，无深审"""
+
+    path: str
+    name: str
+    sub_files: list[str] = field(default_factory=list)
+    review_status: str = "not_reviewed"
+    review_date: str = ""
 
 
 def mark_directory(
@@ -207,3 +226,73 @@ def review_directory(
         print(f"{DIM}  Report saved: {log_path}{RESET}\n")
 
     return items
+
+
+def list_review_movies(
+    base_dir: str, name_filter: str | None = None
+) -> list[MovieEntry]:
+    """
+    轻量发现待审查电影 — 只做文件名收集和 .reviewed 检查，不做 encoding/SRT/CJK 深审。
+
+    替代 review_directory 用于验证页电影列表。
+    """
+    movie_dirs = scan_movie_dirs(base_dir)
+    if name_filter:
+        movie_dirs = [
+            d for d in movie_dirs if matches(name_filter, os.path.basename(d))
+        ]
+
+    entries: list[MovieEntry] = []
+    for movie_path in movie_dirs:
+        movie_name = os.path.basename(movie_path)
+
+        # 跳过无字幕的
+        sub_files = _find_all_subtitle_files(movie_path, movie_name)
+        if not sub_files:
+            continue
+
+        sub_names = [fname for _, fname in sub_files]
+
+        # 检查 .reviewed 状态
+        review_status = "not_reviewed"
+        review_date = ""
+        reviewed_file = os.path.join(movie_path, ".reviewed")
+        if os.path.isfile(reviewed_file):
+            try:
+                with open(reviewed_file, "r", encoding="utf-8") as f:
+                    content = f.read().strip().lower()
+            except OSError:
+                content = ""
+            if content == "fail":
+                # 纯 fail 无 dump 字幕 → 跳过（无重审意义）
+                if not _find_dump_subtitle(movie_path):
+                    continue
+                review_status = "fail"
+            else:
+                # 审查通过 → 跳过
+                continue
+            # 读取审查日期
+            _, review_date = _is_reviewed(movie_path)
+
+        entries.append(
+            MovieEntry(
+                path=movie_path,
+                name=movie_name,
+                sub_files=sub_names,
+                review_status=review_status,
+                review_date=review_date,
+            )
+        )
+
+    return entries
+
+
+def review_subtitle_file(
+    filepath: str, filename: str, movie_path: str, movie_name: str
+) -> ReviewItem:
+    """按需深审单个字幕文件（编码+SRT+CJK），用于验证页字幕详情"""
+    item = _review_one_file(filepath, filename, movie_path, movie_name)
+    review_status, review_date = _is_reviewed(movie_path)
+    item.reviewed = review_status is not None
+    item.reviewed_date = review_date
+    return item

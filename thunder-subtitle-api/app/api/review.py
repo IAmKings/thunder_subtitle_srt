@@ -9,6 +9,8 @@ from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import (
+    MovieListResponse,
+    ReviewItemResponse,
     ReviewListResponse,
     ReviewMarkRequest,
     ReviewMarkResponse,
@@ -106,6 +108,53 @@ async def list_reviews(
         )
     except Exception as e:
         logger.error("list_reviews failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
+
+
+@router.get("/movies", response_model=MovieListResponse)
+async def list_movies(
+    base_dir: str = Query(..., description="Base directory to scan"),
+    name_filter: Optional[str] = Query(None, description="Filter by name keyword"),
+    service: ReviewService = Depends(get_review_service),
+    _user: str = Depends(get_current_user),
+):
+    """轻量电影发现 — 只做文件系统操作，不做深审（用于验证页电影列表）"""
+    try:
+        result = service.list_movies(base_dir=base_dir, name_filter=name_filter)
+        return result
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="审核模块不可用",
+        )
+    except Exception as e:
+        logger.error("list_movies failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
+
+
+@router.get("/subtitle/file", response_model=ReviewItemResponse)
+async def review_subtitle_file(
+    path: str = Query(..., description="Movie directory relative path"),
+    file_name: str = Query(..., description="Subtitle file name"),
+    base_dir: str = Query(..., description="Base media directory"),
+    service: ReviewService = Depends(get_review_service),
+    _user: str = Depends(get_current_user),
+):
+    """按需深审单个字幕文件（编码+SRT+CJK），用于验证页字幕详情"""
+    try:
+        result = service.review_subtitle_file(
+            base_dir=base_dir, file_path=path, file_name=file_name
+        )
+        return result
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="审核模块不可用",
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="字幕文件不存在")
+    except Exception as e:
+        logger.error("review_subtitle_file failed: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
 
 

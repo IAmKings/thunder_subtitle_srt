@@ -89,6 +89,16 @@ export interface ReviewItem {
   review_date: string;
 }
 
+// ---- Review MovieEntry (lightweight for movie list) ----
+
+export interface MovieEntry {
+  path: string;
+  name: string;
+  sub_files: string[];
+  review_status: ReviewState;
+  review_date: string;
+}
+
 // ---- Media types ----
 
 export interface MediaDirectory {

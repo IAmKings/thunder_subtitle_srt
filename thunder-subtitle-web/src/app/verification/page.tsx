@@ -25,7 +25,7 @@ import { MovieList } from "@/components/MovieList";
 import { VerificationSubtitleList } from "@/components/VerificationSubtitleList";
 import { VerificationFilterBar, BatchActionBar } from "@/components/VerificationFilterBar";
 import { VerificationStats } from "@/components/VerificationStats";
-import type { ReviewItem } from "@/lib/types";
+import type { ReviewItem, MovieEntry } from "@/lib/types";
 import { getMovieName } from "@/lib/utils";
 
 // ---- Helpers ----
@@ -103,6 +103,7 @@ function VerificationPage() {
   const t = useTranslations();
   const { items, isLoading, error, selectedMovie, pinnedItems: pinnedKeys } = useVerificationState();
   const { setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems, isPinned, togglePin } = useVerificationActions();
+  const [movies, setMovies] = useState<MovieEntry[]>([]);
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [baseDir, setBaseDir] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -140,25 +141,33 @@ function VerificationPage() {
         enabledDirs = dirs.filter((d) => !disabled.has(d.path));
       }
       if (enabledDirs.length === 0) {
+        setMovies([]);
         setItems([]);
         setIsLoading(false);
         return;
       }
-      const allItems: ReviewItem[] = [];
-      for (const dir of enabledDirs) {
-        const result = await fastApiClient.listReviews(dir.path);
-        const reviewItems = (result.items as ReviewItem[]) || [];
-        allItems.push(...reviewItems);
-      }
       setBaseDir(enabledDirs[0].path);
-      setItems(allItems);
+
+      // 轻量电影发现 — 每个目录独立容错，单个失败不阻塞其他目录
+      const allMovies: MovieEntry[] = [];
+      for (const dir of enabledDirs) {
+        try {
+          const result = await fastApiClient.listMovies(dir.path);
+          allMovies.push(...result.movies);
+        } catch (err) {
+          console.warn(`Skipping directory due to error: ${dir.path}`, err);
+        }
+      }
+      setMovies(allMovies);
+      setItems([]); // 电影列表不预加载深审数据
+      setError(null); // 成功时清除残留错误
     } catch (err) {
       setError(err instanceof Error ? err.message : t("review_list_error"));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [setItems, setIsLoading, setError, t]);
+  }, [setMovies, setItems, setIsLoading, setError, t]);
 
   useEffect(() => {
     fastApiClient.listMediaDirectories().then((dirs) => {
@@ -167,7 +176,7 @@ function VerificationPage() {
       if (enabledDirs.length > 0) {
         setBaseDir(enabledDirs[0].path);
       }
-      if (items.length === 0) {
+      if (movies.length === 0) {
         startTransition(() => { loadReviews(enabledDirs); });
       } else {
         setIsLoading(false);
@@ -203,8 +212,9 @@ function VerificationPage() {
       setSelectedMovie(null);
       setSelectedItem(null);
       setItems((prev) => prev.filter((i) => i.file_path !== movieToRemove));
+      setMovies((prev) => prev.filter((m) => m.path !== movieToRemove));
     },
-    [selectedItem, selectedMovie, baseDir, setError, setItems, setSelectedMovie, t]
+    [selectedItem, selectedMovie, baseDir, setError, setItems, setSelectedMovie, setMovies, t]
   );
 
   // ---- Delete all subtitles for current movie ----
@@ -221,6 +231,7 @@ function VerificationPage() {
         await fastApiClient.markReview(baseDir, selectedMovie, "fail");
       }
       setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
+      setMovies((prev) => prev.filter((m) => m.path !== selectedMovie));
       setSelectedItem(null);
       setSelectedMovie(null);
       setConfirmDeleteAll(false);
@@ -229,7 +240,7 @@ function VerificationPage() {
     } finally {
       setIsDeletingAll(false);
     }
-  }, [selectedMovie, items, setItems, setError, baseDir, t, setSelectedMovie]);
+  }, [selectedMovie, items, setItems, setMovies, setError, baseDir, t, setSelectedMovie]);
 
   // ---- Mark all as fail without deleting files ----
   const handleMarkAllFail = useCallback(async () => {
@@ -238,6 +249,7 @@ function VerificationPage() {
     try {
       await fastApiClient.markReview(baseDir, selectedMovie, "fail");
       setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
+      setMovies((prev) => prev.filter((m) => m.path !== selectedMovie));
       setSelectedItem(null);
       setSelectedMovie(null);
       setConfirmMarkAllFail(false);
@@ -246,7 +258,7 @@ function VerificationPage() {
     } finally {
       setIsMarkingAllFail(false);
     }
-  }, [selectedMovie, baseDir, setItems, setError, t, setSelectedMovie]);
+  }, [selectedMovie, baseDir, setItems, setMovies, setError, t, setSelectedMovie]);
 
   // ---- Keep only pinned subtitles ----
   const handleKeepOnly = useCallback(async () => {
@@ -364,27 +376,12 @@ function VerificationPage() {
     };
   }, [selectedItem]);
 
-  // ---- Movie grouping ----
-  const movieGroups = useMemo(() => {
-    const groups = new Map<string, ReviewItem[]>();
-    for (const item of items) {
-      const existing = groups.get(item.file_path);
-      if (existing) {
-        existing.push(item);
-      } else {
-        groups.set(item.file_path, [item]);
-      }
-    }
-    return Array.from(groups.entries());
-  }, [items]);
-
+  // ---- Movie grouping (from lightweight movies state, not items) ----
   const filteredMovies = useMemo(() => {
-    if (!searchQuery.trim()) return movieGroups;
+    if (!searchQuery.trim()) return movies;
     const q = searchQuery.trim().toLowerCase();
-    return movieGroups.filter(([filePath]) =>
-      getMovieName(filePath).toLowerCase().includes(q)
-    );
-  }, [movieGroups, searchQuery]);
+    return movies.filter((m) => m.name.toLowerCase().includes(q));
+  }, [movies, searchQuery]);
 
   // ---- Subtitle-level filtering (for selected movie) ----
   const movieSubtitleItems = useMemo(() => {
@@ -417,11 +414,12 @@ function VerificationPage() {
   const handleBack = useCallback(() => {
     setSelectedMovie(null);
     setSelectedItem(null);
+    setItems([]); // 返回电影列表时清除字幕深审数据
     // Only reset subtitle-level filters (status/sort/page), keep movie search query
     dispatchFilter({ type: "SET_STATUS_FILTER", payload: null });
     dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: null });
     dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
-  }, [setSelectedMovie, dispatchFilter]);
+  }, [setSelectedMovie, setItems, dispatchFilter]);
 
   const handleBackToSubtitles = useCallback(() => {
     setSelectedItem(null);
@@ -429,15 +427,35 @@ function VerificationPage() {
     setPreviewPart(0);
   }, [setSelectedItem]);
 
-  const handleSelectMovie = useCallback((filePath: string) => {
+  const handleSelectMovie = useCallback(async (filePath: string) => {
     setSelectedMovie(filePath);
     setSelectedItem(null);
     setPinnedItems([]);
+    setItems([]);
     // Reset subtitle-level filters only, keep movie search query
     dispatchFilter({ type: "SET_STATUS_FILTER", payload: null });
     dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: null });
     dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
-  }, [setSelectedMovie, setPinnedItems, dispatchFilter]);
+
+    // 按需深审当前电影的所有字幕文件
+    const movie = movies.find((m) => m.path === filePath);
+    if (!movie || movie.sub_files.length === 0) return;
+
+    setIsLoading(true);
+    try {
+      const results = await Promise.all(
+        movie.sub_files.map((fname) =>
+          fastApiClient.reviewSubtitleFile(filePath, fname).catch(() => null)
+        )
+      );
+      const validItems = results.filter((r): r is ReviewItem => r !== null);
+      setItems(validItems);
+    } catch (err) {
+      console.warn("Failed to load subtitle details:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [movies, setSelectedMovie, setPinnedItems, setItems, setIsLoading, dispatchFilter]);
 
   return (
     <div className="grid grid-cols-12 gap-8 h-full">

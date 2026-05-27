@@ -191,7 +191,12 @@ def _search_and_download(
 
     # ---- dump 模式：全量下载 + 内容去重（不按时长筛选） ----
     if dump_mode:
-        return _dump_all_subtitles(movie_path, movie_name, result.subtitles)
+        return _dump_all_subtitles(
+            movie_path,
+            movie_name,
+            result.subtitles,
+            preferred_groups=config.preferred_groups_list,
+        )
 
     # 按时长筛选：有时长的在前，duration=0 的保留在后（仅 scan 模式）
     max_duration_ms = nfo.duration_seconds * 1000
@@ -259,13 +264,39 @@ def _search_and_download(
 
 
 def _dump_all_subtitles(
-    movie_path: str, movie_name: str, subtitles: list
+    movie_path: str,
+    movie_name: str,
+    subtitles: list,
+    preferred_groups: list[str] | None = None,
 ) -> ScanResult:
-    """全量下载字幕，gcid 去重 + 增量跳过"""
+    """全量下载字幕，gcid 去重 + 增量跳过
+
+    如果设置了 preferred_groups，同时记录偏好字幕映射到 .preferred 文件。
+    """
+    if preferred_groups is None:
+        preferred_groups = []
+
     rejected = _load_gcids(movie_path, ".rejected")
     dumped_path = os.path.join(movie_path, ".dumped")
+    preferred_path = os.path.join(movie_path, ".preferred")
     clear_file(dumped_path)  # 清空旧的 .dumped（避免上次残留）
+    clear_file(preferred_path)  # 清空旧的 .preferred（避免编号复用误判）
     r = dump_subtitles(subtitles, movie_path, rejected, dumped_path=dumped_path)
+
+    # dump 完成后：记录偏好字幕组映射（仅本次实际下载的文件）
+    if preferred_groups:
+        preferred_lines: list[str] = []
+        for i, sub in enumerate(subtitles, 1):
+            if _has_preferred_group(sub, preferred_groups):
+                fname = f"{i}.{sub.ext}"
+                if os.path.isfile(os.path.join(movie_path, fname)):
+                    preferred_lines.append(f"{fname}: {sub.name}")
+        if preferred_lines:
+            try:
+                with open(preferred_path, "w", encoding="utf-8") as f:
+                    f.write("\n".join(preferred_lines) + "\n")
+            except OSError:
+                logger.warning("无法写入 .preferred 文件: %s", preferred_path)
 
     parts = []
     if r.dupes > 0:

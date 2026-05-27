@@ -154,6 +154,20 @@ class ReviewItemResponse(BaseModel):
     review_date: str = ""
 
 
+class MovieEntryResponse(BaseModel):
+    """轻量电影条目 — 仅文件系统操作，无深审数据"""
+
+    path: str
+    name: str
+    sub_files: list[str] = Field(default_factory=list)
+    review_status: ReviewState = ReviewState.not_reviewed
+    review_date: str = ""
+
+
+class MovieListResponse(BaseModel):
+    movies: list[MovieEntryResponse] = Field(default_factory=list)
+
+
 class ReviewListResponse(BaseModel):
     items: list[ReviewItemResponse] = Field(default_factory=list)
     total: int = 0
