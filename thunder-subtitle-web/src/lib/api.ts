@@ -14,9 +14,10 @@ import type {
   AppConfig,
   ReviewItem,
   MovieEntry,
+  HealthCheckItem,
 } from "@/lib/types";
 
-export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem, MovieEntry };
+export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem, MovieEntry, HealthCheckItem };
 
 const FASTAPI_BASE_URL = "";  // Relative path, proxied via Nginx
 const NEXTJS_API_BASE_URL = "/api";
@@ -341,6 +342,14 @@ export class FastApiClient {
     return fastApiFetch<{ success: boolean; new_path: string }>(
       "/api/review/rename",
       { method: "POST", body: JSON.stringify({ path, new_name: newName }) }
+    );
+  }
+
+  // ---- Health Check ----
+
+  async runHealthCheck(baseDir: string): Promise<{ results: HealthCheckItem[]; total: number }> {
+    return fastApiFetch<{ results: HealthCheckItem[]; total: number }>(
+      `/api/health-check?base_dir=${encodeURIComponent(baseDir)}`
     );
   }
 }

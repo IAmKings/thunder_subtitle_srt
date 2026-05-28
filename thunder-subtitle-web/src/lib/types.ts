@@ -124,3 +124,17 @@ export interface ScanResultItem {
   filename: string;
   dry_state: string;
 }
+
+// ---- Health Check types ----
+
+export interface HealthCheckItem {
+  level: "ok" | "warning" | "info" | "error";
+  path: string;
+  movie_name: string;
+  message: string;
+}
+
+export interface HealthCheckResponse {
+  results: HealthCheckItem[];
+  total: number;
+}

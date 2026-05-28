@@ -18,7 +18,7 @@ import { useTranslations } from "@/lib/i18n";
 import { fastApiClient, ProgressWebSocket } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
 import { useScannerState, useScannerActions } from "@/lib/scanner-state";
-import type { ScanResultItem } from "@/lib/types";
+import type { HealthCheckItem, ScanResultItem } from "@/lib/types";
 import { StatusBadge, DryStateBadge, getStatusColor, getDryStateColor } from "@/components/StatusBadge";
 
 // ---- Helpers ----
@@ -87,6 +87,12 @@ function ScannerPage() {
   const [isEditingPaths, setIsEditingPaths] = useState(false);
   const [isSavingPaths, setIsSavingPaths] = useState(false);
   const [savePathsError, setSavePathsError] = useState<string | null>(null);
+
+  // Health check state
+  const [healthResults, setHealthResults] = useState<HealthCheckItem[]>([]);
+  const [isHealthRunning, setIsHealthRunning] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [healthExpanded, setHealthExpanded] = useState(false);
 
   // Path carousel state
   const pathScrollRef = useRef<HTMLDivElement>(null);
@@ -343,6 +349,29 @@ function ScannerPage() {
       setError(err instanceof Error ? err.message : t("failed_cancel_task"));
     }
   }, [activeTask, t]);
+
+  const handleHealthCheck = useCallback(async () => {
+    if (isHealthRunning) return;
+    setIsHealthRunning(true);
+    setHealthError(null);
+    setHealthResults([]);
+    setHealthExpanded(false);
+
+    try {
+      const firstEnabledDir = mediaDirs.find((d) => !disabledPaths.has(d.path));
+      if (!firstEnabledDir) {
+        setHealthError(t("health_check_failed"));
+        return;
+      }
+      const result = await fastApiClient.runHealthCheck(firstEnabledDir.path);
+      setHealthResults(result.results);
+      setHealthExpanded(true);
+    } catch (err) {
+      setHealthError(err instanceof Error ? err.message : t("health_check_failed"));
+    } finally {
+      setIsHealthRunning(false);
+    }
+  }, [isHealthRunning, mediaDirs, disabledPaths, t]);
 
   const isRunning = activeTask?.status === "running" || activeTask?.status === "pending";
   const totalFiles = mediaDirs.reduce((sum, d) => sum + d.movie_count, 0);
@@ -675,6 +704,22 @@ function ScannerPage() {
               disabled={isRunning}
             />
           </div>
+
+          {/* Health Check Button */}
+          <button
+            type="button"
+            onClick={handleHealthCheck}
+            disabled={isHealthRunning || isRunning}
+            className="flex items-center gap-2 rounded-lg bg-tertiary/15 px-3 py-2 text-xs font-bold text-tertiary transition-all hover:bg-tertiary/25 active:scale-95 disabled:opacity-50"
+            style={{ WebkitTapHighlightColor: "transparent" }}
+          >
+            {isHealthRunning ? (
+              <SyncIcon size={14} className="animate-spin" />
+            ) : (
+              <AlertTriangle size={14} />
+            )}
+            {isHealthRunning ? t("health_check_running") : t("health_check")}
+          </button>
         </div>
 
         {/* Progress Bar */}
@@ -716,6 +761,93 @@ function ScannerPage() {
           </div>
         )}
       </section>
+
+      {/* Health Check Results */}
+      {healthResults.length > 0 && healthExpanded && (
+        <section className="ghost-border overflow-hidden rounded-xl bg-surface-container">
+          <div className="flex items-center justify-between bg-surface-container-high px-6 py-4">
+            <h4 className="text-lg font-bold">{t("health_check_results")} ({healthResults.length})</h4>
+            <button
+              type="button"
+              onClick={() => setHealthExpanded(false)}
+              className="flex items-center gap-1 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-container-high"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              {t("health_check_collapse")}
+              <X size={14} />
+            </button>
+          </div>
+          <div className="divide-y divide-outline-variant/20">
+            {healthResults.map((item, idx) => {
+              const levelColors: Record<string, string> = {
+                error: "border-l-error bg-error/5",
+                warning: "border-l-tertiary bg-tertiary/5",
+                info: "border-l-primary bg-primary/5",
+              };
+              const levelIcons: Record<string, string> = {
+                error: "text-error",
+                warning: "text-tertiary",
+                info: "text-primary",
+              };
+              const levelLabels: Record<string, string> = {
+                error: t("health_check_error"),
+                warning: t("health_check_warning"),
+                info: t("health_check_info"),
+              };
+              const borderColor = levelColors[item.level] ?? "border-l-on-surface-variant bg-surface-container-low";
+              const iconColor = levelIcons[item.level] ?? "text-on-surface-variant";
+              const levelLabel = levelLabels[item.level] ?? item.level;
+              return (
+                <div
+                  key={`health-${idx}`}
+                  className={`flex items-start gap-3 border-l-4 px-6 py-4 ${borderColor}`}
+                >
+                  <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
+                    <AlertTriangle size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium">{item.movie_name}</span>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${iconColor.replace("text-", "bg-/15 text-").replace("bg-/15", "bg-surface-container-high")}`}
+                        style={{ backgroundColor: item.level === "error" ? "rgba(255,82,82,0.15)" : item.level === "warning" ? "rgba(255,184,105,0.15)" : "rgba(123,207,255,0.15)" }}
+                      >
+                        {levelLabel}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-on-surface-variant">{item.message}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Collapsed health check notice */}
+      {healthResults.length > 0 && !healthExpanded && (
+        <section className="ghost-border rounded-xl bg-surface-container p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-on-surface-variant">
+              {t("health_check_results")}: {healthResults.length} items
+            </span>
+            <button
+              type="button"
+              onClick={() => setHealthExpanded(true)}
+              className="flex items-center gap-1 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-surface-container-high"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              {t("health_check_expand")}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Health check error */}
+      {healthError && (
+        <section className="rounded-lg border border-error/30 bg-error/10 p-4 text-sm text-error">
+          {healthError}
+        </section>
+      )}
 
       {/* Recent Findings Table */}
       <section className="ghost-border overflow-hidden rounded-xl bg-surface-container">

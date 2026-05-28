@@ -213,6 +213,19 @@ const translations: Record<Language, Record<string, string>> = {
     filter_mode_all: "All",
     filter_mode_chinese_only: "Chinese Only",
     filter_mode_chinese_first: "Chinese First",
+
+    // Health Check
+    health_check: "Health Check",
+    health_check_desc: "Check media library directory structure integrity",
+    health_check_running: "Checking...",
+    health_check_results: "Health Check Results",
+    health_check_warning: "Warning",
+    health_check_info: "Info",
+    health_check_error: "Error",
+    health_check_no_issues: "No issues found",
+    health_check_failed: "Health check failed",
+    health_check_collapse: "Collapse",
+    health_check_expand: "Expand",
   },
   zh: {
     // Nav
@@ -418,6 +431,19 @@ const translations: Record<Language, Record<string, string>> = {
     filter_mode_all: "\u5168\u90e8",
     filter_mode_chinese_only: "\u4ec5\u4e2d\u6587",
     filter_mode_chinese_first: "\u4e2d\u6587\u4f18\u5148",
+
+    // Health Check
+    health_check: "\u5065\u5eb7\u68c0\u67e5",
+    health_check_desc: "\u68c0\u67e5\u5a92\u4f53\u5e93\u76ee\u5f55\u7ed3\u6784\u5b8c\u6574\u6027",
+    health_check_running: "\u68c0\u67e5\u4e2d...",
+    health_check_results: "\u5065\u5eb7\u68c0\u67e5\u7ed3\u679c",
+    health_check_warning: "\u8b66\u544a",
+    health_check_info: "\u63d0\u793a",
+    health_check_error: "\u9519\u8bef",
+    health_check_no_issues: "\u672a\u53d1\u73b0\u95ee\u9898",
+    health_check_failed: "\u5065\u5eb7\u68c0\u67e5\u5931\u8d25",
+    health_check_collapse: "\u6298\u53e0",
+    health_check_expand: "\u5c55\u5f00",
   },
 };
 

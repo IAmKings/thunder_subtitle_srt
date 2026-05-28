@@ -193,3 +193,20 @@ class SubtitlePreviewResponse(BaseModel):
     content: str
     encoding: str
     total_lines: int
+
+
+# ---- Health Check ----
+class HealthCheckItem(BaseModel):
+    """单个健康检查结果项"""
+
+    level: str  # "ok" | "warning" | "info" | "error"
+    path: str = ""
+    movie_name: str = ""
+    message: str = ""
+
+
+class HealthCheckResponse(BaseModel):
+    """健康检查结果列表"""
+
+    results: list[HealthCheckItem] = Field(default_factory=list)
+    total: int = 0

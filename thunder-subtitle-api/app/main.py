@@ -56,6 +56,7 @@ def _verify_cli_imports() -> None:
     for module_name, fallback in [
         ("src.config", "thunder_subtitle.config"),
         ("src.reviewer", "thunder_subtitle.reviewer"),
+        ("src.health", "thunder_subtitle.health"),
     ]:
         try:
             __import__(module_name)
@@ -100,6 +101,7 @@ async def log_request_time(request: Request, call_next):
 
 # Register routers
 from app.api.config import router as config_router  # noqa: E402
+from app.api.health_check import router as health_check_router  # noqa: E402
 from app.api.media import router as media_router  # noqa: E402
 from app.api.review import router as review_router  # noqa: E402
 from app.api.subtitle import router as subtitle_router  # noqa: E402
@@ -113,6 +115,7 @@ app.include_router(config_router, prefix="/api/config", tags=["config"])
 app.include_router(tasks_router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(media_router, prefix="/api/media", tags=["media"])
 app.include_router(review_router, prefix="/api/review", tags=["review"])
+app.include_router(health_check_router, prefix="/api", tags=["health"])
 app.include_router(ws_router, prefix="/ws", tags=["websocket"])
 
 
