@@ -358,13 +358,21 @@ function ScannerPage() {
     setHealthExpanded(false);
 
     try {
-      const firstEnabledDir = mediaDirs.find((d) => !disabledPaths.has(d.path));
-      if (!firstEnabledDir) {
+      const enabledDirs = mediaDirs.filter((d) => !disabledPaths.has(d.path));
+      if (enabledDirs.length === 0) {
         setHealthError(t("health_check_failed"));
         return;
       }
-      const result = await fastApiClient.runHealthCheck(firstEnabledDir.path);
-      setHealthResults(result.results);
+      const allResults: HealthCheckItem[] = [];
+      for (const dir of enabledDirs) {
+        try {
+          const result = await fastApiClient.runHealthCheck(dir.path);
+          allResults.push(...result.results);
+        } catch {
+          // 单目录失败不阻塞
+        }
+      }
+      setHealthResults(allResults);
       setHealthExpanded(true);
     } catch (err) {
       setHealthError(err instanceof Error ? err.message : t("health_check_failed"));
