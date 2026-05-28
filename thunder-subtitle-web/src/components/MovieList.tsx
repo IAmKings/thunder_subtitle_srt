@@ -19,7 +19,14 @@ export function MovieList({ paginatedMovies, handleSelectMovie, t }: MovieListPr
           className="rounded-lg border border-outline-variant/30 bg-surface-container p-3 text-left transition-all hover:border-primary/50 md:p-5"
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-3">
+            <img
+              src={`/api/media/image?path=${encodeURIComponent(movie.path + "/folder.jpg")}&width=96`}
+              loading="lazy"
+              className="h-16 w-11 flex-shrink-0 rounded object-cover bg-surface-container-highest"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              alt=""
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-base font-bold">{movie.name}</p>
               <p className="mt-1 truncate text-[11px] text-on-surface-variant">{movie.path}</p>
