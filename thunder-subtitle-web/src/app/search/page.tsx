@@ -135,6 +135,7 @@ export default function SearchPage() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder={t("search_placeholder")}
+              aria-label={t("search_placeholder")}
               className="h-16 w-full rounded-xl border border-outline-variant/50 bg-surface-container-high pl-12 pr-4 text-lg text-on-surface shadow-xl backdrop-blur-md transition-all focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <div className="absolute inset-y-2 right-2 flex items-center">
@@ -184,6 +185,7 @@ export default function SearchPage() {
                   value={maxDuration}
                   onChange={(e) => setMaxDuration(e.target.value)}
                   placeholder="Max duration (e.g. 2h, 90m)"
+                  aria-label="最大时长筛选"
                   className="w-36 rounded-lg border border-outline-variant/30 bg-surface-container px-2 py-1.5 text-[11px] text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary md:w-44 md:px-3 md:text-xs"
                 />
                 {maxDuration && (

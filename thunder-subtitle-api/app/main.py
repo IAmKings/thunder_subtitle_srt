@@ -35,6 +35,10 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: cleanup
     await ws_manager.stop()
+    # Shutdown: close shared httpx client connection pool
+    from app.api.subtitle import _httpx_client as _sub_httpx_client
+    if _sub_httpx_client is not None:
+        await _sub_httpx_client.aclose()
 
 
 def _check_default_secrets() -> None:

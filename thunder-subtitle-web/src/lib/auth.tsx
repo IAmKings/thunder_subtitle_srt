@@ -164,6 +164,15 @@ export function withAuth<T extends object>(
 ): React.ComponentType<T> {
   return function AuthGuardComponent(props: T) {
     const { isAuthenticated, isLoading } = useAuth();
+    const [showFallback, setShowFallback] = useState(false);
+
+    useEffect(() => {
+      if (!isAuthenticated && !isLoading) {
+        const timer = setTimeout(() => setShowFallback(true), 3000);
+        return () => clearTimeout(timer);
+      }
+      setShowFallback(false);
+    }, [isAuthenticated, isLoading]);
 
     if (isLoading) {
       return (
@@ -177,6 +186,19 @@ export function withAuth<T extends object>(
     }
 
     if (!isAuthenticated) {
+      if (showFallback) {
+        return (
+          <div className="flex h-screen flex-col items-center justify-center gap-4 bg-surface">
+            <p className="text-sm text-on-surface-variant">登录已过期，请重新登录</p>
+            <a
+              href="/login"
+              className="rounded-lg bg-primary-container px-6 py-2 text-sm font-bold text-on-primary-container transition-all hover:brightness-110"
+            >
+              前往登录
+            </a>
+          </div>
+        );
+      }
       return (
         <div className="flex h-screen items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />

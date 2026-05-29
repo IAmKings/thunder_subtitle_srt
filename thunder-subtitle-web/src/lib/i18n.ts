@@ -73,6 +73,13 @@ const translations: Record<Language, Record<string, string>> = {
     logged_in_as: "Logged in as",
     logout: "Sign Out",
     search_failed: "Search failed. Please try again.",
+    login_sign_in: "Sign in to manage your subtitles",
+    login_username_label: "Username",
+    login_password_label: "Password",
+    login_password_placeholder: "Enter your password",
+    login_signing_in: "Signing in...",
+    login_button: "Sign In",
+    login_default_credentials: "Default credentials: admin / changeme",
 
     // Settings
     system_settings: "System Settings",
@@ -299,6 +306,13 @@ const translations: Record<Language, Record<string, string>> = {
     logged_in_as: "\u5f53\u524d\u767b\u5f55",
     logout: "\u9000\u51fa\u767b\u5f55",
     search_failed: "\u641c\u7d22\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002",
+    login_sign_in: "\u767b\u5f55\u4ee5\u7ba1\u7406\u60a8\u7684\u5b57\u5e55",
+    login_username_label: "\u7528\u6237\u540d",
+    login_password_label: "\u5bc6\u7801",
+    login_password_placeholder: "\u8bf7\u8f93\u5165\u5bc6\u7801",
+    login_signing_in: "\u767b\u5f55\u4e2d...",
+    login_button: "\u767b\u5f55",
+    login_default_credentials: "\u9ed8\u8ba4\u51ed\u636e\uff1aadmin / changeme",
 
     // Settings
     system_settings: "\u7cfb\u7edf\u8bbe\u7f6e",

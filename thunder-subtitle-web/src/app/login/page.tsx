@@ -2,9 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
+import { useTranslations } from "@/lib/i18n";
 
 export default function LoginPage() {
   const { login, isLoading: authLoading } = useAuth();
+  const t = useTranslations();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function LoginPage() {
       await login(username, password);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Login failed. Please try again.";
+        err instanceof Error ? err.message : t("search_failed");
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -35,7 +37,7 @@ export default function LoginPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-primary">Thunder Subtitle</h1>
           <p className="mt-2 text-sm text-on-surface-variant">
-            Sign in to manage your subtitles
+            {t("login_sign_in")}
           </p>
         </div>
 
@@ -51,14 +53,14 @@ export default function LoginPage() {
                 htmlFor="username"
                 className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant"
               >
-                Username
+                {t("login_username_label")}
               </label>
               <input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder={t("login_username_label")}
                 autoComplete="username"
                 required
                 disabled={isFormLoading}
@@ -72,14 +74,14 @@ export default function LoginPage() {
                 htmlFor="password"
                 className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant"
               >
-                Password
+                {t("login_password_label")}
               </label>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={t("login_password_placeholder")}
                 autoComplete="current-password"
                 required
                 disabled={isFormLoading}
@@ -104,10 +106,10 @@ export default function LoginPage() {
               {isFormLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Signing in...
+                  {t("login_signing_in")}
                 </span>
               ) : (
-                "Sign In"
+                t("login_button")
               )}
             </button>
           </div>
@@ -115,7 +117,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-xs text-on-surface-variant/50">
-          Default credentials: admin / changeme
+          {t("login_default_credentials")}
         </p>
       </div>
     </div>

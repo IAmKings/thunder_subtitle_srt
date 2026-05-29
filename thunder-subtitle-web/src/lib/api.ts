@@ -115,7 +115,7 @@ export class SubtitleApiClient {
    */
   async searchSubtitles(name: string): Promise<SearchResult> {
     if (!name || name.trim().length === 0) {
-      throw new Error("Search keyword cannot be empty");
+      throw new Error("搜索关键词不能为空");
     }
 
     try {
@@ -129,13 +129,13 @@ export class SubtitleApiClient {
       );
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        throw new Error(`API 请求失败: ${response.status} ${response.statusText}`);
       }
 
       const data = (await response.json()) as ApiResponse;
 
       if (data.code !== 0) {
-        throw new Error(`API error: code ${data.code}, msg: ${data.msg ?? "unknown"}`);
+        throw new Error(`API 错误: code ${data.code}, msg: ${data.msg ?? "未知"}`);
       }
 
       const subtitles = data.data ?? [];
@@ -147,11 +147,11 @@ export class SubtitleApiClient {
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === "TimeoutError") {
-          throw new Error("Request timeout - please try again");
+          throw new Error("请求超时，请重试");
         }
         throw error;
       }
-      throw new Error("Unknown error occurred");
+      throw new Error("发生未知错误");
     }
   }
 
