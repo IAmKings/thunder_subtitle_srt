@@ -191,7 +191,7 @@ function VerificationPage() {
   const handleMark = useCallback(
     async (status: "ok" | "fail") => {
       if (!selectedItem || !baseDir) return;
-      const movieToRemove = selectedMovie; // FIX: save before clearing
+      const movieToRemove = selectedMovie;
       try {
         await fastApiClient.markReview(baseDir, selectedItem.file_path, status);
         setItems((prev) =>
@@ -206,13 +206,14 @@ function VerificationPage() {
             ? { ...prev, review_status: status, review_date: new Date().toISOString().split("T")[0] }
             : null
         );
+        // 仅 API 成功后清除当前电影，避免失败时误清 UI 状态
+        setSelectedMovie(null);
+        setSelectedItem(null);
+        setItems((prev) => prev.filter((i) => i.file_path !== movieToRemove));
+        setMovies((prev) => prev.filter((m) => m.path !== movieToRemove));
       } catch (err) {
         setError(err instanceof Error ? err.message : t("mark_error"));
       }
-      setSelectedMovie(null);
-      setSelectedItem(null);
-      setItems((prev) => prev.filter((i) => i.file_path !== movieToRemove));
-      setMovies((prev) => prev.filter((m) => m.path !== movieToRemove));
     },
     [selectedItem, selectedMovie, baseDir, setError, setItems, setSelectedMovie, setMovies, t]
   );
@@ -223,10 +224,11 @@ function VerificationPage() {
     setIsDeletingAll(true);
     try {
       const movieItems = items.filter((i) => i.file_path === selectedMovie);
-      for (const item of movieItems) {
-        const subtitlePath = `${item.file_path}/${item.file_name}`;
-        await fastApiClient.deleteSubtitleFile(subtitlePath);
-      }
+      const results = await Promise.allSettled(
+        movieItems.map((item) => fastApiClient.deleteSubtitleFile(`${item.file_path}/${item.file_name}`))
+      );
+      const failedCount = results.filter((r) => r.status === "rejected").length;
+      // 即使部分删除失败也继续标记为 fail
       if (baseDir) {
         await fastApiClient.markReview(baseDir, selectedMovie, "fail");
       }
@@ -235,6 +237,9 @@ function VerificationPage() {
       setSelectedItem(null);
       setSelectedMovie(null);
       setConfirmDeleteAll(false);
+      if (failedCount > 0) {
+        setError(`${t("delete_failed")}: ${failedCount}/${movieItems.length}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("delete_failed"));
     } finally {
@@ -268,14 +273,23 @@ function VerificationPage() {
       (i) => i.file_path === selectedMovie && !pinnedKeys.includes(`${i.file_path}/${i.file_name}`)
     );
     try {
-      for (const item of toDelete) {
-        await fastApiClient.deleteSubtitleFile(`${item.file_path}/${item.file_name}`);
-      }
-      setItems((prev) =>
-        prev.filter((i) => !toDelete.some((d) => d.file_path === i.file_path && d.file_name === i.file_name))
+      // Promise.allSettled：单个删除失败不阻塞其余，避免部分删除后状态不一致
+      const results = await Promise.allSettled(
+        toDelete.map((item) => fastApiClient.deleteSubtitleFile(`${item.file_path}/${item.file_name}`))
       );
+      const succeeded = toDelete.filter((_, idx) => results[idx].status === "fulfilled");
+      const failedCount = results.filter((r) => r.status === "rejected").length;
+      // 仅移除成功删除的项
+      if (succeeded.length > 0) {
+        setItems((prev) =>
+          prev.filter((i) => !succeeded.some((d) => d.file_path === i.file_path && d.file_name === i.file_name))
+        );
+      }
       setSelectedItem(null);
       setConfirmKeepOnly(false);
+      if (failedCount > 0) {
+        setError(`${t("delete_failed")}: ${failedCount}/${toDelete.length}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("delete_failed"));
     } finally {
@@ -430,6 +444,7 @@ function VerificationPage() {
   const handleSelectMovie = useCallback(async (filePath: string) => {
     setSelectedMovie(filePath);
     setSelectedItem(null);
+    // 第一时间同步清空 pinnedItems，避免跨电影残留
     setPinnedItems([]);
     setItems([]);
     // Reset subtitle-level filters only, keep movie search query
