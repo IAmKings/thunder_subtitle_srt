@@ -117,7 +117,7 @@ const ws = new ProgressWebSocket();
 // Connect to a specific task
 ws.connect(taskId, (data) => {
   console.log('Progress update:', data);
-  // Data shape depends on backend, likely: { taskId, progress, status, message }
+  // data shape: { type, task_id, progress, total, processed, current_movie?, current_step?, download_progress? }
 });
 
 // Disconnect when done
@@ -131,6 +131,38 @@ The WebSocket URL is derived by replacing `http` with `ws` in `FASTAPI_BASE_URL`
 - Calling `connect()` closes any existing connection before creating a new one
 - Malformed messages are silently ignored
 - `onclose` sets `ws = null` (reconnect logic is the caller's responsibility)
+
+### Keep-Alive
+
+To prevent WebSocket disconnection during long-running operations:
+
+```typescript
+// ProgressWebSocket 内部每 15s 发送 ping
+this.pingInterval = setInterval(() => {
+  if (this.ws?.readyState === WebSocket.OPEN) {
+    this.ws.send(JSON.stringify({ type: "ping" }));
+  }
+}, 15000);
+
+// onmessage 过滤服务端 ping 消息，避免泄漏到 onProgress 回调
+this.ws.onmessage = (event) => {
+  const data = JSON.parse(event.data as string);
+  if (data.type === "ping") return;  // 过滤服务端 ping
+  onProgress(data);
+};
+
+// disconnect 时清理定时器
+disconnect(): void {
+  if (this.pingInterval) {
+    clearInterval(this.pingInterval);
+    this.pingInterval = null;
+  }
+  this.ws?.close();
+  this.ws = null;
+}
+```
+
+**Key numbers**: client ping 15s < server receive timeout → prevents server-side disconnect. Nginx `proxy_read_timeout 300s` covers worst-case download duration.
 
 ## Next.js Proxy Rewrite
 
@@ -170,6 +202,29 @@ For `verifyToken()`, errors are caught and return `false` instead of throwing.
 4. **Clean up WebSocket connections** — call `ws.disconnect()` in `useEffect` cleanup
 5. **Type all responses** — cast `fastApiFetch<T>()` with the correct `T` from `lib/types.ts`
 6. **Use 30-second timeout** — the default `DEFAULT_TIMEOUT` handles hung requests
+7. **Batch delete with `Promise.allSettled`** — never use `for...of await` for batch file operations:
+
+```typescript
+// ✅ Good: 单个失败不阻塞其余，UI 仅移除成功的
+const results = await Promise.allSettled(
+  toDelete.map(item => fastApiClient.deleteSubtitleFile(path))
+);
+const succeeded = toDelete.filter((_, i) => results[i].status === "fulfilled");
+const failedCount = results.filter(r => r.status === "rejected").length;
+
+if (succeeded.length > 0) {
+  setItems(prev => prev.filter(i => !succeeded.some(d => match(d, i))));
+}
+if (failedCount > 0) {
+  setError(`删除失败: ${failedCount}/${toDelete.length}`);
+}
+
+// ❌ Bad: 删到一半抛异常 → 前面的已删、后面的没动、UI 不更新
+for (const item of toDelete) {
+  await fastApiClient.deleteSubtitleFile(path);
+}
+setItems(prev => prev.filter(...));  // 永远不会执行
+```
 
 ## Anti-Patterns
 

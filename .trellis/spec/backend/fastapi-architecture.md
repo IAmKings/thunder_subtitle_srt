@@ -386,6 +386,92 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
         await manager.disconnect(websocket, task_id)
 ```
 
+### Thread→EventLoop Bridge (Progress Callback)
+
+When CLI code runs inside `asyncio.to_thread()` and needs to push progress updates via WebSocket, use `asyncio.Queue` + `asyncio.run_coroutine_threadsafe`:
+
+```python
+import asyncio
+import threading
+
+def _make_callback(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue):
+    """创建线程安全的进度回调。在 to_thread 线程内调用，通过队列桥接到事件循环。"""
+    def _on_progress(step: str, detail: str):
+        try:
+            asyncio.run_coroutine_threadsafe(queue.put((step, detail)), loop)
+        except Exception:
+            pass  # 事件循环已停止
+    return _on_progress
+
+async def _consume_progress(queue: asyncio.Queue, ws_manager, task_id: str, stop_event: threading.Event):
+    """事件循环侧消费队列，通过 WebSocket 广播进度。"""
+    while not stop_event.is_set():
+        try:
+            step, detail = await asyncio.wait_for(queue.get(), timeout=1.0)
+        except asyncio.TimeoutError:
+            continue
+        await ws_manager.broadcast(task_id, {
+            "type": "task_progress",
+            "current_step": step,
+            "download_progress": detail,
+        })
+```
+
+**Why this pattern**:
+- `asyncio.run_coroutine_threadsafe` is the only safe way to schedule a coroutine from a non-async thread.
+- `asyncio.Queue` decouples the producer (sync thread) from the consumer (event loop).
+- `threading.Event` controls the consumer task lifecycle independently of the queue.
+
+**Don't**: Call `ws_manager.broadcast()` directly from the to_thread thread — it will raise `RuntimeError` because WebSocket operations must run in the event loop.
+
+### WebSocket Keep-Alive
+
+Long-running operations (scan/download) can cause WebSocket disconnection due to proxy/load balancer timeouts. Use bidirectional keep-alive:
+
+**Server-side** (`ws/manager.py`):
+```python
+async def _server_ping_loop(websocket: WebSocket, stop_event: asyncio.Event):
+    """每 20s 发送 ping，保活 WebSocket 连接"""
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=20)
+            break
+        except asyncio.TimeoutError:
+            try:
+                await websocket.send_json({"type": "ping"})
+            except Exception:
+                break
+```
+
+**Client-side** (`api.ts`):
+```typescript
+// ProgressWebSocket: 每 15s 发送 ping，比服务端间隔短以确保服务端 30s 超时前收到消息
+this.pingInterval = setInterval(() => {
+  if (this.ws?.readyState === WebSocket.OPEN) {
+    this.ws.send(JSON.stringify({ type: "ping" }));
+  }
+}, 15000);
+
+// onmessage 中过滤 ping 响应
+this.ws.onmessage = (event) => {
+  if (data.type === "ping") return;
+  onProgress(data);
+};
+```
+
+**Nginx** (`nginx.conf`):
+```nginx
+location /ws/ {
+    proxy_pass http://fastapi;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 300s;  # 匹配长耗时操作
+}
+```
+
+**Key numbers**: client ping 15s < server receive timeout 30s → prevented. Server ping 20s < nginx 60s default → prevented. Extended timeout 300s covers worst-case download scenarios.
+
 ## 8. Error Handling
 
 See [error-handling.md](./error-handling.md) for the full error handling spec. Key patterns:
