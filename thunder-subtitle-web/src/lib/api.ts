@@ -425,5 +425,4 @@ export class ProgressWebSocket {
 
 // ---- Default exports ----
 
-export const subtitleApiClient = new SubtitleApiClient();
 export const fastApiClient = new FastApiClient();

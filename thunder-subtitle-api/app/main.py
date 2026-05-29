@@ -38,15 +38,30 @@ async def lifespan(app: FastAPI):
 
 
 def _check_default_secrets() -> None:
-    """Warn if admin_password or jwt_secret still use default values."""
-    if settings.admin_password == "changeme":
-        logger.warning(
-            "ADMIN_PASSWORD is still the default ('changeme'). "
-            "Set it via environment variable for security."
-        )
-    if settings.jwt_secret == "thunder-subtitle-secret-change-in-production":
-        logger.warning(
-            "JWT_SECRET is still the default. Set JWT_SECRET environment variable for security."
+    """生产环境使用默认密码/JWT secret 时拒绝启动。debug 模式仅警告。"""
+    password_default = settings.admin_password == "changeme"
+    jwt_default = settings.jwt_secret == "thunder-subtitle-secret-change-in-production"
+
+    if not password_default and not jwt_default:
+        return  # 都已自定义，无需警告
+
+    if settings.debug:
+        if password_default:
+            logger.warning(
+                "ADMIN_PASSWORD is still the default ('changeme'). Set ADMIN_PASSWORD env var."
+            )
+        if jwt_default:
+            logger.warning("JWT_SECRET is still the default. Set JWT_SECRET env var.")
+    else:
+        errors = []
+        if password_default:
+            errors.append("ADMIN_PASSWORD 仍为默认值 'changeme'，请通过环境变量设置")
+        if jwt_default:
+            errors.append("JWT_SECRET 仍为默认值，请通过环境变量设置")
+        raise RuntimeError(
+            "安全配置错误 — 生产环境不能使用默认凭证:\n  "
+            + "\n  ".join(errors)
+            + "\n\n  开发环境可设置 DEBUG=true 跳过此检查。"
         )
 
 
