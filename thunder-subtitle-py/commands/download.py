@@ -15,7 +15,9 @@ def cmd_download(args) -> None:
         gcid="",
         cid="",
         url=args.url,
-        ext=args.filename.split(".")[-1] if args.filename and "." in args.filename else "srt",
+        ext=args.filename.split(".")[-1]
+        if args.filename and "." in args.filename
+        else "srt",
         name=args.filename or "subtitle",
         duration=0,
         languages=[],

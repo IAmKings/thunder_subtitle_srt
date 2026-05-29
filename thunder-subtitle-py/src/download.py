@@ -8,6 +8,7 @@ import hashlib
 import logging
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -169,6 +170,7 @@ def dump_subtitles(
     output_dir: str,
     rejected_gcids: set[str] | None = None,
     dumped_path: str | None = None,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> DumpResult:
     """
     全量下载字幕，gcid 去重 + 增量跳过
@@ -212,6 +214,10 @@ def dump_subtitles(
                     except OSError:
                         logger.warning("无法追加去重键到 .dumped: %s", dumped_path)
             result.downloaded += 1
+
+        # Report progress after each subtitle (downloaded, duped, or skipped)
+        if progress_callback:
+            progress_callback(i, total)
 
     return result
 

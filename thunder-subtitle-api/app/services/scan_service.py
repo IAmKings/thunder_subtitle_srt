@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
@@ -176,7 +177,53 @@ class ScanService:
         client = api_mod.SubtitleApiClient(timeout=config.timeout)
         all_results: list[ScanResultItem] = []
 
+        # ---- Queue + Consumer for thread-safe WebSocket broadcast ----
+        loop = asyncio.get_running_loop()
+        progress_queue: asyncio.Queue[dict] = asyncio.Queue()
+
+        # Consumer task: reads progress messages from the queue and broadcasts
+        _consumer_stop = threading.Event()
+
+        async def _progress_consumer():
+            while not _consumer_stop.is_set():
+                try:
+                    msg = await asyncio.wait_for(progress_queue.get(), timeout=2.0)
+                    await ws_manager.broadcast(task.id, msg)
+                except asyncio.TimeoutError:
+                    continue
+                except Exception:
+                    break
+
+        consumer_task = asyncio.create_task(_progress_consumer())
+
+        # Build a callback that can be called from within asyncio.to_thread
+        def _make_callback(movie_name: str):
+            def callback(step: str, detail: str) -> None:
+                msg = TaskProgressUpdate(
+                    task_id=task.id,
+                    progress=0.0,
+                    message=f"{movie_name}: {step}" + (f" ({detail})" if detail else ""),
+                    status=TaskStatus.RUNNING,
+                    current_movie=movie_name,
+                    current_step=step,
+                    download_progress=detail if step == "downloading" else None,
+                ).model_dump()
+                asyncio.run_coroutine_threadsafe(progress_queue.put(msg), loop)
+
+            return callback
+
         try:
+            # Broadcast pre-scan status so user sees immediate feedback
+            await ws_manager.broadcast(
+                task.id,
+                TaskProgressUpdate(
+                    task_id=task.id,
+                    progress=0.0,
+                    message="正在扫描目录...",
+                    status=TaskStatus.RUNNING,
+                ).model_dump(),
+            )
+
             # Pre-scan all paths → collect movie directories
             all_movie_dirs: list[str] = []
             for path in paths:
@@ -217,6 +264,9 @@ class ScanService:
                 min_age_days = int(task.params.get("min_age_days", 0))
                 reset_fail = bool(task.params.get("reset_fail", False))
 
+                # Create per-movie progress callback
+                movie_callback = _make_callback(movie_name)
+
                 # Process single movie in thread (blocking)
                 result = await asyncio.to_thread(
                     _process_one_movie,
@@ -230,6 +280,7 @@ class ScanService:
                     dump_mode=bool(dump_mode),
                     force=bool(force),
                     reset_fail=reset_fail,
+                    progress_callback=movie_callback,
                 )
 
                 processed += 1
@@ -273,6 +324,8 @@ class ScanService:
             task.progress = 100.0
             task.message = f"Scan completed. Processed {len(all_results)} movies."
         finally:
+            _consumer_stop.set()
+            consumer_task.cancel()
             client.close()
 
         task.updated_at = datetime.now(timezone.utc).isoformat()

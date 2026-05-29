@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """scan 命令：Jellyfin 目录扫描"""
 
 from src.config import Config
@@ -35,8 +36,12 @@ def _resolve_dirs(args_dir: str | None, config: Config) -> list[str]:
         return [args_dir]
     paths = config.media_paths_list
     if not paths:
-        print(f"{RED}\n  ✗ No directory specified and media_paths not configured.{RESET}")
-        print(f"{DIM}  Set with: thunder-subtitle config --set media_paths /path1,/path2{RESET}\n")
+        print(
+            f"{RED}\n  ✗ No directory specified and media_paths not configured.{RESET}"
+        )
+        print(
+            f"{DIM}  Set with: thunder-subtitle config --set media_paths /path1,/path2{RESET}\n"
+        )
         raise CLIExit()
     print(f"{DIM}  Using media_paths from config ({len(paths)} repo(s)){RESET}")
     return paths

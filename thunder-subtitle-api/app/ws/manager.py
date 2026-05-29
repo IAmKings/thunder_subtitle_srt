@@ -1,8 +1,11 @@
 """WebSocket connection manager for real-time task progress."""
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -65,16 +68,28 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+async def _server_ping_loop(websocket: WebSocket):
+    """Send a ping every 20s to keep the WebSocket connection alive."""
+    while True:
+        await asyncio.sleep(20)
+        try:
+            await websocket.send_json({"type": "ping"})
+        except Exception:
+            break
+
+
 @router.websocket("/progress/{task_id}")
 async def websocket_progress(websocket: WebSocket, task_id: str):
     """WebSocket endpoint for real-time task progress updates."""
     await manager.connect(websocket, task_id)
+    ping_task = asyncio.create_task(_server_ping_loop(websocket))
     try:
         while True:
             # Keep the connection alive; client can send pings
-            # Timeout after 30s of inactivity to detect stale connections
-            await asyncio.wait_for(websocket.receive_text(), timeout=30)
+            # Timeout after 300s of inactivity to detect stale connections
+            await asyncio.wait_for(websocket.receive_text(), timeout=300)
     except (WebSocketDisconnect, asyncio.TimeoutError):
         pass
     finally:
+        ping_task.cancel()
         await manager.disconnect(websocket, task_id)

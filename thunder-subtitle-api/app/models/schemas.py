@@ -121,6 +121,9 @@ class TaskProgressUpdate(BaseModel):
     status: TaskStatus = TaskStatus.RUNNING
     result: Optional[ScanResultItem] = None
     total: int = 0
+    current_movie: Optional[str] = None
+    current_step: Optional[str] = None
+    download_progress: Optional[str] = None
 
 
 # ---- Media ----

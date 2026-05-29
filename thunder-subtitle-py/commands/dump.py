@@ -9,7 +9,14 @@ from src.config import Config
 from src.exceptions import CLIExit, ThunderSubtitleError
 from src.ui import BOLD, DIM, GREEN, RED, RESET, display_error
 from src.download import dump_subtitles, get_default_download_dir
-from src.utils import parse_duration, parse_nfo, seconds_to_duration_str, filter_by_duration, load_gcid_file, clear_file
+from src.utils import (
+    parse_duration,
+    parse_nfo,
+    seconds_to_duration_str,
+    filter_by_duration,
+    load_gcid_file,
+    clear_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +36,9 @@ def cmd_dump(args) -> None:
         nfo_path = os.path.join(args.dir, "movie.nfo")
         try:
             nfo = parse_nfo(nfo_path)
-            max_duration_ms = nfo.duration_seconds * 1000 if nfo.duration_seconds > 0 else None
+            max_duration_ms = (
+                nfo.duration_seconds * 1000 if nfo.duration_seconds > 0 else None
+            )
             duration_str = seconds_to_duration_str(nfo.duration_seconds)
         except (ET.ParseError, OSError):
             max_duration_ms = None
@@ -49,7 +58,7 @@ def cmd_dump(args) -> None:
                 display_error(str(e))
                 raise CLIExit()
 
-    print(f"{BOLD}\n  Dumping all subtitles for: \"{movie_name}\"{RESET}")
+    print(f'{BOLD}\n  Dumping all subtitles for: "{movie_name}"{RESET}')
     if max_duration_ms:
         print(f"{DIM}  Max video duration: {duration_str} (from NFO){RESET}")
     if max_duration_ms and duration_str:
@@ -72,7 +81,9 @@ def cmd_dump(args) -> None:
 
         # 时长筛选
         if max_duration_ms is not None:
-            subtitles = filter_by_duration(subtitles, max_duration_ms, client.filter_by_max_duration)
+            subtitles = filter_by_duration(
+                subtitles, max_duration_ms, client.filter_by_max_duration
+            )
 
         if not subtitles:
             display_error("No subtitles match the filters.")

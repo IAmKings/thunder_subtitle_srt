@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..exceptions import ThunderSubtitleError
@@ -31,6 +32,7 @@ def process_scanned_movies(
     force: bool = False,
     reset_fail: bool = False,
     parallel: int = 1,
+    progress_callback: Callable[[str, str], None] | None = None,
 ) -> list[ScanResult]:
     """扫描并处理所有电影目录（parallel>1 时并发下载）"""
     if config is None:
@@ -81,6 +83,7 @@ def process_scanned_movies(
             resume,
             progress_file,
             log_path,
+            progress_callback=progress_callback,
         )
     except KeyboardInterrupt:
         print(f"\n{YELLOW}  ⚠ Interrupted. Progress saved.{RESET}\n")
@@ -102,6 +105,7 @@ def _do_scan_loop(
     resume: bool,
     progress_file: str,
     log_path: str,
+    progress_callback: Callable[[str, str], None] | None = None,
 ) -> list[ScanResult]:
     """执行扫描循环（串行或并行）"""
 
@@ -119,6 +123,7 @@ def _do_scan_loop(
             resume,
             progress_file,
             log_path,
+            progress_callback=progress_callback,
         )
         _print_scan_summary(parallel_results)
         return parallel_results
@@ -147,6 +152,7 @@ def _do_scan_loop(
             dump_mode,
             force,
             reset_fail,
+            progress_callback=progress_callback,
         )
         results.append(result)
 
@@ -226,6 +232,7 @@ def _process_parallel(
     resume: bool,
     progress_file: str,
     log_path: str,
+    progress_callback: Callable[[str, str], None] | None = None,
 ) -> list:
     """并行处理多部电影"""
     results: list = []
@@ -255,6 +262,7 @@ def _process_parallel(
             dump_mode,
             force,
             reset_fail,
+            progress_callback=progress_callback,
         )
 
     with ThreadPoolExecutor(max_workers=workers) as executor:

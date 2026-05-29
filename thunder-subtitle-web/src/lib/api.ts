@@ -359,6 +359,7 @@ export class FastApiClient {
 export class ProgressWebSocket {
   private ws: WebSocket | null = null;
   private baseUrl: string;
+  private pingInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(baseUrl: string = FASTAPI_BASE_URL) {
     this.baseUrl = baseUrl.replace(/^http/, "ws");
@@ -370,18 +371,25 @@ export class ProgressWebSocket {
     options?: { onOpen?: () => void; onClose?: () => void }
   ): void {
     if (this.ws) {
-      this.ws.close();
+      this.disconnect();
     }
 
     this.ws = new WebSocket(`${this.baseUrl}/ws/progress/${taskId}`);
 
     this.ws.onopen = () => {
       options?.onOpen?.();
+      // Send a ping every 15s to keep the WebSocket alive
+      this.pingInterval = setInterval(() => {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ type: "ping" }));
+        }
+      }, 15000);
     };
 
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data as string);
+        if (data.type === "ping") return; // ignore server pings
         onProgress(data);
       } catch {
         // Ignore malformed messages
@@ -393,12 +401,21 @@ export class ProgressWebSocket {
     };
 
     this.ws.onclose = () => {
+      this._clearPing();
       this.ws = null;
       options?.onClose?.();
     };
   }
 
+  private _clearPing(): void {
+    if (this.pingInterval !== null) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+  }
+
   disconnect(): void {
+    this._clearPing();
     if (this.ws) {
       this.ws.close();
       this.ws = null;

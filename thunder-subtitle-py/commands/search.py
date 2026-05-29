@@ -1,9 +1,18 @@
 from __future__ import annotations
+
 """search 命令：搜索字幕"""
 
 from src.api import SubtitleApiClient
 from src.exceptions import CLIExit, ThunderSubtitleError
-from src.ui import BOLD, DIM, GREEN, RESET, display_subtitle_list, display_error, display_success
+from src.ui import (
+    BOLD,
+    DIM,
+    GREEN,
+    RESET,
+    display_subtitle_list,
+    display_error,
+    display_success,
+)
 from src.download import download_subtitle, download_batch, get_default_download_dir
 from src.utils import parse_duration
 
@@ -23,11 +32,14 @@ def cmd_search(args) -> None:
             raise CLIExit()
 
     # 显示筛选信息
-    print(f"{BOLD}\n  Searching for: \"{args.name}\"{RESET}", flush=True)
+    print(f'{BOLD}\n  Searching for: "{args.name}"{RESET}', flush=True)
     if args.chinese_only:
         print(f"{DIM}  Filtering: Chinese subtitles only{RESET}", flush=True)
     if args.max_duration:
-        print(f"{DIM}  Filtering: Max video duration {args.max_duration}{RESET}", flush=True)
+        print(
+            f"{DIM}  Filtering: Max video duration {args.max_duration}{RESET}",
+            flush=True,
+        )
     if args.chinese_first and not args.chinese_only:
         print(f"{DIM}  Priority: Chinese subtitles first{RESET}", flush=True)
     print(flush=True)
@@ -45,9 +57,7 @@ def cmd_search(args) -> None:
         if args.chinese_only:
             subtitles = client.filter_chinese_subtitles(subtitles)
             if not subtitles:
-                display_error(
-                    "No Chinese subtitles found for the given search term."
-                )
+                display_error("No Chinese subtitles found for the given search term.")
                 raise CLIExit()
 
         # 应用时长筛选
@@ -101,7 +111,9 @@ def cmd_search(args) -> None:
                 if 1 <= i <= len(subtitles):
                     selected.append(subtitles[i - 1])
                 else:
-                    display_error(f"Invalid index: {i} (valid range: 1-{len(subtitles)})")
+                    display_error(
+                        f"Invalid index: {i} (valid range: 1-{len(subtitles)})"
+                    )
                     raise CLIExit()
             _do_download(selected, output_dir, args.name, client)
         else:

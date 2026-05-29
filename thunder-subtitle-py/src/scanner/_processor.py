@@ -7,6 +7,7 @@ import logging
 import os
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from ..exceptions import ThunderSubtitleError
@@ -73,6 +74,7 @@ def _process_one_movie(
     dump_mode: bool = False,
     force: bool = False,
     reset_fail: bool = False,
+    progress_callback: Callable[[str, str], None] | None = None,
 ) -> ScanResult:
     """处理单部电影：解析 NFO → 跳过检查 → 搜索 → 下载"""
 
@@ -121,7 +123,14 @@ def _process_one_movie(
     # ---- 搜索 + 下载 ----
     try:
         return _search_and_download(
-            movie_path, movie_name, nfo, client, config, has_queried, dump_mode
+            movie_path,
+            movie_name,
+            nfo,
+            client,
+            config,
+            has_queried,
+            dump_mode,
+            progress_callback=progress_callback,
         )
     except (ThunderSubtitleError, OSError) as e:
         print(f"{RED}    ✗ Error: {e}{RESET}")
@@ -176,6 +185,7 @@ def _search_and_download(
     config: Config,
     needs_delay: bool = False,
     dump_mode: bool = False,
+    progress_callback: Callable[[str, str], None] | None = None,
 ) -> ScanResult:
     """搜索字幕并下载（主力+备选 或 dump全量）"""
     if needs_delay and config.rate_limit > 0:
@@ -191,11 +201,14 @@ def _search_and_download(
 
     # ---- dump 模式：全量下载 + 内容去重（不按时长筛选） ----
     if dump_mode:
+        if progress_callback:
+            progress_callback("searching", "")
         return _dump_all_subtitles(
             movie_path,
             movie_name,
             result.subtitles,
             preferred_groups=config.preferred_groups_list,
+            progress_callback=progress_callback,
         )
 
     # 按时长筛选：有时长的在前，duration=0 的保留在后（仅 scan 模式）
@@ -233,7 +246,9 @@ def _search_and_download(
 
     # 执行下载
     downloaded_files = []
-    for sub, fname in to_download:
+    if progress_callback:
+        progress_callback("downloading", f"0/{len(to_download)}")
+    for idx, (sub, fname) in enumerate(to_download, 1):
         tag = " [alt]" if "-alt" in fname else " [primary]"
         print(f"{DIM}    Downloading{tag}: {sub.name} → {fname}{RESET}")
         dl = download_subtitle(
@@ -249,6 +264,8 @@ def _search_and_download(
             downloaded_files.append(dl.filename)
         else:
             print(f"{RED}    ✗ Download failed: {dl.error}{RESET}")
+        if progress_callback:
+            progress_callback("downloading", f"{idx}/{len(to_download)}")
 
     if downloaded_files:
         _print_status("✓", f"Downloaded: {', '.join(downloaded_files)}", green=True)
@@ -268,6 +285,7 @@ def _dump_all_subtitles(
     movie_name: str,
     subtitles: list,
     preferred_groups: list[str] | None = None,
+    progress_callback: Callable[[str, str], None] | None = None,
 ) -> ScanResult:
     """全量下载字幕，gcid 去重 + 增量跳过
 
@@ -281,7 +299,19 @@ def _dump_all_subtitles(
     preferred_path = os.path.join(movie_path, ".preferred")
     clear_file(dumped_path)  # 清空旧的 .dumped（避免上次残留）
     clear_file(preferred_path)  # 清空旧的 .preferred（避免编号复用误判）
-    r = dump_subtitles(subtitles, movie_path, rejected, dumped_path=dumped_path)
+
+    # Wrap dump_subtitles callback to inject movie_name context
+    def _dl_callback(current: int, total: int) -> None:
+        if progress_callback:
+            progress_callback("downloading", f"{current}/{total}")
+
+    r = dump_subtitles(
+        subtitles,
+        movie_path,
+        rejected,
+        dumped_path=dumped_path,
+        progress_callback=_dl_callback,
+    )
 
     # dump 完成后：记录偏好字幕组映射（仅本次实际下载的文件）
     if preferred_groups:
