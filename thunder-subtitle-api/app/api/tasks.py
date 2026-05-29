@@ -28,7 +28,9 @@ async def list_tasks(
     _user: str = Depends(get_current_user),
 ):
     """List all tasks with optional status filter."""
-    tasks, total = scan_service.list_tasks(status_filter=status_filter, limit=limit, offset=offset)
+    tasks, total = await scan_service.list_tasks(
+        status_filter=status_filter, limit=limit, offset=offset
+    )
     return TaskListResponse(tasks=tasks, total=total, limit=limit, offset=offset)
 
 
@@ -39,7 +41,7 @@ async def create_task(
 ):
     """Create a new task (scan, review, or dump) and start it in the background."""
     try:
-        task = scan_service.create_task(body)
+        task = await scan_service.create_task(body)
     except Exception as e:
         logger.error("Failed to create task: %s", e)
         raise HTTPException(
@@ -70,7 +72,7 @@ async def get_task(
     _user: str = Depends(get_current_user),
 ):
     """Get task status and progress."""
-    task = scan_service.get_task(task_id)
+    task = await scan_service.get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
@@ -82,7 +84,7 @@ async def cancel_task(
     _user: str = Depends(get_current_user),
 ):
     """Cancel a running task."""
-    task = scan_service.cancel_task(task_id)
+    task = await scan_service.cancel_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
@@ -94,7 +96,7 @@ async def get_task_progress(
     _user: str = Depends(get_current_user),
 ):
     """Get detailed task progress (also available via WebSocket)."""
-    task = scan_service.get_task(task_id)
+    task = await scan_service.get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskProgressUpdate(

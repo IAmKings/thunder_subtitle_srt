@@ -37,8 +37,9 @@ class ScanService:
     # (ScanService is a singleton via scan_service module-level instance)
     _tasks: dict[str, TaskResponse] = {}
     _task_handles: dict[str, asyncio.Task] = {}
+    _tasks_lock: asyncio.Lock = asyncio.Lock()
 
-    def create_task(self, request: TaskCreate) -> TaskResponse:
+    async def create_task(self, request: TaskCreate) -> TaskResponse:
         """Create a new scan/review/dump task."""
         task_id = str(uuid4())
         now = datetime.now(timezone.utc).isoformat()
@@ -52,21 +53,24 @@ class ScanService:
             created_at=now,
             updated_at=now,
         )
-        self._tasks[task_id] = task
+        async with self._tasks_lock:
+            self._tasks[task_id] = task
         return task
 
-    def get_task(self, task_id: str) -> Optional[TaskResponse]:
+    async def get_task(self, task_id: str) -> Optional[TaskResponse]:
         """Get a task by ID."""
-        return self._tasks.get(task_id)
+        async with self._tasks_lock:
+            return self._tasks.get(task_id)
 
-    def list_tasks(
+    async def list_tasks(
         self,
         status_filter: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[TaskResponse], int]:
         """List tasks with optional filtering."""
-        tasks = list(self._tasks.values())
+        async with self._tasks_lock:
+            tasks = list(self._tasks.values())
         if status_filter:
             tasks = [t for t in tasks if t.status.value == status_filter]
         total = len(tasks)
@@ -75,32 +79,34 @@ class ScanService:
         tasks = tasks[offset : offset + limit]
         return tasks, total
 
-    def cancel_task(self, task_id: str) -> Optional[TaskResponse]:
+    async def cancel_task(self, task_id: str) -> Optional[TaskResponse]:
         """Cancel a running task."""
-        task = self._tasks.get(task_id)
-        if task is None:
-            return None
+        async with self._tasks_lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                return None
 
-        # Cancel the asyncio task if running
-        handle = self._task_handles.get(task_id)
-        if handle and not handle.done():
-            handle.cancel()
+            # Cancel the asyncio task if running
+            handle = self._task_handles.get(task_id)
+            if handle and not handle.done():
+                handle.cancel()
 
-        task.status = TaskStatus.CANCELLED
-        task.updated_at = datetime.now(timezone.utc).isoformat()
-        task.message = "Task cancelled by user"
-        return task
+            task.status = TaskStatus.CANCELLED
+            task.updated_at = datetime.now(timezone.utc).isoformat()
+            task.message = "Task cancelled by user"
+            return task
 
     async def start_task(self, task_id: str) -> None:
         """Start executing a task in the background."""
-        task = self._tasks.get(task_id)
-        if task is None:
-            return
+        async with self._tasks_lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                return
 
-        task.status = TaskStatus.RUNNING
-        task.progress = 0.0
-        task.message = "Task started"
-        task.updated_at = datetime.now(timezone.utc).isoformat()
+            task.status = TaskStatus.RUNNING
+            task.progress = 0.0
+            task.message = "Task started"
+            task.updated_at = datetime.now(timezone.utc).isoformat()
 
         try:
             if task.type == TaskType.SCAN:
@@ -132,7 +138,8 @@ class ScanService:
                 ).model_dump(),
             )
             # Clean up handle
-            self._task_handles.pop(task_id, None)
+            async with self._tasks_lock:
+                self._task_handles.pop(task_id, None)
 
     async def _execute_scan(self, task: TaskResponse) -> None:
         """Execute a scan task — process movies one by one for real-time progress."""

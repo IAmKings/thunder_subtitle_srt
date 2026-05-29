@@ -99,7 +99,8 @@ async def list_reviews(
 ):
     """List review items for subtitles in a directory."""
     try:
-        result = service.list_reviews(base_dir=base_dir, name_filter=name_filter)
+        validated_base = _validate_subtitle_path(base_dir)
+        result = service.list_reviews(base_dir=validated_base, name_filter=name_filter)
         return result
     except ImportError:
         raise HTTPException(
@@ -120,7 +121,8 @@ async def list_movies(
 ):
     """轻量电影发现 — 只做文件系统操作，不做深审（用于验证页电影列表）"""
     try:
-        result = service.list_movies(base_dir=base_dir, name_filter=name_filter)
+        validated_base = _validate_subtitle_path(base_dir)
+        result = service.list_movies(base_dir=validated_base, name_filter=name_filter)
         return result
     except ImportError:
         raise HTTPException(

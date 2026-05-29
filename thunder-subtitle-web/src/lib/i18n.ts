@@ -469,9 +469,9 @@ export function useTranslations() {
   const { language } = useLanguage();
 
   const t = useCallback(
-    (key: string): string => {
+    (key: keyof typeof translations.zh): string => {
       const dict = translations[language as Language] ?? translations.en;
-      return (dict as Record<string, string>)[key] ?? key;
+      return dict[key] ?? key;
     },
     [language]
   );

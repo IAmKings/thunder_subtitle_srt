@@ -25,10 +25,12 @@ export function SubtitleList({
   const handleDownloadSelected = () => {
     // Download all selected subtitles
     selectedSubtitles.forEach((subtitle) => {
-      const link = document.createElement('a');
-      link.href = subtitle.url;
-      link.download = `${subtitle.name}.${subtitle.ext}`;
-      link.click();
+      const url = subtitle.url;
+      if (!url || !url.startsWith('http')) {
+        console.warn('Invalid download URL:', url);
+        return;
+      }
+      window.open(url, '_blank');
     });
     onDownloadSelected();
   };

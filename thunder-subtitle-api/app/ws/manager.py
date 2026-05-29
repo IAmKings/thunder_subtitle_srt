@@ -56,12 +56,24 @@ class ConnectionManager:
         async with self._lock:
             connections = list(self._connections.get(task_id, []))
 
+        dead: list[WebSocket] = []
         for ws in connections:
             try:
                 await ws.send_json(message)
             except Exception:
                 # Connection may have been dropped
-                pass
+                dead.append(ws)
+
+        if dead:
+            async with self._lock:
+                task_conns = self._connections.get(task_id, [])
+                for ws in dead:
+                    try:
+                        task_conns.remove(ws)
+                    except ValueError:
+                        pass
+                if not task_conns:
+                    del self._connections[task_id]
 
 
 # Global instance

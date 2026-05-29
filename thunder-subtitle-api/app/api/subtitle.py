@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 from typing import Optional
 
 import httpx
@@ -118,13 +119,16 @@ async def download_subtitle(
                 ext = ext_map.get(content_type, ".srt")
                 filename = f"subtitle{ext}"
 
+        # Sanitize filename to prevent Content-Disposition header injection
+        safe_filename = re.sub(r'[\r\n"]', "", filename)
+
         # Return the file content
         from fastapi.responses import Response
 
         return Response(
             content=response.content,
             media_type=content_type,
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
         )
     except httpx.HTTPStatusError as e:
         logger.error("Download failed: upstream returned %s", e.response.status_code)

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import jwt
 from pydantic import BaseModel, Field
 
@@ -44,6 +46,26 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=4)
 
 
+# ---- Rate Limiter ----
+
+_login_failures: dict[str, list[float]] = defaultdict(list)
+_LOGIN_RATE_LIMIT = 5  # max failures
+_LOGIN_RATE_WINDOW = 60  # seconds
+
+
+def _check_login_rate_limit(ip: str) -> None:
+    """Check and record a login attempt for rate limiting."""
+    now = time.time()
+    window_start = now - _LOGIN_RATE_WINDOW
+    # Prune old entries
+    _login_failures[ip] = [t for t in _login_failures[ip] if t > window_start]
+    if len(_login_failures[ip]) >= _LOGIN_RATE_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="登录尝试过于频繁，请稍后再试",
+        )
+
+
 # ---- Helpers ----
 
 
@@ -60,14 +82,29 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest):
+async def login(body: LoginRequest, request: Request):
     """Authenticate admin user and return JWT token."""
+    # Get client IP from X-Forwarded-For or direct connection
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        ip = forwarded.split(",")[0].strip()
+    elif request.client:
+        ip = request.client.host
+    else:
+        ip = "unknown"
+
+    _check_login_rate_limit(ip)
+
     # Single admin account: username must be "admin"
     if body.username != "admin" or body.password != settings.admin_password:
+        _login_failures[ip].append(time.time())
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
+
+    # Clear failure count on successful login
+    _login_failures.pop(ip, None)
 
     token = create_access_token(subject="admin")
     return TokenResponse(
