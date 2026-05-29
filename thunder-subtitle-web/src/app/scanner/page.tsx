@@ -117,7 +117,10 @@ function ScannerPage() {
   const RESULTS_PER_PAGE = 10;
   const [resultsPage, setResultsPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const statusFilterOptions = [null, "downloaded", "skipped", "no_match", "error"] as const;
+  const isDryRun = scanMode === "dry_run";
+  const statusFilterOptions: readonly (string | null)[] = isDryRun
+    ? [null, "need_download", "need_review", "reviewed_ok", "reviewed_fail", "reviewed_fail_new_subs", "skipped"]
+    : [null, "downloaded", "skipped", "no_match", "error"];
   const [detailItem, setDetailItem] = useState<ScanResultItem | null>(null);
   const [scanTotal, setScanTotal] = useState(0);
 
@@ -388,10 +391,10 @@ function ScannerPage() {
   const sortedFindings = useMemo(() => {
     let list = [...findings].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
     if (statusFilter) {
-      list = list.filter((f) => f.status === statusFilter);
+      list = list.filter((f) => (isDryRun ? f.dry_state === statusFilter : f.status === statusFilter));
     }
     return list;
-  }, [findings, statusFilter]);
+  }, [findings, statusFilter, isDryRun]);
 
   const totalPages = Math.max(1, Math.ceil(sortedFindings.length / RESULTS_PER_PAGE));
   const paginatedFindings = useMemo(
@@ -686,7 +689,7 @@ function ScannerPage() {
               <button
                 key={mode}
                 type="button"
-                onClick={() => setScanMode(mode)}
+                onClick={() => { setScanMode(mode); setStatusFilter(null); setResultsPage(0); }}
                 disabled={isRunning}
                 className={`rounded-md px-2 py-1.5 text-[11px] font-bold transition-all md:px-3 md:text-xs ${
                   scanMode === mode
@@ -875,7 +878,9 @@ function ScannerPage() {
                   }`}
                   style={{ WebkitTapHighlightColor: "transparent" }}
                 >
-                  {opt === null ? t("all_status") : opt === "downloaded" ? t("status_downloaded") : opt === "skipped" ? t("status_skipped") : opt === "no_match" ? t("status_no_match") : t("status_error")}
+                  {opt === null ? t("all_status") : isDryRun ? t(`dry_state_${opt}`) : (
+                    opt === "downloaded" ? t("status_downloaded") : opt === "skipped" ? t("status_skipped") : opt === "no_match" ? t("status_no_match") : t("status_error")
+                  )}
                 </button>
               ))}
             </div>

@@ -158,6 +158,14 @@ const translations: Record<Language, Record<string, string>> = {
     dry_reviewed_fail: "Reviewed FAIL",
     dry_reviewed_fail_new_subs: "Re-review",
 
+    // Dry-state filter labels (shorter, for filter buttons)
+    dry_state_need_download: "Need Download",
+    dry_state_need_review: "Need Review",
+    dry_state_reviewed_ok: "Reviewed OK",
+    dry_state_reviewed_fail: "Reviewed FAIL",
+    dry_state_reviewed_fail_new_subs: "New Subs",
+    dry_state_skipped: "Skipped",
+
     // Verification (additional)
     loading_reviews: "Loading reviews...",
     no_pending_subs: "No subtitles pending verification in this directory.",
@@ -375,6 +383,14 @@ const translations: Record<Language, Record<string, string>> = {
     dry_reviewed_ok: "审查通过",
     dry_reviewed_fail: "审查失败",
     dry_reviewed_fail_new_subs: "待重审",
+
+    // Dry-state filter labels (shorter, for filter buttons)
+    dry_state_need_download: "需下载",
+    dry_state_need_review: "待审查",
+    dry_state_reviewed_ok: "已通过",
+    dry_state_reviewed_fail: "已失败",
+    dry_state_reviewed_fail_new_subs: "有新字幕",
+    dry_state_skipped: "已跳过",
 
     // Verification (additional)
     loading_reviews: "\u52a0\u8f7d\u5ba1\u67e5\u5217\u8868\u4e2d...",
