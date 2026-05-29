@@ -192,6 +192,33 @@ function VerificationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 切 tab 回来后自动恢复选中电影的字幕数据
+  useEffect(() => {
+    if (!selectedMovie || movies.length === 0 || items.length > 0 || isLoading) return;
+    const movie = movies.find((m) => m.path === selectedMovie);
+    if (!movie || movie.sub_files.length === 0) {
+      setSelectedMovie(null);
+      return;
+    }
+    setIsLoading(true);
+    let cancelled = false;
+    Promise.all(
+      movie.sub_files.map((fname) =>
+        fastApiClient.reviewSubtitleFile(baseDir, selectedMovie, fname).catch(() => null)
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const validItems = results.filter((r): r is ReviewItem => r !== null);
+      setItems(validItems);
+    }).catch((err) => {
+      if (cancelled) return;
+      console.warn("Failed to reload subtitle details:", err);
+    }).finally(() => {
+      if (!cancelled) setIsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [selectedMovie, movies, items.length, isLoading, baseDir, setSelectedMovie, setItems, setIsLoading]);
+
   // ---- Individual mark ----
   const handleMark = useCallback(
     async (status: "ok" | "fail") => {
