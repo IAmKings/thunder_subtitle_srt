@@ -88,6 +88,8 @@ export interface ReviewItem {
   review_status: ReviewState;
   review_date: string;
   preferred: boolean;
+  ai_flags: string[];
+  last_end_ms: number;
 }
 
 // ---- Review MovieEntry (lightweight for movie list) ----

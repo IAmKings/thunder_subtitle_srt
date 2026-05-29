@@ -156,6 +156,8 @@ class ReviewItemResponse(BaseModel):
     review_status: ReviewState = ReviewState.not_reviewed
     review_date: str = ""
     preferred: bool = False
+    ai_flags: list[str] = Field(default_factory=list)
+    last_end_ms: int = 0
 
 
 class MovieEntryResponse(BaseModel):

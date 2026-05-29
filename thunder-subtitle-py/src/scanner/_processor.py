@@ -51,6 +51,18 @@ def _has_preferred_group(subtitle, groups: list[str]) -> bool:
     return any(matches(g, subtitle.name) for g in groups)
 
 
+def _save_subtitle_mt(filepath: str, mt: int) -> None:
+    """下载成功后保存 mt 元数据到 {filepath}.mt"""
+    if mt == 0:
+        return
+    try:
+        mt_path = filepath + ".mt"
+        with open(mt_path, "w", encoding="utf-8") as f:
+            f.write(str(mt) + "\n")
+    except OSError:
+        logger.warning("无法写入 mt 文件: %s", filepath + ".mt")
+
+
 # ---- 输出辅助 ----
 
 
@@ -262,6 +274,8 @@ def _search_and_download(
         )
         if dl.success:
             downloaded_files.append(dl.filename)
+            # 保存 mt 元数据
+            _save_subtitle_mt(dl.filepath, sub.mt)
         else:
             print(f"{RED}    ✗ Download failed: {dl.error}{RESET}")
         if progress_callback:

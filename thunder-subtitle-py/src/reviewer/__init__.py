@@ -290,8 +290,38 @@ def list_review_movies(
 def review_subtitle_file(
     filepath: str, filename: str, movie_path: str, movie_name: str
 ) -> ReviewItem:
-    """按需深审单个字幕文件（编码+SRT+CJK），用于验证页字幕详情"""
-    item = _review_one_file(filepath, filename, movie_path, movie_name)
+    """按需深审单个字幕文件（编码+SRT+CJK），用于验证页字幕详情
+
+    自动读取 NFO 片长和 mt 元数据传递到评审函数。
+    """
+    # 读取 NFO 片长
+    nfo_duration_seconds = 0
+    nfo_path = os.path.join(movie_path, "movie.nfo")
+    if os.path.isfile(nfo_path):
+        try:
+            nfo = parse_nfo(nfo_path)
+            nfo_duration_seconds = nfo.duration_seconds
+        except Exception:
+            pass
+
+    # 读取 mt 元数据
+    mt = 0
+    mt_path = filepath + ".mt"
+    if os.path.isfile(mt_path):
+        try:
+            with open(mt_path, "r", encoding="utf-8") as f:
+                mt = int(f.read().strip())
+        except (OSError, ValueError):
+            pass
+
+    item = _review_one_file(
+        filepath,
+        filename,
+        movie_path,
+        movie_name,
+        nfo_duration_seconds=nfo_duration_seconds,
+        mt=mt,
+    )
     review_status, review_date = _is_reviewed(movie_path)
     item.reviewed = review_status is not None
     item.reviewed_date = review_date

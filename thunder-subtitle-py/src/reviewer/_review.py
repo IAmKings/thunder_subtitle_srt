@@ -6,11 +6,12 @@ from dataclasses import dataclass, field
 
 from ..models import ReviewQuality
 from ._encoding import _detect_encoding, _calc_cn_ratio
-from ._srt import _parse_srt_entries, _check_srt_quality
+from ._srt import _parse_srt_entries, _check_srt_quality, _find_last_content_end
 
 logger = logging.getLogger(__name__)
 
 MIN_FILE_SIZE = 200  # 最小文件大小（字节）
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 最大文件大小（5MB）
 MIN_CN_RATIO = 0.05  # .zh 文件最低中文占比
 _ZH_PREFIX = ".zh."  # 中文字幕文件名标识
 
@@ -35,6 +36,8 @@ class ReviewItem:
     cn_ratio: float = 0.0
     reviewed: bool = False  # 是否已人工审查
     reviewed_date: str = ""  # 审查日期
+    ai_flags: list[str] = field(default_factory=list)  # AI 嫌疑标记
+    last_end_ms: int = 0  # 最后有效内容字幕的时间戳（ms）
 
 
 def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str, str]]:
@@ -58,9 +61,23 @@ def _find_all_subtitle_files(movie_path: str, movie_name: str) -> list[tuple[str
 
 
 def _review_one_file(
-    filepath: str, filename: str, movie_path: str, movie_name: str
+    filepath: str,
+    filename: str,
+    movie_path: str,
+    movie_name: str,
+    nfo_duration_seconds: int = 0,
+    mt: int = 0,
 ) -> ReviewItem:
-    """深度审查单个字幕文件，返回带评分的 ReviewItem"""
+    """深度审查单个字幕文件，返回带评分的 ReviewItem
+
+    Args:
+        filepath: 字幕文件完整路径
+        filename: 字幕文件名
+        movie_path: 电影目录路径
+        movie_name: 电影名称（目录名）
+        nfo_duration_seconds: NFO 片长（秒），0 表示未知
+        mt: 机器翻译标记（0=非AI, 1+=AI）
+    """
     item = ReviewItem(
         movie_path=movie_path,
         movie_name=movie_name,
@@ -80,6 +97,11 @@ def _review_one_file(
         item.score = 0
         item.status = ReviewQuality.fail
         return item
+
+    # 文件过大（> 5MB）仅扣分，不直接 fail
+    if item.size_bytes > MAX_FILE_SIZE:
+        item.score -= 20
+        item.deductions.append(f"文件过大 ({item.size_bytes / 1024 / 1024:.1f}MB) -20")
 
     try:
         with open(filepath, "rb") as f:
@@ -120,7 +142,16 @@ def _review_one_file(
             item.deductions.append("无有效SRT时间轴 -30")
         else:
             item.checks.append("srt_structure")
-            _check_srt_quality(item, entries)
+            ai_flags = _check_srt_quality(item, entries)
+            item.ai_flags = ai_flags
+
+            # 片长对比检测（检测体系 3）
+            _apply_duration_match(item, entries, nfo_duration_seconds)
+
+    # ---- AI 嫌疑：mt 标记 ----
+    if mt != 0:
+        if "machine_translation" not in item.ai_flags:
+            item.ai_flags.append("machine_translation")
 
     # ---- 中文内容检查 ----
     item.cn_ratio = _calc_cn_ratio(text)
@@ -142,3 +173,57 @@ def _review_one_file(
         item.status = ReviewQuality.fail
 
     return item
+
+
+def _apply_duration_match(
+    item: ReviewItem, entries: list[dict], nfo_duration_seconds: int
+) -> None:
+    """片长对比检测：对比 SRT 最后有效时间戳与 NFO 片长
+
+    注意：此函数在 _review_one_file 中被调用，score 改动后由 _review_one_file 统一
+    做扣分上限保护和综合判定。本函数只做扣分和标记，不修改 item.status。
+    """
+    nfo_duration_ms = nfo_duration_seconds * 1000
+
+    # 跳过条件
+    if nfo_duration_seconds == 0:
+        return
+    if len(entries) < 10:
+        return
+
+    last_end = _find_last_content_end(entries, nfo_duration_ms)
+    item.last_end_ms = last_end
+    if last_end == 0:
+        return
+
+    ratio = last_end / nfo_duration_ms
+
+    # 短片/剧集（< 30 分钟）使用宽松阈值
+    is_short = nfo_duration_seconds < 1800
+    if is_short:
+        if ratio > 1.10:
+            item.score -= 15
+            item.deductions.append(f"片长超出({ratio:.0%}) -15")
+        return
+
+    if 0.85 <= ratio <= 1.00:
+        # 正常
+        pass
+    elif 1.00 < ratio <= 1.05:
+        item.score -= 5
+        item.deductions.append(f"片长略超({ratio:.0%}) -5")
+    elif 1.05 < ratio <= 1.20:
+        item.score -= 15
+        item.deductions.append(f"片长超出({ratio:.0%}) -15")
+    elif ratio > 1.20:
+        item.score -= 25
+        item.deductions.append(f"片长严重超出({ratio:.0%}) -25")
+    elif 0.50 <= ratio < 0.85:
+        # 可能截断 — 只标记不扣分
+        if "possibly_truncated" not in item.ai_flags:
+            item.ai_flags.append("possibly_truncated")
+    elif ratio < 0.50:
+        item.score -= 25
+        item.deductions.append(f"片长严重偏短({ratio:.0%}) -25")
+        if "possibly_truncated" not in item.ai_flags:
+            item.ai_flags.append("possibly_truncated")

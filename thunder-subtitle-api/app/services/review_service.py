@@ -154,6 +154,8 @@ class ReviewService:
             review_status=review_status,
             review_date=review_date,
             preferred=preferred,
+            ai_flags=getattr(item, "ai_flags", []),
+            last_end_ms=getattr(item, "last_end_ms", 0),
         )
 
     def mark_review(
