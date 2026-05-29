@@ -65,33 +65,38 @@ interface FilterState {
   searchQuery: string;
   statusFilter: string | null;
   sortBySize: null | "desc" | "asc";
-  listPage: number;
+  movieListPage: number;
+  subtitleListPage: number;
 }
 
 type FilterAction =
   | { type: "SET_SEARCH_QUERY"; payload: string }
   | { type: "SET_STATUS_FILTER"; payload: string | null }
   | { type: "SET_SORT_BY_SIZE"; payload: null | "desc" | "asc" }
-  | { type: "SET_LIST_PAGE"; payload: number }
+  | { type: "SET_MOVIE_LIST_PAGE"; payload: number }
+  | { type: "SET_SUBTITLE_LIST_PAGE"; payload: number }
   | { type: "RESET_FILTERS" };
 
 const initialFilterState: FilterState = {
   searchQuery: "",
   statusFilter: null,
   sortBySize: null,
-  listPage: 0,
+  movieListPage: 0,
+  subtitleListPage: 0,
 };
 
 function filterReducer(state: FilterState, action: FilterAction): FilterState {
   switch (action.type) {
     case "SET_SEARCH_QUERY":
-      return { ...state, searchQuery: action.payload, listPage: 0 };
+      return { ...state, searchQuery: action.payload, movieListPage: 0 };
     case "SET_STATUS_FILTER":
-      return { ...state, statusFilter: action.payload, listPage: 0 };
+      return { ...state, statusFilter: action.payload, subtitleListPage: 0 };
     case "SET_SORT_BY_SIZE":
-      return { ...state, sortBySize: action.payload, listPage: 0 };
-    case "SET_LIST_PAGE":
-      return { ...state, listPage: action.payload };
+      return { ...state, sortBySize: action.payload, subtitleListPage: 0 };
+    case "SET_MOVIE_LIST_PAGE":
+      return { ...state, movieListPage: action.payload };
+    case "SET_SUBTITLE_LIST_PAGE":
+      return { ...state, subtitleListPage: action.payload };
     case "RESET_FILTERS":
       return { ...initialFilterState };
     default:
@@ -118,7 +123,7 @@ function VerificationPage() {
   const [renameError, setRenameError] = useState("");
 
   // ---- Filter state (useReducer) ----
-  const [{ searchQuery, statusFilter, sortBySize, listPage }, dispatchFilter] = useReducer(filterReducer, initialFilterState);
+  const [{ searchQuery, statusFilter, sortBySize, movieListPage, subtitleListPage }, dispatchFilter] = useReducer(filterReducer, initialFilterState);
   const PER_PAGE = 10;
 
   // ---- Dialog state ----
@@ -311,14 +316,10 @@ function VerificationPage() {
       );
 
       // Find next item at deleted position (respect sort + filter)
-      const sorted = getFilteredAndSortedMovieItems(remaining, selectedMovie, statusFilter, sortBySize);
-      const fullSorted = getFilteredAndSortedMovieItems(
-        items.filter((i) => i.file_path === selectedMovie),
-        selectedMovie,
-        statusFilter,
-        sortBySize
-      );
+      // Deduplicate: compute fullSorted once, then derive sorted from it
+      const fullSorted = getFilteredAndSortedMovieItems(items, selectedMovie, statusFilter, sortBySize);
       const delIdx = fullSorted.findIndex((i) => i.file_name === deletedFile);
+      const sorted = fullSorted.filter((i) => i.file_name !== deletedFile);
       const nextItem = sorted[Math.min(delIdx, sorted.length - 1)] || null;
 
       if (sorted.length === 0) {
@@ -331,7 +332,7 @@ function VerificationPage() {
       } else {
         setItems(remaining);
         setSelectedItem(nextItem);
-        dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
+        dispatchFilter({ type: "SET_SUBTITLE_LIST_PAGE", payload: 0 });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("delete_failed"));
@@ -372,10 +373,12 @@ function VerificationPage() {
     const controller = new AbortController();
 
     fastApiClient.getSubtitlePreview(subtitlePath, controller.signal).then((data) => {
+      if (controller.signal.aborted) return;
       setPreviewContent(data.content);
       setPreviewEncoding(data.encoding);
       setPreviewLoading(false);
-    }).catch(() => {
+    }).catch((err: unknown) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setPreviewContent(null);
       setPreviewEncoding("");
       setPreviewLoading(false);
@@ -405,12 +408,12 @@ function VerificationPage() {
 
   // ---- Pagination ----
   const totalMoviePages = Math.max(1, Math.ceil(filteredMovies.length / PER_PAGE));
-  const paginatedMovies = filteredMovies.slice(listPage * PER_PAGE, (listPage + 1) * PER_PAGE);
+  const paginatedMovies = filteredMovies.slice(movieListPage * PER_PAGE, (movieListPage + 1) * PER_PAGE);
 
   const totalSubtitlePages = Math.max(1, Math.ceil(movieSubtitleItems.length / PER_PAGE));
-  const paginatedSubtitleItems = movieSubtitleItems.slice(listPage * PER_PAGE, (listPage + 1) * PER_PAGE);
+  const paginatedSubtitleItems = movieSubtitleItems.slice(subtitleListPage * PER_PAGE, (subtitleListPage + 1) * PER_PAGE);
 
-  const currentPage = listPage + 1;
+  const currentPage = selectedMovie ? subtitleListPage + 1 : movieListPage + 1;
   const totalPages = selectedMovie ? totalSubtitlePages : totalMoviePages;
 
   // ---- Counts (scoped to current view) ----
@@ -432,7 +435,7 @@ function VerificationPage() {
     // Only reset subtitle-level filters (status/sort/page), keep movie search query
     dispatchFilter({ type: "SET_STATUS_FILTER", payload: null });
     dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: null });
-    dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
+    dispatchFilter({ type: "SET_SUBTITLE_LIST_PAGE", payload: 0 });
   }, [setSelectedMovie, setItems, dispatchFilter]);
 
   const handleBackToSubtitles = useCallback(() => {
@@ -450,7 +453,7 @@ function VerificationPage() {
     // Reset subtitle-level filters only, keep movie search query
     dispatchFilter({ type: "SET_STATUS_FILTER", payload: null });
     dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: null });
-    dispatchFilter({ type: "SET_LIST_PAGE", payload: 0 });
+    dispatchFilter({ type: "SET_SUBTITLE_LIST_PAGE", payload: 0 });
 
     // 按需深审当前电影的所有字幕文件
     const movie = movies.find((m) => m.path === filePath);
@@ -536,7 +539,7 @@ function VerificationPage() {
             setSortBySize={(v) => dispatchFilter({ type: "SET_SORT_BY_SIZE", payload: v })}
             statusFilter={statusFilter}
             setStatusFilter={(v) => dispatchFilter({ type: "SET_STATUS_FILTER", payload: v })}
-            setListPage={(v) => dispatchFilter({ type: "SET_LIST_PAGE", payload: v })}
+            setListPage={(v) => dispatchFilter({ type: "SET_SUBTITLE_LIST_PAGE", payload: v })}
             okCount={okCount}
             failCount={failCount}
             unreviewedCount={unreviewedCount}
@@ -614,9 +617,9 @@ function VerificationPage() {
         {(selectedMovie ? movieSubtitleItems.length : filteredMovies.length) > PER_PAGE && (
           <div className="flex items-center justify-between text-xs text-on-surface-variant">
             <span>
-              {listPage * PER_PAGE + 1}-
+              {(selectedMovie ? subtitleListPage : movieListPage) * PER_PAGE + 1}-
               {Math.min(
-                (listPage + 1) * PER_PAGE,
+                ((selectedMovie ? subtitleListPage : movieListPage) + 1) * PER_PAGE,
                 selectedMovie ? movieSubtitleItems.length : filteredMovies.length
               )}
               {" / "}
@@ -625,8 +628,13 @@ function VerificationPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => dispatchFilter({ type: "SET_LIST_PAGE", payload: Math.max(0, listPage - 1) })}
-                disabled={listPage === 0}
+                onClick={() => {
+                  const pageAction = selectedMovie
+                    ? { type: "SET_SUBTITLE_LIST_PAGE" as const, payload: Math.max(0, subtitleListPage - 1) }
+                    : { type: "SET_MOVIE_LIST_PAGE" as const, payload: Math.max(0, movieListPage - 1) };
+                  dispatchFilter(pageAction);
+                }}
+                disabled={selectedMovie ? subtitleListPage === 0 : movieListPage === 0}
                 className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
               >
                 <ChevronLeft size={16} />
@@ -634,8 +642,13 @@ function VerificationPage() {
               <span className="px-2 tabular-nums">{currentPage} / {totalPages}</span>
               <button
                 type="button"
-                onClick={() => dispatchFilter({ type: "SET_LIST_PAGE", payload: Math.min(totalPages - 1, listPage + 1) })}
-                disabled={listPage >= totalPages - 1}
+                onClick={() => {
+                  const pageAction = selectedMovie
+                    ? { type: "SET_SUBTITLE_LIST_PAGE" as const, payload: Math.min(totalPages - 1, subtitleListPage + 1) }
+                    : { type: "SET_MOVIE_LIST_PAGE" as const, payload: Math.min(totalPages - 1, movieListPage + 1) };
+                  dispatchFilter(pageAction);
+                }}
+                disabled={selectedMovie ? subtitleListPage >= totalPages - 1 : movieListPage >= totalPages - 1}
                 className="ghost-border rounded p-1 transition-colors hover:bg-surface-container-high disabled:opacity-30"
               >
                 <ChevronRight size={16} />
@@ -643,7 +656,7 @@ function VerificationPage() {
             </div>
           </div>
         )}
-        {listPage >= totalPages - 1 && (selectedMovie ? movieSubtitleItems.length : filteredMovies.length) > 0 && (
+        {(selectedMovie ? subtitleListPage : movieListPage) >= totalPages - 1 && (selectedMovie ? movieSubtitleItems.length : filteredMovies.length) > 0 && (
           <p className="text-center text-[10px] text-on-surface-variant/50">
             — {(selectedMovie ? movieSubtitleItems.length : filteredMovies.length)} {t("files")} —
           </p>

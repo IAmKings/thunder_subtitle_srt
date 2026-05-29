@@ -35,15 +35,17 @@ export function VerificationFilterBar({
         className={`rounded-lg px-2 py-1 text-[10px] font-bold transition-all ${
           sortBySize !== null ? "bg-primary text-on-primary" : "bg-surface-container-high text-on-surface-variant hover:bg-outline-variant"
         }`}
+        aria-pressed={sortBySize !== null}
         style={{ WebkitTapHighlightColor: "transparent" }}
       >
         {t("size")}{sortBySize === "desc" ? " \u2193" : sortBySize === "asc" ? " \u2191" : ""}
       </button>
-      <div className="flex flex-wrap gap-1 text-[10px] font-bold">
+      <div className="flex flex-wrap gap-1 text-[10px] font-bold" role="group" aria-label="Filter by status">
         <button
           type="button"
           onClick={() => { setStatusFilter(null); setListPage(0); }}
           className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === null ? "bg-primary text-on-primary" : "bg-on-surface-variant/15 text-on-surface-variant"}`}
+          aria-pressed={statusFilter === null}
         >
           {t("all_status")} {visibleItemsCount}
         </button>
@@ -51,6 +53,7 @@ export function VerificationFilterBar({
           type="button"
           onClick={() => { setStatusFilter(statusFilter === "not_reviewed" ? null : "not_reviewed"); setListPage(0); }}
           className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === "not_reviewed" ? "bg-primary text-on-primary" : "bg-on-surface-variant/15 text-on-surface-variant"}`}
+          aria-pressed={statusFilter === "not_reviewed"}
         >
           {t("untagged")} {unreviewedCount}
         </button>
@@ -58,6 +61,7 @@ export function VerificationFilterBar({
           type="button"
           onClick={() => { setStatusFilter(statusFilter === "ok" ? null : "ok"); setListPage(0); }}
           className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === "ok" ? "bg-green-500 text-on-primary" : "bg-green-500/15 text-green-400"}`}
+          aria-pressed={statusFilter === "ok"}
         >
           {"\u2713"} {okCount}
         </button>
@@ -65,6 +69,7 @@ export function VerificationFilterBar({
           type="button"
           onClick={() => { setStatusFilter(statusFilter === "fail" ? null : "fail"); setListPage(0); }}
           className={`rounded-full px-2 py-0.5 transition-all ${statusFilter === "fail" ? "bg-error text-on-primary" : "bg-error/15 text-error"}`}
+          aria-pressed={statusFilter === "fail"}
         >
           {"\u2717"} {failCount}
         </button>

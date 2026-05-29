@@ -35,7 +35,9 @@ export function VerificationStateProvider({ children }: { children: ReactNode })
     if (typeof window === "undefined") return [];
     try {
       const raw = localStorage.getItem(PINNED_KEY);
-      return raw ? (JSON.parse(raw) as string[]) : [];
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : [];
     } catch { return []; }
   });
 

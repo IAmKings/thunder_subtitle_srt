@@ -4,7 +4,20 @@ import json
 import os
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+
+def _parse_cors_origins(v: str | list[str] | None) -> list[str]:
+    """Parse CORS_ORIGINS env var (comma-separated URLs)."""
+    if not v:
+        return [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    if isinstance(v, list):
+        return v
+    return [origin.strip() for origin in v.split(",") if origin.strip()]
 
 
 class Settings(BaseSettings):
@@ -33,6 +46,11 @@ class Settings(BaseSettings):
     # Tasks
     max_concurrent_tasks: int = 2
     task_poll_interval: float = 0.5
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str] | None) -> list[str]:
+        return _parse_cors_origins(v)
 
 
 settings = Settings()

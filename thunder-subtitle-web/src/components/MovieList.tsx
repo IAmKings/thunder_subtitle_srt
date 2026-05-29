@@ -25,7 +25,7 @@ export function MovieList({ paginatedMovies, handleSelectMovie, t }: MovieListPr
               loading="lazy"
               className="h-16 w-11 flex-shrink-0 rounded object-cover bg-surface-container-highest"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              alt=""
+              alt={movie.name}
             />
             <div className="min-w-0 flex-1">
               <p className="truncate text-base font-bold">{movie.name}</p>

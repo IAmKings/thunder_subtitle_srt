@@ -40,8 +40,10 @@ def _validate_subtitle_path(path: str) -> str:
     real = os.path.realpath(path)
     allowed = _get_allowed_roots()
     if not allowed:
-        # No roots configured — allow (backward-compatible)
-        return real
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No media paths configured — access denied",
+        )
     for root in allowed:
         if real.startswith(root + "/") or real == root:
             return real

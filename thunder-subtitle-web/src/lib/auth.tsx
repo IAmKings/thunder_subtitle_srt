@@ -71,9 +71,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const isValid = await client.verifyToken(savedToken);
           if (isValid) {
-            const parsed = JSON.parse(savedUser) as AuthUser;
+            let parsedUser: AuthUser | null = null;
+            try {
+              const raw: unknown = JSON.parse(savedUser);
+              if (raw && typeof raw === "object" && typeof (raw as AuthUser).username === "string") {
+                parsedUser = raw as AuthUser;
+              }
+            } catch { /* ignore, fallback to null */ }
+            if (!parsedUser) {
+              localStorage.removeItem(TOKEN_KEY);
+              localStorage.removeItem(USER_KEY);
+              clearAuthToken();
+              setIsLoading(false);
+              return;
+            }
             setToken(savedToken);
-            setUser(parsed);
+            setUser(parsedUser);
           } else {
             // Token expired or invalid
             localStorage.removeItem(TOKEN_KEY);

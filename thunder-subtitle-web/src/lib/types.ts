@@ -87,7 +87,7 @@ export interface ReviewItem {
   encoding: string;
   review_status: ReviewState;
   review_date: string;
-  preferred?: boolean;
+  preferred: boolean;
 }
 
 // ---- Review MovieEntry (lightweight for movie list) ----
@@ -122,7 +122,7 @@ export interface ScanResultItem {
   status: "downloaded" | "skipped" | "no_match" | "error";
   reason: string;
   filename: string;
-  dry_state: string;
+  dry_state: "need_download" | "need_review" | "reviewed_ok" | "reviewed_fail" | "reviewed_fail_new_subs" | "skipped";
 }
 
 // ---- Health Check types ----

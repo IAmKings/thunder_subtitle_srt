@@ -20,11 +20,19 @@ const MAX_HISTORY = 10;
 
 // ---- Helpers ----
 
+function isHistoryItem(v: unknown): v is HistoryItem {
+  return !!v && typeof v === "object" && typeof (v as HistoryItem).id === "string" && typeof (v as HistoryItem).name === "string";
+}
+
 function loadHistory(): HistoryItem[] {
   if (typeof window === "undefined") return [];
   try {
     const stored = localStorage.getItem(HISTORY_KEY);
-    return stored ? (JSON.parse(stored) as HistoryItem[]) : [];
+    if (!stored) return [];
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    const items = parsed.filter(isHistoryItem);
+    return items as HistoryItem[];
   } catch {
     return [];
   }

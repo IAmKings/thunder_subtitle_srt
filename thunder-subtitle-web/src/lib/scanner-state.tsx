@@ -51,7 +51,10 @@ export function ScannerStateProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return new Set();
     try {
       const raw = localStorage.getItem("thunder-subtitle-disabled-paths");
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+      if (!raw) return new Set();
+      const parsed: unknown = JSON.parse(raw);
+      const arr = Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : [];
+      return new Set(arr);
     } catch { return new Set(); }
   });
 
