@@ -113,6 +113,7 @@ async def login(body: LoginRequest, request: Request):
     )
 
 
+# deprecated: 前端使用 POST /verify，此 GET 端点为冗余，后续版本移除
 @router.get("/verify", response_model=VerifyResponse)
 async def verify_token_get(username: str = Depends(get_current_user)):
     """Verify a JWT token from Authorization header. GET method for easy checking."""

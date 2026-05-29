@@ -243,6 +243,7 @@ export default function SearchPage() {
                           key={mode}
                           type="button"
                           onClick={() => setSortMode(mode)}
+                          aria-pressed={sortMode === mode}
                           className={`rounded-md px-2 py-1 text-[11px] font-bold transition-all md:px-3 md:text-xs ${
                             sortMode === mode
                               ? "bg-primary text-on-primary"

@@ -52,6 +52,15 @@ async def get_media_image(
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="图片不存在")
 
+    # Reject files over 50MB to prevent denial-of-service via large image processing
+    max_image_size = 50 * 1024 * 1024  # 50 MB
+    try:
+        file_size = os.path.getsize(path)
+    except OSError:
+        raise HTTPException(status_code=500, detail="无法读取文件大小")
+    if file_size > max_image_size:
+        raise HTTPException(status_code=413, detail="图片文件过大（超过 50MB）")
+
     try:
         img = Image.open(path)
         img = img.convert("RGB")

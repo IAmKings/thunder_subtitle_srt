@@ -23,7 +23,11 @@ def cmd_config(args) -> None:
             return
         current = getattr(config, key)
         if isinstance(current, int):
-            setattr(config, key, int(value))
+            try:
+                setattr(config, key, int(value))
+            except ValueError:
+                print(f"{RED}\n  ✗ Invalid integer value: {value}{RESET}\n")
+                return
         else:
             setattr(config, key, value)
         config.save()

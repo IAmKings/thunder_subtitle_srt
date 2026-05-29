@@ -72,6 +72,11 @@
   }
 
   /* Custom scrollbar */
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-outline-variant) var(--color-surface-container-low);
+  }
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

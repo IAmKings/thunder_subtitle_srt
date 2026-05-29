@@ -60,12 +60,12 @@ function dryStateLabel(dryState: string, t: (key: string) => string): string {
 
 // ---- Module-level constants ----
 
-const statusOrder: Record<string, number> = {
+const statusOrder: Readonly<Record<string, number>> = {
   error: 0,
   no_match: 1,
   skipped: 2,
   downloaded: 3,
-};
+} as const;
 
 function ScannerPage() {
   const t = useTranslations();

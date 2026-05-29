@@ -34,6 +34,7 @@ export function TopBar() {
           <button
             type="button"
             title="即将推出"
+            aria-label="通知"
             className="text-on-surface-variant transition-all duration-200 hover:text-primary"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
@@ -42,6 +43,7 @@ export function TopBar() {
           <button
             type="button"
             title="即将推出"
+            aria-label="网络状态"
             className="text-on-surface-variant transition-all duration-200 hover:text-primary"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >

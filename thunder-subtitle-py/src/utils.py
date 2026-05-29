@@ -180,7 +180,8 @@ def load_gcid_file(filepath: str) -> set[str]:
 def clear_file(filepath: str) -> bool:
     """清空文件内容（用于重置 .dumped 等），返回是否成功"""
     try:
-        open(filepath, "w").close()
+        with open(filepath, "w"):
+            pass
         return True
     except OSError:
         logger.warning("无法清空文件: %s", filepath)
