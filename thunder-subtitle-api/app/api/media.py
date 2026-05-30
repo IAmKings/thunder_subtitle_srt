@@ -46,23 +46,34 @@ async def get_nfo_info(
 async def get_media_image(
     path: str = Query(..., description="Full path to image file"),
     width: int = Query(128, description="Max width in pixels (auto-height)"),
-    _user: str = Depends(get_current_user),
 ):
-    """Serve a resized thumbnail of a media image."""
-    if not os.path.isfile(path):
+    """Serve a resized thumbnail of a media image. No auth required (img tag can't send headers)."""
+    # 路径校验：仅允许访问配置的媒体目录内的文件
+    real_path = os.path.realpath(path)
+    allowed = False
+    from app.config import settings as app_settings
+    for media_root in app_settings.media_paths_list:
+        media_real = os.path.realpath(media_root)
+        if real_path.startswith(media_real + os.sep) or real_path == media_real:
+            allowed = True
+            break
+    if not allowed:
+        raise HTTPException(status_code=403, detail="无权访问此路径")
+
+    if not os.path.isfile(real_path):
         raise HTTPException(status_code=404, detail="图片不存在")
 
     # Reject files over 50MB to prevent denial-of-service via large image processing
     max_image_size = 50 * 1024 * 1024  # 50 MB
     try:
-        file_size = os.path.getsize(path)
+        file_size = os.path.getsize(real_path)
     except OSError:
         raise HTTPException(status_code=500, detail="无法读取文件大小")
     if file_size > max_image_size:
         raise HTTPException(status_code=413, detail="图片文件过大（超过 50MB）")
 
     try:
-        img = Image.open(path)
+        img = Image.open(real_path)
         img = img.convert("RGB")
         w_percent = width / float(img.size[0])
         h_size = int(float(img.size[1]) * w_percent)
