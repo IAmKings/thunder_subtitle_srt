@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "FastAPI 模式：service 层 NFO 数据传递、Pydantic schema 扩展约定"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "代码质量规则：类型安全、ruff/tsc 零错误"}
