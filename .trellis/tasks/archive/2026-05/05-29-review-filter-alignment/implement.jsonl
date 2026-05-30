@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/components.md", "reason": "UI 组件模式：筛选栏动态切换需要了解现有组件约定和 TailwindCSS 样式规范"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "scanner-state 管理：scanMode 状态流转和筛选状态管理"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "代码质量强制规则：无 any、无 console.log、类型一致性"}
