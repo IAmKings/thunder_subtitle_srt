@@ -4,7 +4,7 @@ from typing import Callable
 
 from src.scanner._dir import scan_movie_dirs
 
-from .base import CheckResult  # noqa: F401 - re-export
+from .base import BaseChecker, CheckResult  # noqa: F401 - re-export
 from .checkers.cleanup import CleanupRemindersChecker
 from .checkers.image_assets import ImageAssetsChecker
 from .checkers.nfo import NFOExistsChecker
