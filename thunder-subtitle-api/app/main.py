@@ -75,7 +75,6 @@ def _verify_cli_imports() -> None:
     for module_name, fallback in [
         ("src.config", "thunder_subtitle.config"),
         ("src.reviewer", "thunder_subtitle.reviewer"),
-        ("src.health", "thunder_subtitle.health"),
     ]:
         try:
             __import__(module_name)
