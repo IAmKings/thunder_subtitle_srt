@@ -165,7 +165,12 @@ function VerificationPage() {
         }
       }
       setMovies(allMovies);
-      setItems([]); // 电影列表不预加载深审数据
+      if (selectedMovie) {
+        // 切 tab 回来后 selectedMovie 非空，保留 items 由 rehydration effect 刷新
+        // 不清空 items，避免与 rehydration 竞态导致短暂空白
+      } else {
+        setItems([]); // 电影列表不预加载深审数据
+      }
       setError(null); // 成功时清除残留错误
     } catch (err) {
       setError(err instanceof Error ? err.message : t("review_list_error"));
