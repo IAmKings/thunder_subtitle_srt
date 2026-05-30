@@ -84,14 +84,16 @@ export function VerificationSubtitleList({
                         {item.ai_flags.length}
                       </span>
                     )}
-                    {/* 评分 badge — 可点击展开扣分明细 */}
-                    <button
-                      type="button"
+                    {/* 评分 badge — 可点击展开扣分明细（div非button避免嵌套） */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); toggleDeductions(item); } }}
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleDeductions(item);
                       }}
-                      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-bold transition-colors hover:opacity-80 ${
+                      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-bold transition-colors hover:opacity-80 cursor-pointer ${
                         item.score >= 80 ? "bg-green-500/15 text-green-400"
                         : item.score >= 50 ? "bg-tertiary/15 text-tertiary"
                         : "bg-error/15 text-error"
@@ -101,7 +103,7 @@ export function VerificationSubtitleList({
                       {(hasDeductions || showChecks) && (
                         isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />
                       )}
-                    </button>
+                    </div>
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${getReviewStatusColor(item.review_status)}`}>
                     {item.review_status}
