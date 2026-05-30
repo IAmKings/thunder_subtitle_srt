@@ -23,7 +23,8 @@ export JWT_SECRET=thunder-subtitle-secret-change-in-production
 export MEDIA_PATHS=/media
 
 # 启动（开发模式，自动重载）
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# 开发环境需设置 DEBUG=true 跳过安全凭证检查
+DEBUG=true uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 后端启动后访问：

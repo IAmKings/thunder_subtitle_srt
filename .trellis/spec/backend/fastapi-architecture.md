@@ -536,15 +536,17 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 | `JWT_EXPIRE_MINUTES` | `1440` | Token expiry (24h) |
 | `MEDIA_PATHS` | `/media` | Comma-separated media directories |
 | `CORS_ORIGINS` | `["http://localhost:3000", ...]` | JSON array of allowed origins |
+| `DEBUG` | `false` | 设置 `true` 跳过生产环境安全凭证检查（仅开发） |
 
 ### Running
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# 生产环境（需设置 ADMIN_PASSWORD + JWT_SECRET 环境变量）
+ADMIN_PASSWORD=xxx JWT_SECRET=xxx uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 For development with auto-reload:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+DEBUG=true uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```

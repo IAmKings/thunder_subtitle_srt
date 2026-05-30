@@ -12,7 +12,8 @@ pip install -r requirements.txt
 export ADMIN_PASSWORD=changeme
 export MEDIA_PATHS=/media
 
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# 开发环境需设置 DEBUG=true 跳过安全凭证检查
+DEBUG=true uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 访问 http://localhost:8000/docs 查看 Swagger API 文档。
