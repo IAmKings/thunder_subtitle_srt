@@ -92,11 +92,16 @@ def cmd_dump(args) -> None:
 
         # 加载已拒绝 gcid（.rejected + 上次 .dumped，避免未审核时重复下载）
         rejected = load_gcid_file(os.path.join(output_dir, ".rejected"))
-        rejected |= load_gcid_file(os.path.join(output_dir, ".dumped"))
+        old_dumped = load_gcid_file(os.path.join(output_dir, ".dumped"))
+        rejected |= old_dumped
 
         os.makedirs(output_dir, exist_ok=True)
         dumped_path = os.path.join(output_dir, ".dumped")
         clear_file(dumped_path)  # 清空旧 .dumped
+        # 把旧的 gcids 写回 .dumped，保持完整历史记录
+        for gcid in sorted(old_dumped):
+            with open(dumped_path, "a", encoding="utf-8") as _f:
+                _f.write(gcid + "\n")
         r = dump_subtitles(subtitles, output_dir, rejected, dumped_path=dumped_path)
 
         total = len(subtitles)
