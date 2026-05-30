@@ -94,7 +94,7 @@ def _verify_cli_imports() -> None:
 app = FastAPI(
     title="Thunder Subtitle API",
     description="REST API for Thunder Subtitle - subtitle search, scan, and review management",
-    version="0.1.0",
+    version="1.3.0",
     lifespan=lifespan,
 )
 
