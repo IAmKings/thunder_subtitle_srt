@@ -48,15 +48,21 @@ async def get_media_image(
     width: int = Query(128, description="Max width in pixels (auto-height)"),
 ):
     """Serve a resized thumbnail of a media image. No auth required (img tag can't send headers)."""
-    # 路径校验：仅允许访问配置的媒体目录内的文件
+    # 路径校验：仅允许访问 CLI 配置的媒体目录内的文件
     real_path = os.path.realpath(path)
     allowed = False
-    from app.config import settings as app_settings
-    for media_root in app_settings.media_paths_list:
-        media_real = os.path.realpath(media_root)
-        if real_path.startswith(media_real + os.sep) or real_path == media_real:
-            allowed = True
-            break
+    try:
+        from app.services.config_service import ConfigService
+        config_svc = ConfigService()
+        config = config_svc.get_config()
+        for media_root in (p.strip() for p in (config.media_paths or "").split(",") if p.strip()):
+            media_real = os.path.realpath(media_root)
+            in_dir = real_path.startswith(media_real + os.sep) or real_path == media_real
+            if os.path.isdir(media_real) and in_dir:
+                allowed = True
+                break
+    except Exception:
+        pass  # ConfigService 不可用时拒绝所有路径
     if not allowed:
         raise HTTPException(status_code=403, detail="无权访问此路径")
 
