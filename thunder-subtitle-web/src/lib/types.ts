@@ -90,6 +90,8 @@ export interface ReviewItem {
   preferred: boolean;
   ai_flags: string[];
   last_end_ms: number;
+  deductions: string[];
+  checks: string[];
 }
 
 // ---- Review MovieEntry (lightweight for movie list) ----

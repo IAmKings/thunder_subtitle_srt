@@ -70,6 +70,10 @@ class ReviewService:
                     encoding=item.encoding,
                     review_status=review_status,
                     review_date=item.reviewed_date or "",
+                    ai_flags=getattr(item, "ai_flags", []),
+                    last_end_ms=getattr(item, "last_end_ms", 0),
+                    deductions=getattr(item, "deductions", []),
+                    checks=getattr(item, "checks", []),
                 )
             )
 
@@ -156,6 +160,8 @@ class ReviewService:
             preferred=preferred,
             ai_flags=getattr(item, "ai_flags", []),
             last_end_ms=getattr(item, "last_end_ms", 0),
+            deductions=getattr(item, "deductions", []),
+            checks=getattr(item, "checks", []),
         )
 
     def mark_review(

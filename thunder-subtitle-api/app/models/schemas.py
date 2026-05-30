@@ -158,6 +158,8 @@ class ReviewItemResponse(BaseModel):
     preferred: bool = False
     ai_flags: list[str] = Field(default_factory=list)
     last_end_ms: int = 0
+    deductions: list[str] = Field(default_factory=list)
+    checks: list[str] = Field(default_factory=list)
 
 
 class MovieEntryResponse(BaseModel):
