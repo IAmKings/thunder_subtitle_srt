@@ -208,13 +208,12 @@ class ScanService:
             def callback(step: str, detail: str) -> None:
                 msg = TaskProgressUpdate(
                     task_id=task.id,
-                    progress=0.0,
                     message=f"{movie_name}: {step}" + (f" ({detail})" if detail else ""),
                     status=TaskStatus.RUNNING,
                     current_movie=movie_name,
                     current_step=step,
                     download_progress=detail if step == "downloading" else None,
-                ).model_dump()
+                ).model_dump(exclude={"progress", "total", "result"})
                 asyncio.run_coroutine_threadsafe(progress_queue.put(msg), loop)
 
             return callback

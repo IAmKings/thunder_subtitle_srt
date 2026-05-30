@@ -123,6 +123,7 @@ function ScannerPage() {
     : [null, "downloaded", "skipped", "no_match", "error"];
   const [detailItem, setDetailItem] = useState<ScanResultItem | null>(null);
   const [scanTotal, setScanTotal] = useState(0);
+  const [downloadStatus, setDownloadStatus] = useState("");  // "正在下载字幕 3/18"
 
   // Load media directories + config
   useEffect(() => {
@@ -226,12 +227,21 @@ function ScannerPage() {
           status?: string;
           result?: ScanResultItem;
           total?: number;
+          current_movie?: string;
+          current_step?: string;
+          download_progress?: string;
         };
         if (update.total !== undefined && update.total > 0) {
           setScanTotal(update.total);
         }
         if (update.progress !== undefined) {
           setProgress(update.progress);
+        }
+        // 下载进度：更新文本提示，不碰进度条
+        if (update.current_step === "downloading" && update.download_progress) {
+          setDownloadStatus(`${update.current_movie || ""} ${update.download_progress}`);
+        } else if (update.current_step && update.current_step !== "downloading") {
+          setDownloadStatus("");
         }
         // Append per-movie result for progressive display
         const r = update.result;
@@ -245,6 +255,7 @@ function ScannerPage() {
           });
         }
         if (update.status === "completed" || update.status === "failed" || update.status === "cancelled") {
+          setDownloadStatus("");  // 清除下载进度提示
           // Final state — do a final poll to get all results
           fastApiClient.getTask(taskId).then((task) => {
             setActiveTask(task);
@@ -325,6 +336,8 @@ function ScannerPage() {
       const task = await fastApiClient.createTask("scan", params);
       setActiveTask(task);
       setProgress(0);
+      setScanTotal(0);
+      setDownloadStatus("");
     } catch (err) {
       // Check if a running/pending task already exists (e.g. from before refresh)
       try {
@@ -762,6 +775,11 @@ function ScannerPage() {
                 style={{ width: `${progress}%` }}
               />
             </div>
+            {downloadStatus && (
+              <p className="mt-1 text-xs text-on-surface-variant animate-pulse">
+                {downloadStatus}
+              </p>
+            )}
           </div>
         )}
 
