@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "WebSocket 进度推送模式、ConnectionManager、service 层调用 CLI 模块的约定"}
+{"file": ".trellis/spec/frontend/api-integration.md", "reason": "ProgressWebSocket 客户端实现规范、FastApiClient 模式"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "代码质量强制规则：禁止 any/console.log，类型同步要求"}

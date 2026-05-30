@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "验证 WebSocket 改动符合现有 ConnectionManager 模式"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "验证进度回调中的错误处理符合规范"}
+{"file": ".trellis/spec/frontend/api-integration.md", "reason": "验证 ProgressWebSocket 改动符合现有客户端模式"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "验证代码质量：无 any、无 console.log、类型一致性"}
