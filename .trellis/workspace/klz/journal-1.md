@@ -1108,3 +1108,55 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 33: v1.3 发布前全面检修 — 审查页bug修复+扫描进度条+筛选对齐+安全加固+质量检测体系
+
+**Date**: 2026-05-30
+**Task**: v1.3 发布前全面检修 — 审查页bug修复+扫描进度条+筛选对齐+安全加固+质量检测体系
+**Branch**: `master`
+
+### Summary
+
+审查页删除未选中bug修复、扫描进度条WebSocket保活+颗粒度进度回调、筛选栏scanMode动态切换、v1.3发布前全栈审查91项发现修复38项(P0致命10+高17+中11)、字幕质量三检测体系(AI嫌疑+结构质量+片长匹配)+扣分明细展示、健康检查循环导入修复+结果分组、图片端点认证修复、暴力刷新gcid去重修复、Python3.9兼容、死代码清理等
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2c07e4d` | (see git log) |
+| `eaabcc9` | (see git log) |
+| `8a803a7` | (see git log) |
+| `3f47c1b` | (see git log) |
+| `e0c5b28` | (see git log) |
+| `49a38c2` | (see git log) |
+| `0b46c39` | (see git log) |
+| `f2909a0` | (see git log) |
+| `5dbc88a` | (see git log) |
+| `ea96f55` | (see git log) |
+| `aa478ba` | (see git log) |
+| `3c96127` | (see git log) |
+| `2548342` | (see git log) |
+| `57406a8` | (see git log) |
+| `afbb685` | (see git log) |
+| `4cb5ff3` | (see git log) |
+| `23e36d0` | (see git log) |
+| `da97ce9` | (see git log) |
+| `756fb13` | (see git log) |
+| `5909e45` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

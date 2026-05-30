@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useReducer, startTransition } from "react";
+import { useState, useEffect, useCallback, useMemo, useReducer, useRef, startTransition } from "react";
 import {
   CheckSquare as VerificationIcon,
   CheckCircle2,
@@ -109,6 +109,7 @@ function VerificationPage() {
   const { items, isLoading, error, selectedMovie, pinnedItems: pinnedKeys } = useVerificationState();
   const { setItems, setIsLoading, setError, setSelectedMovie, setPinnedItems, isPinned, togglePin } = useVerificationActions();
   const [movies, setMovies] = useState<MovieEntry[]>([]);
+  const rehydratingRef = useRef(false);  // 防止 rehydration effect 与 handleSelectMovie 并发
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [baseDir, setBaseDir] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -193,13 +194,15 @@ function VerificationPage() {
   }, []);
 
   // 切 tab 回来后自动恢复选中电影的字幕数据
+  // 用 ref 防并发，避免 isLoading 放入依赖数组导致 effect 自毁
   useEffect(() => {
-    if (!selectedMovie || movies.length === 0 || items.length > 0 || isLoading) return;
+    if (!selectedMovie || movies.length === 0 || items.length > 0 || rehydratingRef.current) return;
     const movie = movies.find((m) => m.path === selectedMovie);
     if (!movie || movie.sub_files.length === 0) {
       setSelectedMovie(null);
       return;
     }
+    rehydratingRef.current = true;
     setIsLoading(true);
     let cancelled = false;
     Promise.all(
@@ -214,10 +217,13 @@ function VerificationPage() {
       if (cancelled) return;
       console.warn("Failed to reload subtitle details:", err);
     }).finally(() => {
-      if (!cancelled) setIsLoading(false);
+      if (!cancelled) {
+        rehydratingRef.current = false;
+        setIsLoading(false);
+      }
     });
     return () => { cancelled = true; };
-  }, [selectedMovie, movies, items.length, isLoading, baseDir, setSelectedMovie, setItems, setIsLoading]);
+  }, [selectedMovie, movies, items.length, baseDir, setSelectedMovie, setItems, setIsLoading]);
 
   // ---- Individual mark ----
   const handleMark = useCallback(
