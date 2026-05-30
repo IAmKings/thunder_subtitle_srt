@@ -310,6 +310,8 @@ def _dump_all_subtitles(
 
     rejected = _load_gcids(movie_path, ".rejected")
     dumped_path = os.path.join(movie_path, ".dumped")
+    # 合并上次 .dumped 中的 gcids，避免未审核时暴力刷新重复下载已下载的字幕
+    rejected |= _load_gcids(movie_path, ".dumped")
     preferred_path = os.path.join(movie_path, ".preferred")
     clear_file(dumped_path)  # 清空旧的 .dumped（避免上次残留）
     clear_file(preferred_path)  # 清空旧的 .preferred（避免编号复用误判）

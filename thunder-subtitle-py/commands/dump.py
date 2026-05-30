@@ -5,10 +5,9 @@ import os
 import xml.etree.ElementTree as ET
 
 from src.api import SubtitleApiClient
-from src.config import Config
 from src.exceptions import CLIExit, ThunderSubtitleError
-from src.ui import BOLD, DIM, GREEN, RED, RESET, display_error
-from src.download import dump_subtitles, get_default_download_dir
+from src.ui import BOLD, DIM, GREEN, RESET, display_error
+from src.download import dump_subtitles
 from src.utils import (
     parse_duration,
     parse_nfo,
@@ -91,8 +90,9 @@ def cmd_dump(args) -> None:
 
         print(f"{GREEN}  Found {len(subtitles)} subtitle(s){RESET}\n")
 
-        # 加载已拒绝 gcid
+        # 加载已拒绝 gcid（.rejected + 上次 .dumped，避免未审核时重复下载）
         rejected = load_gcid_file(os.path.join(output_dir, ".rejected"))
+        rejected |= load_gcid_file(os.path.join(output_dir, ".dumped"))
 
         os.makedirs(output_dir, exist_ok=True)
         dumped_path = os.path.join(output_dir, ".dumped")
