@@ -774,10 +774,43 @@ function ScannerPage() {
       </section>
 
       {/* Health Check Results */}
-      {healthResults.length > 0 && healthExpanded && (
+      {healthResults.length > 0 && healthExpanded && (() => {
+        // 按电影分组 + 统计
+        const grouped = new Map<string, typeof healthResults>();
+        for (const r of healthResults) {
+          const key = r.path || r.movie_name;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key)!.push(r);
+        }
+        const problemMovies = [...grouped.values()].filter(g => g.some(r => r.level !== "ok")).length;
+        const errorCount = healthResults.filter(r => r.level === "error").length;
+        const warningCount = healthResults.filter(r => r.level === "warning").length;
+        const levelColors: Record<string, string> = {
+          error: "border-l-error bg-error/5",
+          warning: "border-l-tertiary bg-tertiary/5",
+          info: "border-l-primary bg-primary/5",
+        };
+        const levelIcons: Record<string, string> = {
+          error: "text-error",
+          warning: "text-tertiary",
+          info: "text-primary",
+        };
+        const levelLabels: Record<string, string> = {
+          error: t("health_check_error"),
+          warning: t("health_check_warning"),
+          info: t("health_check_info"),
+        };
+        return (
         <section className="ghost-border overflow-hidden rounded-xl bg-surface-container">
           <div className="flex items-center justify-between bg-surface-container-high px-6 py-4">
-            <h4 className="text-lg font-bold">{t("health_check_results")} ({healthResults.length})</h4>
+            <div className="flex items-center gap-3">
+              <h4 className="text-lg font-bold">{t("health_check_results")}</h4>
+              <span className="text-xs text-on-surface-variant">
+                {problemMovies} {t("movies_with_issues")}
+                {errorCount > 0 && <span className="ml-2 text-error">{errorCount} {t("health_check_error")}</span>}
+                {warningCount > 0 && <span className="ml-2 text-tertiary">{warningCount} {t("health_check_warning")}</span>}
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setHealthExpanded(false)}
@@ -789,58 +822,61 @@ function ScannerPage() {
             </button>
           </div>
           <div className="divide-y divide-outline-variant/20">
-            {healthResults.map((item, idx) => {
-              const levelColors: Record<string, string> = {
-                error: "border-l-error bg-error/5",
-                warning: "border-l-tertiary bg-tertiary/5",
-                info: "border-l-primary bg-primary/5",
-              };
-              const levelIcons: Record<string, string> = {
-                error: "text-error",
-                warning: "text-tertiary",
-                info: "text-primary",
-              };
-              const levelLabels: Record<string, string> = {
-                error: t("health_check_error"),
-                warning: t("health_check_warning"),
-                info: t("health_check_info"),
-              };
-              const borderColor = levelColors[item.level] ?? "border-l-on-surface-variant bg-surface-container-low";
-              const iconColor = levelIcons[item.level] ?? "text-on-surface-variant";
-              const levelLabel = levelLabels[item.level] ?? item.level;
+            {[...grouped.entries()].map(([movieKey, items]) => {
+              const maxLevel = items.some(r => r.level === "error") ? "error"
+                : items.some(r => r.level === "warning") ? "warning" : "info";
+              const borderColor = levelColors[maxLevel] ?? "border-l-on-surface-variant bg-surface-container-low";
+              const iconColor = levelIcons[maxLevel] ?? "text-on-surface-variant";
+              const movieName = items[0].movie_name || movieKey.split("/").pop() || movieKey;
               return (
                 <div
-                  key={`health-${idx}`}
-                  className={`flex items-start gap-3 border-l-4 px-6 py-4 ${borderColor}`}
+                  key={`health-movie-${movieKey}`}
+                  className={`border-l-4 ${borderColor}`}
                 >
-                  <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
-                    <AlertTriangle size={16} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{item.movie_name}</span>
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${iconColor.replace("text-", "bg-/15 text-").replace("bg-/15", "bg-surface-container-high")}`}
-                        style={{ backgroundColor: item.level === "error" ? "rgba(255,82,82,0.15)" : item.level === "warning" ? "rgba(255,184,105,0.15)" : "rgba(123,207,255,0.15)" }}
-                      >
-                        {levelLabel}
-                      </span>
+                  <div className="flex items-center gap-2 px-6 py-3">
+                    <div className={`flex-shrink-0 ${iconColor}`}>
+                      <AlertTriangle size={14} />
                     </div>
-                    <p className="mt-1 text-xs text-on-surface-variant">{item.message}</p>
+                    <span className="truncate text-sm font-medium">{movieName}</span>
+                    <span className="text-xs text-on-surface-variant">{items.length} {t("issues")}</span>
                   </div>
+                  {items.map((item, i) => (
+                    <div key={`health-${movieKey}-${i}`} className="flex items-start gap-3 border-t border-outline-variant/10 px-10 py-2">
+                      <span className={`mt-0.5 inline-block rounded-full px-1.5 py-0 text-[9px] font-bold`}
+                        style={{
+                          backgroundColor: item.level === "error" ? "rgba(255,82,82,0.15)" : item.level === "warning" ? "rgba(255,184,105,0.15)" : "rgba(123,207,255,0.15)",
+                          color: item.level === "error" ? "rgb(255,82,82)" : item.level === "warning" ? "rgb(255,184,105)" : "rgb(123,207,255)",
+                        }}
+                      >
+                        {levelLabels[item.level] ?? item.level}
+                      </span>
+                      <p className="text-xs text-on-surface-variant">{item.message}</p>
+                    </div>
+                  ))}
                 </div>
               );
             })}
           </div>
         </section>
-      )}
+        );
+      })()}
 
       {/* Collapsed health check notice */}
-      {healthResults.length > 0 && !healthExpanded && (
+      {healthResults.length > 0 && !healthExpanded && (() => {
+        const problemMovies = new Set(
+          healthResults.filter(r => r.level !== "ok").map(r => r.path || r.movie_name)
+        ).size;
+        const errorCount = healthResults.filter(r => r.level === "error").length;
+        const warningCount = healthResults.filter(r => r.level === "warning").length;
+        return (
         <section className="ghost-border rounded-xl bg-surface-container p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-on-surface-variant">
-              {t("health_check_results")}: {healthResults.length} items
-            </span>
+            <div className="flex items-center gap-3 text-sm text-on-surface-variant">
+              <span>{t("health_check_results")}</span>
+              <span className="font-medium">{problemMovies} {t("movies_with_issues")}</span>
+              {errorCount > 0 && <span className="text-error">{errorCount} {t("health_check_error")}</span>}
+              {warningCount > 0 && <span className="text-tertiary">{warningCount} {t("health_check_warning")}</span>}
+            </div>
             <button
               type="button"
               onClick={() => setHealthExpanded(true)}
@@ -851,7 +887,8 @@ function ScannerPage() {
             </button>
           </div>
         </section>
-      )}
+        );
+      })()}
 
       {/* Health check error */}
       {healthError && (

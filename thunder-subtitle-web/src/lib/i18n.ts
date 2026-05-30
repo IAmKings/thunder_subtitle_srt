@@ -240,6 +240,8 @@ const translations: Record<Language, Record<string, string>> = {
     health_check_no_issues: "No issues found",
     health_check_failed: "Health check failed",
     health_check_collapse: "Collapse",
+    movies_with_issues: "movies with issues",
+    issues: "issues",
     health_check_expand: "Expand",
   },
   zh: {
@@ -474,6 +476,8 @@ const translations: Record<Language, Record<string, string>> = {
     health_check_failed: "\u5065\u5eb7\u68c0\u67e5\u5931\u8d25",
     health_check_collapse: "\u6298\u53e0",
     health_check_expand: "\u5c55\u5f00",
+    movies_with_issues: "\u90e8\u7535\u5f71\u6709\u95ee\u9898",
+    issues: "\u9879\u95ee\u9898",
   },
 };
 
