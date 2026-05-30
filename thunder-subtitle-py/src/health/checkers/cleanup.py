@@ -2,7 +2,7 @@
 
 import os
 
-from .. import CheckResult
+from ..base import CheckResult
 
 
 class CleanupRemindersChecker:

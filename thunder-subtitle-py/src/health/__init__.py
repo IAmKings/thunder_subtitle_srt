@@ -1,26 +1,16 @@
 """媒体库目录结构健康检查 — 纯检测模式，不修改任何文件。"""
 
-from dataclasses import dataclass
 from typing import Callable
 
 from src.scanner._dir import scan_movie_dirs
 
+from .base import CheckResult  # noqa: F401 - re-export
 from .checkers.cleanup import CleanupRemindersChecker
 from .checkers.image_assets import ImageAssetsChecker
 from .checkers.nfo import NFOExistsChecker
 
-# Re-export CheckResult for external use
-__all__ = ["CheckResult", "run_health_check"]
-
-
-@dataclass
-class CheckResult:
-    """单个健康检查结果"""
-
-    level: str = "ok"  # "ok" | "warning" | "info" | "error"
-    path: str = ""  # 电影目录路径
-    movie_name: str = ""  # 电影名称
-    message: str = ""  # 中文提示
+# Re-export CheckResult + BaseChecker for external use
+__all__ = ["CheckResult", "BaseChecker", "run_health_check"]
 
 
 CheckerFunc = Callable[[str], list[CheckResult]]
