@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Thunder Subtitle API",
-    version="0.1.0",
+    version="1.4.0",
     lifespan=lifespan,
 )
 ```
