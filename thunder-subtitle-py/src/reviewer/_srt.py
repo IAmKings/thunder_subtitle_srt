@@ -82,10 +82,10 @@ def _find_last_content_end(entries: list[dict], nfo_duration_ms: int) -> int:
         if any(kw in content for kw in _CREDIT_KEYWORDS):
             continue
 
-        return end_ms
+        return int(end_ms)
 
     # 未找到有效条目，返回最后一条的 end_ms 作为兜底
-    return entries[-1]["end_ms"] if entries else 0
+    return int(entries[-1]["end_ms"]) if entries else 0
 
 
 def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
