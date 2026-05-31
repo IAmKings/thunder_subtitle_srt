@@ -18,6 +18,7 @@ const AI_FLAG_LABELS: Record<string, string> = {
   repeated_long_lines: "重复",
   uniform_timing: "均匀",
   possibly_truncated: "截断",
+  large_gaps: "缺失",
 };
 
 export function VerificationSubtitleList({

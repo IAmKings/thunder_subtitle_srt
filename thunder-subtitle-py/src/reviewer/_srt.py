@@ -13,6 +13,8 @@ MIN_SUB_DURATION_MS = 500  # 单条字幕最短推荐时长
 MAX_LINE_LENGTH = 60  # 单行最大推荐字符数
 MAX_SUB_DURATION_MS = 7000  # 单条字幕最长推荐时长（ms）
 MAX_READ_SPEED = 10  # 最大阅读速度（字/秒）
+MAX_GAP_MS = 30000  # 相邻字幕最大推荐间隔（30 秒），超过可能缺失
+CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]")  # CJK 统一表意文字
 
 # 片尾名单关键词 — 用于 _find_last_content_end 跳过
 _CREDIT_KEYWORDS = [
@@ -94,9 +96,11 @@ def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
     missing = 0
     overlaps = 0
     too_short = 0
+    inverted_ts = 0  # 时间戳倒置（end < start）
     too_long_lines = 0
     fast_read = 0
     single_long = 0
+    large_gaps = 0
 
     prev_idx = 0
     prev_end = 0
@@ -111,13 +115,25 @@ def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
         if not e["content"] or len(e["content"]) < 2:
             missing += 1
 
-        # 时间重叠
+        dur = e["end_ms"] - e["start_ms"]
+
+        # 时间戳倒置（结构性错误）
+        if dur < 0:
+            inverted_ts += 1
+            prev_end = max(prev_end, e["end_ms"])  # 仍追踪正确结束时间
+            continue  # 跳过该条目的其他检测
+
+        # 时间重叠：重叠时不更新 prev_end，保留正确的结束时间
         if prev_end > 0 and e["start_ms"] < prev_end:
             overlaps += 1
-        prev_end = e["end_ms"]
+            prev_end = max(prev_end, e["end_ms"])  # 取最大值，不丢失信息
+        else:
+            # 大段空白检测（非重叠时才检测）
+            if prev_end > 0 and e["start_ms"] - prev_end > MAX_GAP_MS:
+                large_gaps += 1
+            prev_end = e["end_ms"]
 
         # 时长过短
-        dur = e["end_ms"] - e["start_ms"]
         if dur < MIN_SUB_DURATION_MS:
             too_short += 1
 
@@ -126,10 +142,15 @@ def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
             if len(line_text) > MAX_LINE_LENGTH:
                 too_long_lines += 1
 
-        # 阅读速度（字/秒）
+        # 阅读速度（CJK 字/秒，双语字幕更准确）
         if dur > 0:
-            chars = len(e["content"].replace("\n", ""))
-            speed = chars / (dur / 1000.0)
+            cjk_chars = len(CJK_RE.findall(e["content"]))
+            if cjk_chars > 0:
+                speed = cjk_chars / (dur / 1000.0)
+            else:
+                # 无 CJK 时退回到全字符统计
+                chars = len(e["content"].replace("\n", ""))
+                speed = chars / (dur / 1000.0) if chars > 0 else 0
             if speed > MAX_READ_SPEED:
                 fast_read += 1
 
@@ -146,6 +167,11 @@ def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
         penalty = min(missing * 2, 10)
         item.score -= penalty
         item.deductions.append(f"空内容条目({missing}处) -{penalty}")
+
+    if inverted_ts > 0:
+        penalty = min(inverted_ts * 5, 15)
+        item.score -= penalty
+        item.deductions.append(f"时间戳倒置({inverted_ts}处) -{penalty}")
 
     if overlaps > 0:
         penalty = min(overlaps * 5, 15)
@@ -183,6 +209,10 @@ def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
     # ---- AI 嫌疑检测（不参与 score） ----
     ai_flags: list[str] = []
 
+    # 大段空白（> 30 秒，> 3 处），可能字幕不完整
+    if large_gaps > 3:
+        ai_flags.append("large_gaps")
+
     # 长句重复：同句 ≥ 15 字出现 ≥ 3 次
     text_counts: dict[str, int] = {}
     for e in entries:
@@ -193,7 +223,7 @@ def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
         ai_flags.append("repeated_long_lines")
 
     # 时间轴均匀度：帧间隔标准差 < 2500ms
-    if len(entries) >= 30:
+    if len(entries) >= 10:
         intervals: list[float] = []
         prev_start = 0
         for e in entries:
