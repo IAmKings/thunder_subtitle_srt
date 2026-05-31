@@ -121,6 +121,13 @@ export function VerificationSubtitleList({
                     </span>
                   )}
                   {item.last_index === 0 && <span className="text-on-surface-variant/40">-/-</span>}
+                  {item.last_end_ms > 0 && (
+                    <span className="tabular-nums">
+                      {String(Math.floor(item.last_end_ms / 3600000)).padStart(2, "0")}:
+                      {String(Math.floor((item.last_end_ms % 3600000) / 60000)).padStart(2, "0")}:
+                      {String(Math.floor((item.last_end_ms % 60000) / 1000)).padStart(2, "0")}
+                    </span>
+                  )}
                 </div>
                 <span className="tabular-nums text-on-surface-variant/60">
                   {item.size_bytes >= 1048576
