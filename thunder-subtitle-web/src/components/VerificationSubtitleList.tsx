@@ -115,6 +115,12 @@ export function VerificationSubtitleList({
                 <div className="flex items-center gap-4">
                   <span>{t("match")}: {Math.round(item.chinese_ratio * 100)}%</span>
                   {item.encoding && <span>{item.encoding}</span>}
+                  {item.last_index > 0 && (
+                    <span className={item.last_index !== item.entry_count ? "text-amber-400" : ""}>
+                      {item.last_index}/{item.entry_count}
+                    </span>
+                  )}
+                  {item.last_index === 0 && <span className="text-on-surface-variant/40">-/-</span>}
                 </div>
                 <span className="tabular-nums text-on-surface-variant/60">
                   {item.size_bytes >= 1048576

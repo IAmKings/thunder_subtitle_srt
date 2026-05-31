@@ -31,7 +31,8 @@ class ReviewItem:
     deductions: list[str] = field(default_factory=list)  # 扣分明细
     size_bytes: int = 0
     line_count: int = 0
-    entry_count: int = 0  # SRT 条目数
+    entry_count: int = 0  # 实际解析的 SRT 条目数
+    last_index: int = 0  # SRT 最后一条序号（用于对比检测丢失/插入）
     encoding: str = ""
     cn_ratio: float = 0.0
     reviewed: bool = False  # 是否已人工审查
@@ -136,6 +137,7 @@ def _review_one_file(
     if is_srt:
         entries = _parse_srt_entries(text)
         item.entry_count = len(entries)
+        item.last_index = entries[-1]["index"] if entries else 0
 
         if not entries:
             item.score -= 30

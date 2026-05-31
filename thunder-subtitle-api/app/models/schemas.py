@@ -160,6 +160,8 @@ class ReviewItemResponse(BaseModel):
     last_end_ms: int = 0
     deductions: list[str] = Field(default_factory=list)
     checks: list[str] = Field(default_factory=list)
+    entry_count: int = 0
+    last_index: int = 0
 
 
 class MovieEntryResponse(BaseModel):

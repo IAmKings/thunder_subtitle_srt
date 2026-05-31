@@ -92,6 +92,8 @@ export interface ReviewItem {
   last_end_ms: number;
   deductions: string[];
   checks: string[];
+  entry_count: number;
+  last_index: number;
 }
 
 // ---- Review MovieEntry (lightweight for movie list) ----

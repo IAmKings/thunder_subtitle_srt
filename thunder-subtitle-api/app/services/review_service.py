@@ -74,6 +74,8 @@ class ReviewService:
                     last_end_ms=getattr(item, "last_end_ms", 0),
                     deductions=getattr(item, "deductions", []),
                     checks=getattr(item, "checks", []),
+                    entry_count=getattr(item, "entry_count", 0),
+                    last_index=getattr(item, "last_index", 0),
                 )
             )
 
@@ -162,6 +164,8 @@ class ReviewService:
             last_end_ms=getattr(item, "last_end_ms", 0),
             deductions=getattr(item, "deductions", []),
             checks=getattr(item, "checks", []),
+            entry_count=getattr(item, "entry_count", 0),
+            last_index=getattr(item, "last_index", 0),
         )
 
     def mark_review(
