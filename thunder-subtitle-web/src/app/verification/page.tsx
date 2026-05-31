@@ -277,6 +277,7 @@ function VerificationPage() {
       }
       setItems((prev) => prev.filter((i) => i.file_path !== selectedMovie));
       setMovies((prev) => prev.filter((m) => m.path !== selectedMovie));
+      setPinnedItems([]);  // 全部删除后清除标记
       setSelectedItem(null);
       setSelectedMovie(null);
       setConfirmDeleteAll(false);
@@ -288,7 +289,7 @@ function VerificationPage() {
     } finally {
       setIsDeletingAll(false);
     }
-  }, [selectedMovie, items, setItems, setMovies, setError, baseDir, t, setSelectedMovie]);
+  }, [selectedMovie, items, setItems, setMovies, setPinnedItems, setError, baseDir, t, setSelectedMovie]);
 
   // ---- Mark all as fail without deleting files ----
   const handleMarkAllFail = useCallback(async () => {
@@ -324,8 +325,16 @@ function VerificationPage() {
       const failedCount = results.filter((r) => r.status === "rejected").length;
       // 仅移除成功删除的项
       if (succeeded.length > 0) {
+        const deletedNames = new Set(succeeded.map((d) => d.file_name));
         setItems((prev) =>
           prev.filter((i) => !succeeded.some((d) => d.file_path === i.file_path && d.file_name === i.file_name))
+        );
+        // 同步 movies.sub_files，避免重进时出现幽灵条目
+        setMovies((prev) =>
+          prev.map((m) => {
+            if (m.path !== selectedMovie) return m;
+            return { ...m, sub_files: m.sub_files.filter((f) => !deletedNames.has(f)) };
+          })
         );
       }
       setSelectedItem(null);
@@ -338,7 +347,7 @@ function VerificationPage() {
     } finally {
       setIsKeepingOnly(false);
     }
-  }, [selectedMovie, pinnedKeys, items, setItems, setError, t]);
+  }, [selectedMovie, pinnedKeys, items, setItems, setMovies, setError, t]);
 
   // ---- Reject: delete file, optionally mark fail, jump to next ----
   const handleReject = useCallback(async () => {
@@ -367,18 +376,29 @@ function VerificationPage() {
         setItems(remaining);
         setSelectedItem(null);
         setSelectedMovie(null);
+        setMovies((prev) => prev.filter((m) => m.path !== selectedMovie));
       } else {
         setItems(remaining);
         setSelectedItem(nextItem);
+        // 同步 movies.sub_files 移除已删除文件
+        setMovies((prev) =>
+          prev.map((m) => {
+            if (m.path !== selectedMovie) return m;
+            return { ...m, sub_files: m.sub_files.filter((f) => f !== deletedFile) };
+          })
+        );
         dispatchFilter({ type: "SET_SUBTITLE_LIST_PAGE", payload: 0 });
       }
+      // 同步 pinnedItems 移除已删除文件的标记
+      const deletedKey = `${selectedMovie}/${deletedFile}`;
+      setPinnedItems((prev) => prev.filter((k) => k !== deletedKey));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("delete_failed"));
     } finally {
       setIsRejecting(false);
       setConfirmReject(false);
     }
-  }, [selectedItem, selectedMovie, baseDir, items, sortBySize, statusFilter, setItems, setError, t, setSelectedMovie, dispatchFilter]);
+  }, [selectedItem, selectedMovie, baseDir, items, sortBySize, statusFilter, setItems, setMovies, setPinnedItems, setError, t, setSelectedMovie, dispatchFilter]);
 
   // ---- Rename subtitle file ----
   const handleRename = useCallback(async () => {
