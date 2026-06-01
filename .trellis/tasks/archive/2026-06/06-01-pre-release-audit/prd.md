@@ -10,7 +10,7 @@
 |------|:---:|
 | `ruff check` (API) | ✅ 通过 |
 | `ruff format` (API) | ✅ 已修复 2 文件 |
-| `ruff check` (CLI) | ⚠️ 13 个 E402 预存错误（非本次改动） |
+| `ruff check` (CLI) | ✅ 通过（13 个 E402 已修复） |
 | `ruff format` (CLI) | ✅ 通过 |
 | `tsc --noEmit` (Web) | ✅ 零错误 |
 
