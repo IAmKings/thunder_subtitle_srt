@@ -54,17 +54,25 @@ export function VerificationSubtitleList({
         const hasDeductions = item.deductions && item.deductions.length > 0;
         const hasAiFlags = item.ai_flags && item.ai_flags.length > 0;
         const showChecks = item.checks && item.checks.length > 0;
+        const isSelected = selectedItem?.file_name === item.file_name && selectedItem?.file_path === item.file_path;
+        // 同名字幕高亮：file_name 以电影名开头（排除 dump 数字命名）
+        const movieName = item.file_path.split("/").pop() || "";
+        const isSameName = movieName.length > 0
+          && (item.file_name.startsWith(movieName + ".") || item.file_name.startsWith(movieName + "-"));
+
+        let borderClass = "border-outline-variant/30 bg-surface-container";
+        if (isSelected) {
+          borderClass = "border-primary bg-primary/5 border-l-4 shadow-sm";
+        } else if (isSameName) {
+          borderClass = "border-l-emerald-400 bg-emerald-400/5";
+        }
 
         return (
           <div key={`${i}-${item.file_path}-${item.file_name}`}>
             <button
               type="button"
               onClick={() => onSelectItem(item)}
-              className={`w-full rounded-lg border p-3 text-left transition-all hover:border-primary/50 md:p-4 ${
-                selectedItem?.file_name === item.file_name && selectedItem?.file_path === item.file_path
-                  ? "border-primary bg-primary/5 border-l-4 shadow-sm"
-                  : "border-outline-variant/30 bg-surface-container"
-              }`}
+              className={`w-full rounded-lg border p-3 text-left transition-all hover:border-primary/50 md:p-4 ${borderClass}`}
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
               <div className="flex items-start justify-between gap-2">
@@ -72,7 +80,12 @@ export function VerificationSubtitleList({
                   <p className="flex items-center gap-1 truncate text-xs md:text-sm font-bold">
                     {isPinned(item) && <Star size={12} className="flex-shrink-0 text-amber-400" fill="currentColor" />}
                     {item.preferred && <Star size={12} className="flex-shrink-0 text-primary" fill="currentColor" />}
-                    <span className="truncate">{item.file_name}</span>
+                    {isSameName && !isSelected && (
+                      <span className="flex-shrink-0 rounded bg-emerald-400/20 px-1 text-[8px] font-bold text-emerald-400">同名</span>
+                    )}
+                    <span className={`truncate ${isSameName && !isSelected ? "text-emerald-300" : ""}`}>
+                      {item.file_name}
+                    </span>
                   </p>
                   <p className="mt-1 truncate text-[10px] text-on-surface-variant">{item.file_path}</p>
                 </div>
