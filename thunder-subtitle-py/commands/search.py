@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """search 命令：搜索字幕"""
+
+from __future__ import annotations
 
 from src.api import SubtitleApiClient
 from src.exceptions import CLIExit, ThunderSubtitleError

@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """review 命令：字幕审查"""
+
+from __future__ import annotations
 
 from src.config import Config
 from src.exceptions import CLIExit
