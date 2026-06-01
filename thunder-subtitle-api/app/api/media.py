@@ -53,6 +53,7 @@ async def get_media_image(
     allowed = False
     try:
         from app.services.config_service import ConfigService
+
         config_svc = ConfigService()
         config = config_svc.get_config()
         for media_root in (p.strip() for p in (config.media_paths or "").split(",") if p.strip()):
