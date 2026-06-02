@@ -36,6 +36,7 @@ class ConfigService:
             retry_delay=getattr(config, "retry_delay", 2),
             preferred_groups=getattr(config, "preferred_groups", ""),
             media_paths=ConfigService._effective_media_paths(config),
+            poster_systems=getattr(config, "poster_systems", ["kodi"]),
         )
 
     def get_config(self) -> AppConfig:
@@ -66,6 +67,8 @@ class ConfigService:
             config.preferred_groups = update.preferred_groups
         if update.media_paths is not None:
             config.media_paths = update.media_paths
+        if update.poster_systems is not None:
+            config.poster_systems = update.poster_systems
 
         config.save()
         return self._to_app_config(config)

@@ -29,6 +29,7 @@ interface SettingsState {
   retryDelay: number;
   preferredGroups: string;
   mediaPaths: string;
+  posterSystems: string[];
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -39,6 +40,7 @@ type SettingsAction =
   | { type: "SET_CONFIG"; payload: AppConfig }
   | { type: "SET_FIELD"; field: "savePath" | "preferredGroups" | "mediaPaths"; value: string }
   | { type: "SET_FIELD"; field: "timeout" | "downloadTimeout" | "chunkSize" | "rateLimit" | "retryCount" | "retryDelay"; value: number }
+  | { type: "SET_FIELD"; field: "posterSystems"; value: string[] }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_SAVING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
@@ -61,6 +63,7 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
         retryDelay: cfg.retry_delay,
         preferredGroups: cfg.preferred_groups,
         mediaPaths: cfg.media_paths,
+        posterSystems: cfg.poster_systems ?? ["kodi"],
       };
     }
     case "SET_FIELD":
@@ -87,6 +90,7 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
         retryDelay: cfg.retry_delay,
         preferredGroups: cfg.preferred_groups,
         mediaPaths: cfg.media_paths,
+        posterSystems: cfg.poster_systems ?? ["kodi"],
         isSaving: false,
         error: null,
         success: null,
@@ -110,6 +114,7 @@ const initialState: SettingsState = {
   retryDelay: 2,
   preferredGroups: "",
   mediaPaths: "",
+  posterSystems: ["kodi"],
   isLoading: true,
   isSaving: false,
   error: null,
@@ -121,7 +126,7 @@ const initialState: SettingsState = {
 function SettingsPage() {
   const t = useTranslations();
   const [state, dispatch] = useReducer(settingsReducer, initialState);
-  const { config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, isLoading, isSaving, error, success } = state;
+  const { config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, posterSystems, isLoading, isSaving, error, success } = state;
 
   const [showApiSchema, setShowApiSchema] = useState(false);
 
@@ -132,6 +137,19 @@ function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  // Poster system toggle
+  const togglePosterSystem = useCallback((system: string) => {
+    const current = posterSystems ?? ["kodi"];
+    const has = current.includes(system);
+    if (has) {
+      // If removing last one, force keep it
+      if (current.length <= 1) return;
+      dispatch({ type: "SET_FIELD", field: "posterSystems", value: current.filter((s: string) => s !== system) });
+    } else {
+      dispatch({ type: "SET_FIELD", field: "posterSystems", value: [...current, system] });
+    }
+  }, [posterSystems]);
 
   // Automation toggles (stored locally for now, not in backend config)
   const [autoScan, setAutoScan] = useState(true);
@@ -172,6 +190,7 @@ function SettingsPage() {
         retry_delay: retryDelay,
         preferred_groups: preferredGroups,
         media_paths: mediaPaths,
+        poster_systems: posterSystems,
       });
       dispatch({ type: "SET_CONFIG", payload: updated });
       dispatch({ type: "SET_SUCCESS", payload: t("configuration_saved") });
@@ -180,7 +199,7 @@ function SettingsPage() {
     } finally {
       dispatch({ type: "SET_SAVING", payload: false });
     }
-  }, [config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, t]);
+  }, [config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, posterSystems, t]);
 
   const handleResetDefaults = useCallback(async () => {
     dispatch({ type: "SET_SAVING", payload: true });
@@ -311,6 +330,36 @@ function SettingsPage() {
                 max={300}
                 className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
+            </div>
+          </div>
+
+          {/* Poster Systems */}
+          <div className="mt-6 border-t border-outline-variant/20 pt-6">
+            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              {t("poster_systems_label")}
+            </label>
+            <p className="mb-3 text-[10px] text-on-surface-variant/50">
+              {t("poster_systems_hint")}
+            </p>
+            <div className="flex flex-wrap gap-6">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={posterSystems.includes("kodi")}
+                  onChange={() => togglePosterSystem("kodi")}
+                  className="h-4 w-4 accent-primary"
+                />
+                {t("poster_system_kodi")}
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={posterSystems.includes("emby")}
+                  onChange={() => togglePosterSystem("emby")}
+                  className="h-4 w-4 accent-primary"
+                />
+                {t("poster_system_emby")}
+              </label>
             </div>
           </div>
 

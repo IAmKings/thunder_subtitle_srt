@@ -65,6 +65,7 @@ class AppConfig(BaseModel):
     retry_delay: int = 2
     preferred_groups: str = ""
     media_paths: str = ""
+    poster_systems: list[str] = Field(default_factory=lambda: ["kodi"])
 
 
 class AppConfigUpdate(BaseModel):
@@ -77,6 +78,7 @@ class AppConfigUpdate(BaseModel):
     retry_delay: Optional[int] = None
     preferred_groups: Optional[str] = None
     media_paths: Optional[str] = None
+    poster_systems: Optional[list[str]] = None
 
 
 # ---- Tasks ----

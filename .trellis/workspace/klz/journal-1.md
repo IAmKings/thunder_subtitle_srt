@@ -1160,3 +1160,49 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 34: v1.4.0 紧急修复 — 审查页状态同步+进度条归零+SRT时长检测+同名字幕高亮+条目展示+预发布审核
+
+**Date**: 2026-06-01
+**Task**: v1.4.0 紧急修复 — 审查页状态同步+进度条归零+SRT时长检测+同名字幕高亮+条目展示+预发布审核
+**Branch**: `master`
+
+### Summary
+
+审查页切tab卡死修复、删除字幕movies/pinnedItems同步、mypy类型修复、版本号更新、下载进度归零修复、SRT时长5项修复(prev_end/负时长/CJK阅读速度/大段空白/均匀度)、条目数展示、字幕时长展示、同名字幕高亮、CLI E402修复、预发布审核全绿
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `817038c` | (see git log) |
+| `d2aed34` | (see git log) |
+| `68d96d3` | (see git log) |
+| `6dd362c` | (see git log) |
+| `925e4ea` | (see git log) |
+| `73ab82f` | (see git log) |
+| `7dcb1b5` | (see git log) |
+| `1ddcbd1` | (see git log) |
+| `107b80c` | (see git log) |
+| `613b272` | (see git log) |
+| `0eeeca9` | (see git log) |
+| `ad38205` | (see git log) |
+| `d581d6a` | (see git log) |
+| `36b932b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

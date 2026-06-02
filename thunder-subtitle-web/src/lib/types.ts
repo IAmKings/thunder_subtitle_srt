@@ -71,6 +71,7 @@ export interface AppConfig {
   retry_delay: number;
   preferred_groups: string;
   media_paths: string;
+  poster_systems: string[];
 }
 
 // ---- Review types ----

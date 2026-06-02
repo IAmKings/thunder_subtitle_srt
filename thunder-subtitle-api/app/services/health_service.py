@@ -24,7 +24,13 @@ class HealthService:
             List of HealthCheckItem results.
         """
         mod = cli_import("src.health")
-        results = mod.run_health_check(base_dir)
+
+        # Read poster_systems from config
+        config_mod = cli_import("src.config")
+        config = config_mod.Config.load()
+        poster_systems = getattr(config, "poster_systems", ["kodi"])
+
+        results = mod.run_health_check(base_dir, poster_systems=poster_systems)
 
         return [
             HealthCheckItem(

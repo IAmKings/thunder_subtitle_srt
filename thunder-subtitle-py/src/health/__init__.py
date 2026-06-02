@@ -16,20 +16,28 @@ __all__ = ["CheckResult", "BaseChecker", "run_health_check"]
 CheckerFunc = Callable[[str], list[CheckResult]]
 
 
-def _default_checkers() -> list[CheckerFunc]:
-    """返回已注册的默认检查器列表"""
+def _default_checkers(poster_systems: list[str] | None = None) -> list[CheckerFunc]:
+    """返回已注册的默认检查器列表
+
+    Args:
+        poster_systems: 启用的海报系统列表 ("kodi", "emby")
+    """
     return [
-        ImageAssetsChecker().check,
+        ImageAssetsChecker(poster_systems=poster_systems).check,
         NFOExistsChecker().check,
-        CleanupRemindersChecker().check,
+        CleanupRemindersChecker(poster_systems=poster_systems).check,
     ]
 
 
-def run_health_check(base_dir: str) -> list[CheckResult]:
+def run_health_check(
+    base_dir: str,
+    poster_systems: list[str] | None = None,
+) -> list[CheckResult]:
     """运行所有已注册的健康检查器。
 
     Args:
         base_dir: 媒体库根目录路径
+        poster_systems: 启用的海报系统列表 ("kodi", "emby")，None 则使用默认
 
     Returns:
         所有检查结果的列表
@@ -37,7 +45,7 @@ def run_health_check(base_dir: str) -> list[CheckResult]:
     movie_dirs = scan_movie_dirs(base_dir)
     all_results: list[CheckResult] = []
 
-    checkers = _default_checkers()
+    checkers = _default_checkers(poster_systems=poster_systems)
 
     for movie_path in movie_dirs:
         movie_name = movie_path.rstrip("/").split("/")[-1]

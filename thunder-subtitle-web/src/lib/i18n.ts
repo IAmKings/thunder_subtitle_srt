@@ -243,6 +243,10 @@ const translations: Record<Language, Record<string, string>> = {
     movies_with_issues: "movies with issues",
     issues: "issues",
     health_check_expand: "Expand",
+    poster_systems_label: "Poster Image Systems",
+    poster_system_kodi: "Kodi / Plex",
+    poster_system_emby: "Emby / Jellyfin (legacy)",
+    poster_systems_hint: "At least one system must be selected",
   },
   zh: {
     // Nav
@@ -478,6 +482,10 @@ const translations: Record<Language, Record<string, string>> = {
     health_check_expand: "\u5c55\u5f00",
     movies_with_issues: "\u90e8\u7535\u5f71\u6709\u95ee\u9898",
     issues: "\u9879\u95ee\u9898",
+    poster_systems_label: "\u6d77\u62a5\u56fe\u7247\u7cfb\u7edf",
+    poster_system_kodi: "Kodi / Plex",
+    poster_system_emby: "Emby / Jellyfin \u65e7\u7248",
+    poster_systems_hint: "\u81f3\u5c11\u9700\u9009\u62e9\u4e00\u4e2a\u7cfb\u7edf",
   },
 };
 
