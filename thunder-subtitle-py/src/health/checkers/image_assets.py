@@ -1,5 +1,7 @@
 """图片资源检查 — 检查 folder.jpg, landscape.jpg, backdrop*.jpg"""
 
+from __future__ import annotations
+
 import glob
 import os
 

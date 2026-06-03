@@ -1,5 +1,7 @@
 """可清理文件提示 — 提示 extrafanart 文件夹和 thumb.jpg 可清理"""
 
+from __future__ import annotations
+
 import os
 
 from ..base import CheckResult

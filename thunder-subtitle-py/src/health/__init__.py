@@ -1,5 +1,7 @@
 """媒体库目录结构健康检查 — 纯检测模式，不修改任何文件。"""
 
+from __future__ import annotations
+
 from typing import Callable
 
 from src.scanner._dir import scan_movie_dirs
