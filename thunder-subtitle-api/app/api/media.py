@@ -2,6 +2,7 @@
 
 import logging
 import os
+from functools import lru_cache
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,6 +16,19 @@ from app.services.scan_service import scan_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@lru_cache(maxsize=20)
+def _resize_image_cached(real_path: str, width: int) -> bytes:
+    """Resize image and return JPEG bytes. 缓存最近 20 张避免重复 resize。"""
+    img = Image.open(real_path)
+    img = img.convert("RGB")
+    w_percent = width / float(img.size[0])
+    h_size = int(float(img.size[1]) * w_percent)
+    img = img.resize((width, h_size), Image.LANCZOS)
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return buf.getvalue()
 
 
 @router.get("/directories", response_model=list[MediaDirectory])
@@ -80,16 +94,12 @@ async def get_media_image(
         raise HTTPException(status_code=413, detail="图片文件过大（超过 50MB）")
 
     try:
-        img = Image.open(real_path)
-        img = img.convert("RGB")
-        w_percent = width / float(img.size[0])
-        h_size = int(float(img.size[1]) * w_percent)
-        img = img.resize((width, h_size), Image.LANCZOS)
-
-        buf = BytesIO()
-        img.save(buf, format="JPEG", quality=85)
-        buf.seek(0)
-        return StreamingResponse(buf, media_type="image/jpeg")
+        buf_data = _resize_image_cached(real_path, width)
+        return StreamingResponse(
+            BytesIO(buf_data),
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
     except Exception as e:
         logger.error("get_media_image failed: %s", e)
         raise HTTPException(status_code=500, detail="图片处理失败")
