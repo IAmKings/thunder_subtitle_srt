@@ -1206,3 +1206,40 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 35: v1.4.1 发布 — 海报系统配置+Python3.9兼容+缩略图缓存+hydration修复
+
+**Date**: 2026-06-05
+**Task**: v1.4.1 发布 — 海报系统配置+Python3.9兼容+缩略图缓存+hydration修复
+**Branch**: `master`
+
+### Summary
+
+健康检查Kodi/Emby多选配置、Python 3.9 X|Y语法兼容修复(3文件)、电影缩略图lru_cache+C ache-Control双重缓存、搜索页HistoryPanel SSR hydration mismatch修复、v1.4.1版本号更新
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `988b7ab` | (see git log) |
+| `9a42574` | (see git log) |
+| `3e98202` | (see git log) |
+| `f041894` | (see git log) |
+| `3688e52` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

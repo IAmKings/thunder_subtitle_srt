@@ -70,9 +70,13 @@ def _ts_to_ms(ts: str) -> int:
 
 
 def _find_last_content_end(entries: list[dict], nfo_duration_ms: int) -> int:
-    """逆向扫描最后 15 条，跳过片尾名单和宣传字幕，返回最后有效字幕的 end_ms"""
-    tail = entries[-15:] if len(entries) >= 15 else entries
-    for e in reversed(tail):
+    """逆向扫描条目，跳过片尾名单和宣传字幕，返回最后有效字幕的 end_ms。
+    最多扫描最后 50 条，避免片尾名单超过 15 条时兜底失效。
+    """
+    if not entries:
+        return 0
+    scan_count = min(len(entries), 50)
+    for e in reversed(entries[-scan_count:]):
         end_ms = e["end_ms"]
         content = e["content"]
 
@@ -86,8 +90,8 @@ def _find_last_content_end(entries: list[dict], nfo_duration_ms: int) -> int:
 
         return int(end_ms)
 
-    # 未找到有效条目，返回最后一条的 end_ms 作为兜底
-    return int(entries[-1]["end_ms"]) if entries else 0
+    # 50 条全被跳过（极端情况），返回物理最后一条
+    return int(entries[-1]["end_ms"])
 
 
 def _check_srt_quality(item: ReviewItem, entries: list[dict]) -> list[str]:
