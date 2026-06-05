@@ -113,6 +113,16 @@ export interface MediaDirectory {
   path: string;
   name: string;
   movie_count: number;
+  pending_review_count: number;
+}
+
+export interface ScheduledTask {
+  directory_path: string;
+  enabled: boolean;
+  cron: string;
+  mode: string;
+  last_run: string;
+  last_status: string;
 }
 
 export interface NfoInfo {

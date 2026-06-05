@@ -1,4 +1,4 @@
-"""Task management endpoints — scan, review, dump operations."""
+"""Task management endpoints — scan, review, dump, and scheduled operations."""
 
 import asyncio
 import logging
@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import (
+    ScheduledTask,
+    ScheduledTaskUpdate,
     TaskCreate,
     TaskListResponse,
     TaskProgressUpdate,
@@ -105,3 +107,51 @@ async def get_task_progress(
         message=task.message,
         status=task.status,
     )
+
+
+# ---- Scheduled Task Endpoints ----
+
+
+@router.get("/scheduled", response_model=list[ScheduledTask])
+async def list_scheduled_tasks(
+    _user: str = Depends(get_current_user),
+):
+    """List all scheduled task configurations."""
+    return scan_service.get_scheduled_tasks()
+
+
+@router.put("/scheduled/{path:path}", response_model=ScheduledTask)
+async def save_scheduled_task(
+    path: str,
+    body: ScheduledTaskUpdate,
+    _user: str = Depends(get_current_user),
+):
+    """Save a scheduled task configuration for a directory."""
+    # Validate cron expression
+    try:
+        from app.services.scan_service import _parse_cron
+
+        _parse_cron(body.cron)
+    except (ValueError, Exception) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"无效的 cron 表达式: {e}",
+        )
+
+    result = scan_service.save_scheduled_task(path, body.model_dump())
+    # Restart scheduler for this directory
+    await scan_service.restart_scheduler_for_dir(path)
+    return result
+
+
+@router.delete("/scheduled/{path:path}")
+async def delete_scheduled_task(
+    path: str,
+    _user: str = Depends(get_current_user),
+):
+    """Delete a scheduled task configuration for a directory."""
+    found = scan_service.delete_scheduled_task(path)
+    if not found:
+        raise HTTPException(status_code=404, detail="Scheduled task not found")
+    await scan_service.restart_scheduler_for_dir(path)
+    return {"success": True}

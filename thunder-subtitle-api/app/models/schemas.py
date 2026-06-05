@@ -128,6 +128,24 @@ class TaskProgressUpdate(BaseModel):
     download_progress: Optional[str] = None
 
 
+# ---- Scheduled Tasks ----
+
+
+class ScheduledTask(BaseModel):
+    directory_path: str
+    enabled: bool = False
+    cron: str = "0 2 * * *"
+    mode: str = "scan"  # scan / dry_run / dump / dump_force
+    last_run: str = ""  # ISO datetime or empty
+    last_status: str = ""  # completed / failed / skipped / cancelled / ""
+
+
+class ScheduledTaskUpdate(BaseModel):
+    enabled: bool = False
+    cron: str = "0 2 * * *"
+    mode: str = "scan"
+
+
 # ---- Media ----
 
 
@@ -135,6 +153,7 @@ class MediaDirectory(BaseModel):
     path: str
     name: str
     movie_count: int = 0
+    pending_review_count: int = 0
 
 
 class NfoInfoResponse(BaseModel):

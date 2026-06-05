@@ -32,7 +32,13 @@ async def lifespan(app: FastAPI):
     _check_default_secrets()
     # Startup: initialize services
     await ws_manager.start()
+    # Startup: start scheduler
+    from app.services.scan_service import scan_service
+
+    await scan_service.start_scheduler()
     yield
+    # Shutdown: stop scheduler
+    await scan_service.stop_scheduler()
     # Shutdown: cleanup
     await ws_manager.stop()
     # Shutdown: close shared httpx client connection pool

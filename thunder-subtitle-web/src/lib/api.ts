@@ -15,9 +15,11 @@ import type {
   ReviewItem,
   MovieEntry,
   HealthCheckItem,
+  ScheduledTask,
+  MediaDirectory,
 } from "@/lib/types";
 
-export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem, MovieEntry, HealthCheckItem };
+export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem, MovieEntry, HealthCheckItem, ScheduledTask, MediaDirectory };
 
 const FASTAPI_BASE_URL = "";  // Relative path, proxied via Nginx
 const NEXTJS_API_BASE_URL = "/api";
@@ -272,8 +274,8 @@ export class FastApiClient {
 
   // ---- Media ----
 
-  async listMediaDirectories(): Promise<Array<{ path: string; name: string; movie_count: number }>> {
-    return fastApiFetch<Array<{ path: string; name: string; movie_count: number }>>("/api/media/directories");
+  async listMediaDirectories(): Promise<MediaDirectory[]> {
+    return fastApiFetch<MediaDirectory[]>("/api/media/directories");
   }
 
   async getNfoInfo(path: string): Promise<{
@@ -351,6 +353,25 @@ export class FastApiClient {
     return fastApiFetch<{ results: HealthCheckItem[]; total: number }>(
       `/api/health-check?base_dir=${encodeURIComponent(baseDir)}`
     );
+  }
+
+  // ---- Scheduled Tasks ----
+
+  async listScheduledTasks(): Promise<ScheduledTask[]> {
+    return fastApiFetch<ScheduledTask[]>("/api/tasks/scheduled");
+  }
+
+  async saveScheduledTask(path: string, body: { enabled: boolean; cron: string; mode: string }): Promise<ScheduledTask> {
+    return fastApiFetch<ScheduledTask>(`/api/tasks/scheduled/${encodeURIComponent(path)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async deleteScheduledTask(path: string): Promise<{ success: boolean }> {
+    return fastApiFetch<{ success: boolean }>(`/api/tasks/scheduled/${encodeURIComponent(path)}`, {
+      method: "DELETE",
+    });
   }
 }
 

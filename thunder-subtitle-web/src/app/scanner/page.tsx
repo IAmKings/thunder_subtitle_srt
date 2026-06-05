@@ -13,12 +13,13 @@ import {
   X,
   XCircle,
   AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
 import { fastApiClient, ProgressWebSocket } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
 import { useScannerState, useScannerActions } from "@/lib/scanner-state";
-import type { HealthCheckItem, ScanResultItem } from "@/lib/types";
+import type { HealthCheckItem, ScanResultItem, ScheduledTask } from "@/lib/types";
 import { StatusBadge, DryStateBadge, getStatusColor, getDryStateColor } from "@/components/StatusBadge";
 
 // ---- Helpers ----
@@ -94,6 +95,16 @@ function ScannerPage() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [healthExpanded, setHealthExpanded] = useState(false);
 
+  // Scheduled task state
+  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([]);
+  const [scheduleDialogDir, setScheduleDialogDir] = useState<string | null>(null);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleCron, setScheduleCron] = useState("0 2 * * *");
+  const [scheduleMode, setScheduleMode] = useState("scan");
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
+
   // Path carousel state
   const pathScrollRef = useRef<HTMLDivElement>(null);
   const [pathScrollIdx, setPathScrollIdx] = useState(0);
@@ -125,17 +136,19 @@ function ScannerPage() {
   const [scanTotal, setScanTotal] = useState(0);
   const [downloadStatus, setDownloadStatus] = useState("");  // "正在下载字幕 3/18"
 
-  // Load media directories + config
+  // Load media directories + config + scheduled tasks
   useEffect(() => {
     async function loadDirs() {
       try {
-        const [dirs, cfg] = await Promise.all([
+        const [dirs, cfg, scheduled] = await Promise.all([
           fastApiClient.listMediaDirectories(),
           fastApiClient.getConfig(),
+          fastApiClient.listScheduledTasks().catch(() => [] as ScheduledTask[]),
         ]);
         setMediaDirs(dirs);
         setConfig(cfg);
         setMediaPathsInput(cfg.media_paths);
+        setScheduledTasks(scheduled);
       } catch {
         setError(t("failed_load_dirs"));
       } finally {
@@ -366,6 +379,80 @@ function ScannerPage() {
     }
   }, [activeTask, t]);
 
+  // ---- Scheduled task helpers ----
+
+  const getScheduledTaskForDir = useCallback((dirPath: string): ScheduledTask | undefined => {
+    return scheduledTasks.find((st) => st.directory_path === dirPath);
+  }, [scheduledTasks]);
+
+  const openScheduleDialog = useCallback((dirPath: string) => {
+    const existing = scheduledTasks.find((st) => st.directory_path === dirPath);
+    setScheduleEnabled(existing?.enabled ?? false);
+    setScheduleCron(existing?.cron ?? "0 2 * * *");
+    setScheduleMode(existing?.mode ?? "scan");
+    setScheduleDialogDir(dirPath);
+    setScheduleError(null);
+    setScheduleSuccess(null);
+  }, [scheduledTasks]);
+
+  const handleSaveSchedule = useCallback(async () => {
+    if (!scheduleDialogDir) return;
+    setIsSavingSchedule(true);
+    setScheduleError(null);
+    setScheduleSuccess(null);
+    try {
+      const result = await fastApiClient.saveScheduledTask(scheduleDialogDir, {
+        enabled: scheduleEnabled,
+        cron: scheduleCron,
+        mode: scheduleMode,
+      });
+      setScheduledTasks((prev) => {
+        const filtered = prev.filter((st) => st.directory_path !== scheduleDialogDir);
+        return [...filtered, result];
+      });
+      setScheduleSuccess(t("schedule_saved"));
+      setTimeout(() => setScheduleSuccess(null), 3000);
+    } catch (err) {
+      setScheduleError(err instanceof Error ? err.message : t("schedule_save_failed"));
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  }, [scheduleDialogDir, scheduleEnabled, scheduleCron, scheduleMode, t]);
+
+  const handleDeleteSchedule = useCallback(async () => {
+    if (!scheduleDialogDir) return;
+    setIsSavingSchedule(true);
+    setScheduleError(null);
+    try {
+      await fastApiClient.deleteScheduledTask(scheduleDialogDir);
+      setScheduledTasks((prev) => prev.filter((st) => st.directory_path !== scheduleDialogDir));
+      setScheduleDialogDir(null);
+    } catch (err) {
+      setScheduleError(err instanceof Error ? err.message : t("schedule_delete_failed"));
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  }, [scheduleDialogDir, t]);
+
+  const formatNextRun = useCallback((cron: string): string => {
+    // Simple approximation: show based on cron presets
+    const parts = cron.trim().split(/\s+/);
+    if (parts.length !== 5) return t("cron_placeholder");
+    if (cron === "0 * * * *") return t("cron_hourly");
+    if (cron === "0 3 * * *") return t("cron_daily");
+    if (cron === "0 3 * * 1") return t("cron_weekly");
+    // Generic preview
+    const now = new Date();
+    const hour = parseInt(parts[1], 10);
+    if (!isNaN(hour) && parts[0] === "0") {
+      const next = new Date(now);
+      next.setHours(hour, 0, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      return next.toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+    return cron;
+  }, [t]);
+
   const handleHealthCheck = useCallback(async () => {
     if (isHealthRunning) return;
     setIsHealthRunning(true);
@@ -472,44 +559,88 @@ function ScannerPage() {
             className="flex flex-1 gap-4 overflow-hidden"
           >
             {mediaDirs.length > 0 ? (
-              mediaDirs.map((dir, i) => (
+              mediaDirs.map((dir, i) => {
+                const sched = getScheduledTaskForDir(dir.path);
+                return (
                 <div
                   key={`${i}-${dir.path}`}
-                  className="ghost-border flex w-full flex-shrink-0 items-center justify-between rounded-xl bg-surface-container p-6 md:w-[calc(50%-0.5rem)]"
+                  className="ghost-border flex w-full flex-shrink-0 flex-col justify-between rounded-xl bg-surface-container p-6 md:w-[calc(50%-0.5rem)]"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold truncate">{dir.path.split("/").filter(Boolean).pop() || dir.path}</p>
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">
-                      {t("library_path")}
-                    </p>
-                    <h2 className={`truncate text-sm font-medium text-on-surface-variant ${disabledPaths.has(dir.path) ? "text-on-surface-variant/40 line-through" : ""}`} title={dir.path}>{dir.path}</h2>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold truncate">{dir.path.split("/").filter(Boolean).pop() || dir.path}</p>
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">
+                        {t("library_path")}
+                      </p>
+                      <h2 className={`truncate text-sm font-medium text-on-surface-variant ${disabledPaths.has(dir.path) ? "text-on-surface-variant/40 line-through" : ""}`} title={dir.path}>{dir.path}</h2>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => togglePathDisabled(dir.path)}
+                        disabled={isRunning}
+                        className={`rounded-lg px-2 py-2 text-xs font-bold transition-all ${
+                          disabledPaths.has(dir.path)
+                            ? "bg-surface-container-high text-on-surface-variant/50"
+                            : "bg-green-500/15 text-green-400"
+                        } disabled:cursor-not-allowed`}
+                        title={disabledPaths.has(dir.path) ? t("path_disabled") : t("path_enabled")}
+                        style={{ WebkitTapHighlightColor: "transparent" }}
+                      >
+                        {disabledPaths.has(dir.path) ? "OFF" : "ON"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPaths(true)}
+                        className="rounded-lg bg-surface-container-high px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-outline-variant"
+                        title={t("edit_paths")}
+                      >
+                        {t("edit_paths")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openScheduleDialog(dir.path)}
+                        className="rounded-lg bg-primary/10 px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
+                        title={t("schedule_settings")}
+                        style={{ WebkitTapHighlightColor: "transparent" }}
+                      >
+                        <Clock size={14} className="inline" /> {t("scheduled")}
+                      </button>
+                    </div>
                   </div>
-                  <div className="ml-2 flex flex-shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => togglePathDisabled(dir.path)}
-                      disabled={isRunning}
-                      className={`rounded-lg px-2 py-2 text-xs font-bold transition-all ${
-                        disabledPaths.has(dir.path)
-                          ? "bg-surface-container-high text-on-surface-variant/50"
-                          : "bg-green-500/15 text-green-400"
-                      } disabled:cursor-not-allowed`}
-                      title={disabledPaths.has(dir.path) ? t("path_disabled") : t("path_enabled")}
-                      style={{ WebkitTapHighlightColor: "transparent" }}
-                    >
-                      {disabledPaths.has(dir.path) ? "OFF" : "ON"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingPaths(true)}
-                      className="rounded-lg bg-surface-container-high px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-outline-variant"
-                      title={t("edit_paths")}
-                    >
-                      {t("edit_paths")}
-                    </button>
+                  {/* Stats row */}
+                  <div className="mt-3 flex items-center gap-4 text-xs text-on-surface-variant">
+                    <span>{dir.movie_count} {t("items")}</span>
+                    {dir.pending_review_count > 0 && (
+                      <span className="flex items-center gap-1 rounded bg-error/10 px-2 py-0.5 text-error font-bold">
+                        {t("pending_review")}: {dir.pending_review_count}
+                      </span>
+                    )}
                   </div>
+                  {/* Scheduled task status */}
+                  {sched && (
+                    <div className="mt-2 flex items-center gap-2 text-[10px] text-on-surface-variant/80">
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full ${sched.enabled ? "bg-green-400" : "bg-on-surface-variant/30"}`} />
+                      <span>{sched.enabled ? t("schedule_enabled") : t("schedule_disabled")}</span>
+                      {sched.enabled && (
+                        <>
+                          <span className="text-on-surface-variant/40">|</span>
+                          <span>{sched.cron}</span>
+                          <span className="text-on-surface-variant/40">|</span>
+                          <span>{t(sched.mode === "scan" ? "scan_mode_scan" : sched.mode === "dry_run" ? "scan_mode_dry_run" : sched.mode === "dump" ? "scan_mode_dump" : "scan_mode_force")}</span>
+                        </>
+                      )}
+                      {sched.last_run && (
+                        <>
+                          <span className="text-on-surface-variant/40">|</span>
+                          <span>{t("last_run")}: {new Date(sched.last_run).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))
+                );
+              })
             ) : (
               <div className="ghost-border flex flex-1 items-center justify-between rounded-xl bg-surface-container p-6">
                 <div>
@@ -1171,6 +1302,146 @@ function ScannerPage() {
           </div>
         </div>
       )}
+
+      {/* Schedule Config Dialog */}
+      {scheduleDialogDir && (() => {
+        const dirName = scheduleDialogDir.split("/").filter(Boolean).pop() || scheduleDialogDir;
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setScheduleDialogDir(null)}>
+          <div className="mx-4 w-full max-w-md rounded-xl bg-surface-container-high p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold">{t("schedule_settings")}: {dirName}</h3>
+              <button
+                type="button"
+                onClick={() => setScheduleDialogDir(null)}
+                className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Enable toggle */}
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-medium">{t("scheduled")}</span>
+              <button
+                type="button"
+                onClick={() => setScheduleEnabled(!scheduleEnabled)}
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  scheduleEnabled ? "bg-primary" : "bg-surface-container-highest"
+                }`}
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                  scheduleEnabled ? "translate-x-5" : ""
+                }`} />
+              </button>
+            </div>
+
+            {scheduleEnabled && (
+              <>
+                {/* Cron expression */}
+                <div className="mb-4">
+                  <label className="mb-1 block text-xs font-bold text-on-surface-variant">{t("cron_label")}</label>
+                  <input
+                    type="text"
+                    value={scheduleCron}
+                    onChange={(e) => setScheduleCron(e.target.value)}
+                    placeholder={t("cron_placeholder")}
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
+                  />
+                  {/* Cron presets */}
+                  <div className="mt-2 flex gap-2">
+                    {[
+                      { label: t("cron_hourly"), value: "0 * * * *" },
+                      { label: t("cron_daily"), value: "0 3 * * *" },
+                      { label: t("cron_weekly"), value: "0 3 * * 1" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setScheduleCron(preset.value)}
+                        className={`rounded px-2 py-1 text-[10px] font-bold transition-colors ${
+                          scheduleCron === preset.value
+                            ? "bg-primary text-on-primary"
+                            : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                        }`}
+                        style={{ WebkitTapHighlightColor: "transparent" }}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Next run preview */}
+                  <p className="mt-2 text-[10px] text-on-surface-variant/70">
+                    {t("next_run")}: {formatNextRun(scheduleCron)}
+                  </p>
+                </div>
+
+                {/* Mode select */}
+                <div className="mb-4">
+                  <label className="mb-1 block text-xs font-bold text-on-surface-variant">{t("schedule_mode")}</label>
+                  <select
+                    value={scheduleMode}
+                    onChange={(e) => setScheduleMode(e.target.value)}
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
+                  >
+                    <option value="scan">{t("scan_mode_scan")}</option>
+                    <option value="dry_run">{t("scan_mode_dry_run")}</option>
+                    <option value="dump">{t("scan_mode_dump")}</option>
+                    <option value="dump_force">{t("scan_mode_force")}</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Success / Error messages */}
+            {scheduleSuccess && (
+              <div className="mb-4 rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-400">
+                {scheduleSuccess}
+              </div>
+            )}
+            {scheduleError && (
+              <div className="mb-4 rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
+                {scheduleError}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleDeleteSchedule}
+                disabled={isSavingSchedule}
+                className="rounded-lg border border-error/30 px-3 py-2 text-xs font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                {t("schedule_delete")}
+              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setScheduleDialogDir(null)}
+                  disabled={isSavingSchedule}
+                  className="rounded-lg border border-outline px-3 py-2 text-xs font-bold transition-colors hover:bg-surface-container-high disabled:opacity-50"
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSchedule}
+                  disabled={isSavingSchedule}
+                  className="rounded-lg bg-primary-container px-4 py-2 text-xs font-bold text-on-primary-container transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  {isSavingSchedule ? t("loading") : t("schedule_save")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
     </div>
   );
 }

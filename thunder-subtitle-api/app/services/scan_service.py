@@ -1,10 +1,12 @@
 """Scan service — wraps the CLI scanner for directory scanning tasks."""
 
 import asyncio
+import json
 import logging
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
@@ -13,6 +15,7 @@ from app.models.schemas import (
     MediaDirectory,
     NfoInfoResponse,
     ScanResultItem,
+    ScheduledTask,
     TaskCreate,
     TaskProgressUpdate,
     TaskResponse,
@@ -30,6 +33,132 @@ def _get_media_paths() -> list[str]:
     return mod.Config.load().media_paths_list
 
 
+def _get_scheduled_config_path() -> str:
+    """Get the path to the scheduled tasks config JSON file."""
+    config_dir = Path.home() / ".thunder-subtitle"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return str(config_dir / "scheduled_tasks.json")
+
+
+def _load_scheduled_configs() -> dict[str, dict]:
+    """Load scheduled task configs from JSON file."""
+    path = _get_scheduled_config_path()
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except (json.JSONDecodeError, OSError):
+        logger.exception("Failed to load scheduled configs")
+    return {}
+
+
+def _save_scheduled_configs(configs: dict[str, dict]) -> None:
+    """Save scheduled task configs to JSON file."""
+    path = _get_scheduled_config_path()
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(configs, f, indent=2, ensure_ascii=False)
+    except OSError:
+        logger.exception("Failed to save scheduled configs")
+
+
+def _parse_cron(cron_expr: str) -> tuple[list[int], list[int], list[int], list[int], list[int]]:
+    """Parse a cron expression into sets of allowed values for each field.
+
+    Supports: minute(0-59), hour(0-23), day-of-month(1-31), month(1-12), day-of-week(0-6, 0=Sunday).
+    Returns a tuple of 5 lists of ints. A single ``*`` means "all values".
+    """
+    fields = cron_expr.strip().split()
+    if len(fields) != 5:
+        raise ValueError(f"Invalid cron expression: expected 5 fields, got {len(fields)}")
+
+    ranges = [
+        (0, 59),  # minute
+        (0, 23),  # hour
+        (1, 31),  # day of month
+        (1, 12),  # month
+        (0, 6),  # day of week (0=Sunday)
+    ]
+
+    result = []
+    for i, field in enumerate(fields):
+        lo, hi = ranges[i]
+        if field == "*":
+            result.append(list(range(lo, hi + 1)))
+        else:
+            values: list[int] = []
+            for part in field.split(","):
+                if "-" in part:
+                    a, b = part.split("-", 1)
+                    values.extend(range(int(a), int(b) + 1))
+                else:
+                    values.append(int(part))
+            for v in values:
+                if v < lo or v > hi:
+                    raise ValueError(f"Value {v} out of range [{lo}, {hi}] in cron field {i}")
+            result.append(sorted(set(values)))
+    return tuple(result)  # type: ignore[return-value]
+
+
+def _cron_matches(cron_expr: str, dt: datetime) -> bool:
+    """Check if a datetime matches a cron expression."""
+    parsed = _parse_cron(cron_expr)
+    minute_vals, hour_vals, day_vals, month_vals, dow_vals = parsed
+    return (
+        dt.minute in minute_vals
+        and dt.hour in hour_vals
+        and dt.day in day_vals
+        and dt.month in month_vals
+        and dt.weekday() in dow_vals  # weekday(): 0=Monday, cron: 0=Sunday → adjust
+    )
+
+
+def _cron_next_run(cron_expr: str, after: Optional[datetime] = None) -> Optional[datetime]:
+    """Calculate the next datetime matching the cron expression after ``after``.
+
+    Returns None if no match within 1 year (prevents infinite loop).
+    """
+    now = after or datetime.now(timezone.utc)
+    # Search up to 1 year ahead
+    for days_offset in range(367):
+        check = now + timedelta(days=days_offset)
+        # For the first day, start from the current minute; for subsequent days, start from midnight
+        start_minute = check.minute if days_offset == 0 else 0
+        check = check.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+            minutes=start_minute + days_offset * 24 * 60 - (0 if days_offset == 0 else 0)
+        )
+        # Recalculate more carefully
+        if days_offset == 0:
+            current = now.replace(second=0, microsecond=0)
+        else:
+            current = (now + timedelta(days=days_offset)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+
+        for _ in range(1440):  # Check up to 1440 minutes in a day (skip current day when midnight)
+            if _cron_matches(cron_expr, current):
+                if current > now:
+                    return current
+            current += timedelta(minutes=1)
+            if current.day != (now + timedelta(days=days_offset)).day:
+                break
+        if days_offset == 0:
+            # Skip the remaining minutes of the first day if at end of day
+            pass
+    return None
+
+
+def _format_cron_preview(cron_expr: str) -> str:
+    """Generate a human-readable preview of the next few cron triggers."""
+    next_run = _cron_next_run(cron_expr)
+    if next_run:
+        return next_run.strftime("%Y-%m-%d %H:%M")
+    return "—"
+
+
 class ScanService:
     """Service that wraps the CLI scanner for media library operations."""
 
@@ -38,6 +167,12 @@ class ScanService:
     _tasks: dict[str, TaskResponse] = {}
     _task_handles: dict[str, asyncio.Task] = {}
     _tasks_lock: asyncio.Lock = asyncio.Lock()
+
+    # Scheduler state
+    _scheduled_configs: dict[str, dict] = {}  # dir_path -> config dict
+    _scheduler_tasks: dict[str, asyncio.Task] = {}  # dir_path -> scheduler asyncio.Task
+    _scheduler_stop: threading.Event = threading.Event()
+    _scheduler_lock: asyncio.Lock = asyncio.Lock()
 
     async def create_task(self, request: TaskCreate) -> TaskResponse:
         """Create a new scan/review/dump task."""
@@ -430,18 +565,20 @@ class ScanService:
         task.updated_at = datetime.now(timezone.utc).isoformat()
 
     def list_media_directories(self) -> list[MediaDirectory]:
-        """List configured media directories with file counts."""
+        """List configured media directories with file counts and pending review counts."""
         dirs = []
         for path in _get_media_paths():
             if os.path.isdir(path):
                 try:
                     entries = os.listdir(path)
                     movie_count = sum(1 for e in entries if os.path.isdir(os.path.join(path, e)))
+                    pending_count = self._count_pending_review(path)
                     dirs.append(
                         MediaDirectory(
                             path=path,
                             name=os.path.basename(path),
                             movie_count=movie_count,
+                            pending_review_count=pending_count,
                         )
                     )
                 except OSError:
@@ -450,9 +587,26 @@ class ScanService:
                             path=path,
                             name=os.path.basename(path),
                             movie_count=0,
+                            pending_review_count=0,
                         )
                     )
         return dirs
+
+    def _count_pending_review(self, base_dir: str) -> int:
+        """Count subtitle files with review_status != 'ok' in a media directory."""
+        try:
+            reviewer_mod = cli_import("src.reviewer")
+            movies = reviewer_mod.list_review_movies(base_dir)
+            if not movies:
+                return 0
+            total = 0
+            for movie in movies:
+                if movie.review_status != "ok":
+                    total += len(movie.sub_files)
+            return total
+        except Exception:
+            logger.exception("Failed to count pending reviews for %s", base_dir)
+            return 0
 
     def get_nfo_info(self, path: str) -> NfoInfoResponse:
         """Parse movie.nfo from a media directory."""
@@ -466,6 +620,203 @@ class ScanService:
             has_chinese_subtitle=nfo.has_chinese_subtitle,
             release_date=nfo.release_date,
         )
+
+    # ---- Scheduler API ----
+
+    def get_scheduled_tasks(self) -> list[ScheduledTask]:
+        """Get all scheduled task configs."""
+        configs = self._scheduled_configs
+        tasks: list[ScheduledTask] = []
+        for dir_path, cfg in configs.items():
+            tasks.append(
+                ScheduledTask(
+                    directory_path=dir_path,
+                    enabled=cfg.get("enabled", False),
+                    cron=cfg.get("cron", "0 2 * * *"),
+                    mode=cfg.get("mode", "scan"),
+                    last_run=cfg.get("last_run", ""),
+                    last_status=cfg.get("last_status", ""),
+                )
+            )
+        return tasks
+
+    def save_scheduled_task(self, path: str, update: dict) -> ScheduledTask:
+        """Save a scheduled task config for a directory."""
+        cfg = self._scheduled_configs.get(path, {})
+        cfg["enabled"] = update.get("enabled", False)
+        cfg["cron"] = update.get("cron", "0 2 * * *")
+        cfg["mode"] = update.get("mode", "scan")
+        cfg.setdefault("last_run", "")
+        cfg.setdefault("last_status", "")
+        self._scheduled_configs[path] = cfg
+        _save_scheduled_configs(self._scheduled_configs)
+        return ScheduledTask(
+            directory_path=path,
+            enabled=cfg["enabled"],
+            cron=cfg["cron"],
+            mode=cfg["mode"],
+            last_run=cfg.get("last_run", ""),
+            last_status=cfg.get("last_status", ""),
+        )
+
+    def delete_scheduled_task(self, path: str) -> bool:
+        """Delete a scheduled task config for a directory."""
+        if path in self._scheduled_configs:
+            del self._scheduled_configs[path]
+            _save_scheduled_configs(self._scheduled_configs)
+            return True
+        return False
+
+    # ---- Scheduler Lifecycle ----
+
+    async def start_scheduler(self) -> None:
+        """Start the scheduler: load configs and begin cron loops for each directory."""
+        logger.info("Starting scheduler...")
+        self._scheduled_configs = _load_scheduled_configs()
+        self._scheduler_stop.clear()
+        for dir_path, cfg in self._scheduled_configs.items():
+            if cfg.get("enabled", False):
+                await self._start_scheduler_for_dir(dir_path)
+
+    async def stop_scheduler(self) -> None:
+        """Stop the scheduler and cancel all running scheduler tasks."""
+        logger.info("Stopping scheduler...")
+        self._scheduler_stop.set()
+        async with self._scheduler_lock:
+            for dir_path, handle in self._scheduler_tasks.items():
+                handle.cancel()
+            self._scheduler_tasks.clear()
+
+    async def restart_scheduler_for_dir(self, dir_path: str) -> None:
+        """Restart the scheduler for a specific directory (after config change)."""
+        await self._stop_scheduler_for_dir(dir_path)
+        cfg = self._scheduled_configs.get(dir_path, {})
+        if cfg.get("enabled", False):
+            await self._start_scheduler_for_dir(dir_path)
+
+    async def _start_scheduler_for_dir(self, dir_path: str) -> None:
+        """Start the cron loop for a single directory."""
+        async with self._scheduler_lock:
+            if dir_path in self._scheduler_tasks:
+                self._scheduler_tasks[dir_path].cancel()
+            task = asyncio.create_task(self._scheduler_loop(dir_path))
+            self._scheduler_tasks[dir_path] = task
+
+    async def _stop_scheduler_for_dir(self, dir_path: str) -> None:
+        """Stop the cron loop for a single directory."""
+        async with self._scheduler_lock:
+            handle = self._scheduler_tasks.pop(dir_path, None)
+            if handle and not handle.done():
+                handle.cancel()
+                try:
+                    await handle
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+    async def _scheduler_loop(self, dir_path: str) -> None:
+        """Main cron loop for a directory. Sleeps until next trigger time."""
+        cfg = self._scheduled_configs.get(dir_path, {})
+        cron_expr = cfg.get("cron", "0 2 * * *")
+
+        while not self._scheduler_stop.is_set():
+            now = datetime.now(timezone.utc)
+            next_run = _cron_next_run(cron_expr, after=now)
+            if next_run is None:
+                logger.warning("No future cron match for %s: %s", dir_path, cron_expr)
+                break
+
+            # Sleep until next run
+            sleep_seconds = (next_run - datetime.now(timezone.utc)).total_seconds()
+            if sleep_seconds > 0:
+                try:
+                    await asyncio.wait_for(
+                        self._wait_for_stop(timeout=sleep_seconds),
+                        timeout=sleep_seconds + 1,
+                    )
+                    break  # Stop was requested
+                except asyncio.TimeoutError:
+                    pass  # Time to run
+                except asyncio.CancelledError:
+                    break
+
+            if self._scheduler_stop.is_set():
+                break
+
+            # Check if this dir_path still has an enabled config
+            current_cfg = self._scheduled_configs.get(dir_path, {})
+            if not current_cfg.get("enabled", False):
+                break
+
+            # Check if previous task is still running
+            if self._has_running_task_for_dir(dir_path):
+                logger.info("Skipping scheduled run for %s: previous task still running", dir_path)
+                self._update_scheduled_status(dir_path, "skipped", datetime.now(timezone.utc))
+                continue
+
+            # Execute the scheduled scan
+            await self._run_scheduled(dir_path)
+
+    async def _wait_for_stop(self, timeout: float) -> None:
+        """Wait for the stop event, up to ``timeout`` seconds."""
+        for _ in range(int(timeout * 2)):
+            if self._scheduler_stop.is_set():
+                return
+            await asyncio.sleep(0.5)
+
+    def _has_running_task_for_dir(self, dir_path: str) -> bool:
+        """Check if there is a running/pending task for this directory."""
+        for task in self._tasks.values():
+            if task.status in (TaskStatus.RUNNING, TaskStatus.PENDING):
+                params = task.params
+                task_paths = params.get("paths", params.get("path", ""))
+                if isinstance(task_paths, list):
+                    if dir_path in task_paths:
+                        return True
+                elif isinstance(task_paths, str) and task_paths == dir_path:
+                    return True
+        return False
+
+    async def _run_scheduled(self, dir_path: str) -> None:
+        """Execute a scheduled scan for a directory."""
+        cfg = self._scheduled_configs.get(dir_path, {})
+        mode = cfg.get("mode", "scan")
+        logger.info("Running scheduled %s for %s", mode, dir_path)
+
+        try:
+            task_req = TaskCreate(
+                type=TaskType.SCAN if mode != "review" else TaskType.REVIEW,
+                params={"paths": [dir_path], "mode": mode},
+            )
+            task = await self.create_task(task_req)
+            asyncio.create_task(self.start_task(task.id))
+
+            # Poll until task completes
+            while True:
+                await asyncio.sleep(1)
+                current = await self.get_task(task.id)
+                if current is None:
+                    break
+                if current.status in (
+                    TaskStatus.COMPLETED,
+                    TaskStatus.FAILED,
+                    TaskStatus.CANCELLED,
+                ):
+                    self._update_scheduled_status(
+                        dir_path, current.status.value, datetime.now(timezone.utc)
+                    )
+                    break
+        except Exception:
+            logger.exception("Scheduled task failed for %s", dir_path)
+            self._update_scheduled_status(dir_path, "failed", datetime.now(timezone.utc))
+
+    def _update_scheduled_status(self, dir_path: str, status: str, run_time: datetime) -> None:
+        """Update last_run and last_status for a scheduled task config."""
+        cfg = self._scheduled_configs.get(dir_path)
+        if cfg is None:
+            return
+        cfg["last_run"] = run_time.isoformat()
+        cfg["last_status"] = status
+        _save_scheduled_configs(self._scheduled_configs)
 
 
 # Singleton instance for task storage
