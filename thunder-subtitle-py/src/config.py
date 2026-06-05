@@ -33,7 +33,9 @@ class Config:
     preferred_groups: str = ""  # 偏好字幕组（逗号分隔，如 KitaujiSub,DMG）
     media_paths: str = ""  # 默认媒体库路径（逗号分隔，缺省时自动使用）
     password: str = ""  # 管理密码（持久化存储）
-    poster_systems: list[str] = field(default_factory=lambda: ["kodi"])  # 海报系统: kodi, emby
+    poster_systems: list[str] = field(
+        default_factory=lambda: ["kodi"]
+    )  # 海报系统: kodi, emby
 
     @property
     def preferred_groups_list(self) -> list[str]:
