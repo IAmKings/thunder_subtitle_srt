@@ -148,7 +148,7 @@ def cmd_review_debug(file_path: str, nfo_path: str | None = None) -> None:
         print(f"{RED}\n  \u2717 Only .srt files are supported for debug mode.{RESET}\n")
         return
 
-    entries, debug_info = _parse_srt_entries(text, debug=True)  # type: ignore
+    entries, debug_info = _parse_srt_entries(text, debug=True)
     match_count = debug_info["match_count"]
     total_lines = debug_info["total_lines"]
     unmatched_offset = debug_info["unmatched_tail_offset"]
@@ -171,7 +171,7 @@ def cmd_review_debug(file_path: str, nfo_path: str | None = None) -> None:
 
     ai_flags, debug_issues = _check_srt_quality(
         item, entries, debug=True, line_ranges=line_ranges
-    )  # type: ignore
+    )
     issues = debug_issues["issues"]
     repeated_lines = debug_issues["repeated_lines"]
     large_gap_entries = debug_issues["large_gap_entries"]
@@ -183,7 +183,7 @@ def cmd_review_debug(file_path: str, nfo_path: str | None = None) -> None:
     if nfo_duration_ms > 0 and entries:
         last_end, scan_log = _find_last_content_end(
             entries, nfo_duration_ms, debug=True
-        )  # type: ignore
+        )
         item.last_end_ms = last_end
 
     # ---- 计算总扣分 ----
