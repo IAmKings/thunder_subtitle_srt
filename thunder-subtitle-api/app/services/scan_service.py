@@ -593,17 +593,13 @@ class ScanService:
         return dirs
 
     def _count_pending_review(self, base_dir: str) -> int:
-        """Count subtitle files with review_status != 'ok' in a media directory."""
+        """Count movies with review_status != 'ok' in a media directory（按电影计数）。"""
         try:
             reviewer_mod = cli_import("src.reviewer")
             movies = reviewer_mod.list_review_movies(base_dir)
             if not movies:
                 return 0
-            total = 0
-            for movie in movies:
-                if movie.review_status != "ok":
-                    total += len(movie.sub_files)
-            return total
+            return sum(1 for m in movies if m.review_status != "ok")
         except Exception:
             logger.exception("Failed to count pending reviews for %s", base_dir)
             return 0
