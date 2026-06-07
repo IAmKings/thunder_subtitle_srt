@@ -1243,3 +1243,44 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 36: v1.4.2 功能增强 — 定时任务调度+CLI评分调试+时长展示+待审核统计
+
+**Date**: 2026-06-07
+**Task**: v1.4.2 功能增强 — 定时任务调度+CLI评分调试+时长展示+待审核统计
+**Branch**: `master`
+
+### Summary
+
+定时任务调度(Cron+按目录+4模式)+CLI字幕评分调试工具(review--debug)+电影片长展示(NFO读取+审查页头部)+待审核统计改为电影数+parse_duration性能优化+定时弹窗UX修复
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `48ca670` | (see git log) |
+| `41feb8d` | (see git log) |
+| `653fdc1` | (see git log) |
+| `09ad306` | (see git log) |
+| `821d73e` | (see git log) |
+| `530ca08` | (see git log) |
+| `12840a1` | (see git log) |
+| `a8dca71` | (see git log) |
+| `55589b9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

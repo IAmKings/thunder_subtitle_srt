@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 35
-- **Last Active**: 2026-06-05
+- **Total Sessions**: 36
+- **Last Active**: 2026-06-07
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1245 | Active |
+| `journal-1.md` | ~1286 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 36 | 2026-06-07 | v1.4.2 功能增强 — 定时任务调度+CLI评分调试+时长展示+待审核统计 | `48ca670`, `41feb8d`, `653fdc1`, `09ad306`, `821d73e`, `530ca08`, `12840a1`, `a8dca71`, `55589b9` | `master` |
 | 35 | 2026-06-05 | v1.4.1 发布 — 海报系统配置+Python3.9兼容+缩略图缓存+hydration修复 | `988b7ab`, `9a42574`, `3e98202`, `f041894`, `3688e52` | `master` |
 | 34 | 2026-06-01 | v1.4.0 紧急修复 — 审查页状态同步+进度条归零+SRT时长检测+同名字幕高亮+条目展示+预发布审核 | `817038c`, `d2aed34`, `68d96d3`, `6dd362c`, `925e4ea`, `73ab82f`, `7dcb1b5`, `1ddcbd1`, `107b80c`, `613b272`, `0eeeca9`, `ad38205`, `d581d6a`, `36b932b` | `master` |
 | 33 | 2026-05-30 | v1.3 发布前全面检修 — 审查页bug修复+扫描进度条+筛选对齐+安全加固+质量检测体系 | `2c07e4d`, `eaabcc9`, `8a803a7`, `3f47c1b`, `e0c5b28`, `49a38c2`, `0b46c39`, `f2909a0`, `5dbc88a`, `ea96f55`, `aa478ba`, `3c96127`, `2548342`, `57406a8`, `afbb685`, `4cb5ff3`, `23e36d0`, `da97ce9`, `756fb13`, `5909e45` | `master` |

@@ -62,3 +62,7 @@ logs/
 
 # pnpm debug
 .pnpm-debug.log
+
+# Python package build artifacts
+*.egg-info/
+uv.lock
