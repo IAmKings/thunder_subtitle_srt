@@ -1383,7 +1383,8 @@ function ScannerPage() {
                   <select
                     value={scheduleMode}
                     onChange={(e) => setScheduleMode(e.target.value)}
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
+                    className="w-full appearance-none rounded-lg border border-outline-variant bg-surface-container-low p-3 pr-8 text-sm text-on-surface focus:border-primary focus:outline-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 0.75rem center" }}
                   >
                     <option value="scan">{t("scan_mode_scan")}</option>
                     <option value="dry_run">{t("scan_mode_dry_run")}</option>
@@ -1408,15 +1409,19 @@ function ScannerPage() {
 
             {/* Actions */}
             <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handleDeleteSchedule}
-                disabled={isSavingSchedule}
-                className="rounded-lg border border-error/30 px-3 py-2 text-xs font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-              >
-                {t("schedule_delete")}
-              </button>
+              {scheduleDialogDir && getScheduledTaskForDir(scheduleDialogDir) ? (
+                <button
+                  type="button"
+                  onClick={handleDeleteSchedule}
+                  disabled={isSavingSchedule}
+                  className="rounded-lg border border-error/30 px-3 py-2 text-xs font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  {t("schedule_delete")}
+                </button>
+              ) : (
+                <span />
+              )}
               <div className="flex gap-2">
                 <button
                   type="button"
