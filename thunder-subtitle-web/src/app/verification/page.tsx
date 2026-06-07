@@ -484,6 +484,9 @@ function VerificationPage() {
   const unreviewedCount = visibleItems.filter((i) => i.review_status === "not_reviewed").length;
 
   const movieName = selectedMovie ? getMovieName(selectedMovie) : "";
+  const movieDuration = selectedMovie
+    ? (movies.find((m) => m.path === selectedMovie)?.duration_seconds ?? 0)
+    : 0;
 
   // ---- Handlers ----
   const handleBack = useCallback(() => {
@@ -557,6 +560,13 @@ function VerificationPage() {
                 ? `${t("reviewing")} - ${movieName}`
                 : t("pending_verification")}
             </span>
+            {movieDuration > 0 && (
+              <span className="ml-2 text-xs tabular-nums text-on-surface-variant/60">
+                {String(Math.floor(movieDuration / 3600)).padStart(2, "0")}:
+                {String(Math.floor((movieDuration % 3600) / 60)).padStart(2, "0")}:
+                {String(Math.floor(movieDuration % 60)).padStart(2, "0")}
+              </span>
+            )}
           </h2>
           <div className="flex items-center gap-2">
             <button

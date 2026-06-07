@@ -35,13 +35,6 @@ export function MovieList({ paginatedMovies, handleSelectMovie, t }: MovieListPr
               <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold text-primary">
                 {movie.sub_files.length} {t("files")}
               </span>
-              {movie.duration_seconds > 0 && (
-                <span className="text-[10px] tabular-nums text-on-surface-variant/60">
-                  {String(Math.floor(movie.duration_seconds / 3600)).padStart(2, "0")}:
-                  {String(Math.floor((movie.duration_seconds % 3600) / 60)).padStart(2, "0")}:
-                  {String(Math.floor(movie.duration_seconds % 60)).padStart(2, "0")}
-                </span>
-              )}
             </div>
           </div>
           <div className="mt-2 flex items-center gap-3 text-[10px] text-on-surface-variant">
