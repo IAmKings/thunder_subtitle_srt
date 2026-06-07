@@ -411,7 +411,10 @@ function ScannerPage() {
         return [...filtered, result];
       });
       setScheduleSuccess(t("schedule_saved"));
-      setTimeout(() => setScheduleSuccess(null), 3000);
+      setTimeout(() => {
+        setScheduleSuccess(null);
+        setScheduleDialogDir(null);
+      }, 1500);
     } catch (err) {
       setScheduleError(err instanceof Error ? err.message : t("schedule_save_failed"));
     } finally {
