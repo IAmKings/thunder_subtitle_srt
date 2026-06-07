@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import statistics
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from ._review import ReviewItem
@@ -42,6 +42,10 @@ _SRT_PATTERN = re.compile(
 )
 
 
+@overload
+def _parse_srt_entries(text: str, debug: bool = False) -> list[dict]: ...
+@overload
+def _parse_srt_entries(text: str, debug: bool = True) -> tuple[list[dict], dict]: ...
 def _parse_srt_entries(
     text: str, debug: bool = False
 ) -> list[dict] | tuple[list[dict], dict]:
@@ -121,6 +125,10 @@ def _ms_to_ts_ms(ms: int) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{millis:03d}"
 
 
+@overload
+def _find_last_content_end(entries: list[dict], nfo_duration_ms: int, debug: bool = False) -> int: ...
+@overload
+def _find_last_content_end(entries: list[dict], nfo_duration_ms: int, debug: bool = True) -> tuple[int, list[str]]: ...
 def _find_last_content_end(
     entries: list[dict], nfo_duration_ms: int, debug: bool = False
 ) -> int | tuple[int, list[str]]:
@@ -174,6 +182,16 @@ def _find_last_content_end(
     return last_end
 
 
+@overload
+def _check_srt_quality(
+    item: ReviewItem, entries: list[dict],
+    debug: bool = False, line_ranges: list[tuple[int, int]] | None = None,
+) -> list[str]: ...
+@overload
+def _check_srt_quality(
+    item: ReviewItem, entries: list[dict],
+    debug: bool = True, line_ranges: list[tuple[int, int]] | None = None,
+) -> tuple[list[str], dict]: ...
 def _check_srt_quality(
     item: ReviewItem,
     entries: list[dict],
