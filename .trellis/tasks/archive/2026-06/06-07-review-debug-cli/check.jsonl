@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "验证debug模式下文件不存在/编码错误的处理不影响正常功能"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "验证代码质量回归"}
