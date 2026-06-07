@@ -138,6 +138,7 @@ class ScheduledTask(BaseModel):
     mode: str = "scan"  # scan / dry_run / dump / dump_force
     last_run: str = ""  # ISO datetime or empty
     last_status: str = ""  # completed / failed / skipped / cancelled / ""
+    last_duration_seconds: int = 0  # 上次执行耗时（秒）
 
 
 class ScheduledTaskUpdate(BaseModel):

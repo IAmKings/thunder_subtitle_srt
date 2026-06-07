@@ -124,6 +124,7 @@ export interface ScheduledTask {
   mode: string;
   last_run: string;
   last_status: string;
+  last_duration_seconds: number;
 }
 
 export interface NfoInfo {

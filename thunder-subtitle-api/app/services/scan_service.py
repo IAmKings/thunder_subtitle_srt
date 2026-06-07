@@ -173,6 +173,7 @@ class ScanService:
     _scheduler_tasks: dict[str, asyncio.Task] = {}  # dir_path -> scheduler asyncio.Task
     _scheduler_stop: threading.Event = threading.Event()
     _scheduler_lock: asyncio.Lock = asyncio.Lock()
+    _scheduler_run_lock: asyncio.Lock = asyncio.Lock()  # 串行执行，防止多仓库并发扫被封 IP
 
     async def create_task(self, request: TaskCreate) -> TaskResponse:
         """Create a new scan/review/dump task."""
@@ -632,6 +633,7 @@ class ScanService:
                     mode=cfg.get("mode", "scan"),
                     last_run=cfg.get("last_run", ""),
                     last_status=cfg.get("last_status", ""),
+                    last_duration_seconds=cfg.get("last_duration_seconds", 0),
                 )
             )
         return tasks
@@ -773,45 +775,55 @@ class ScanService:
         return False
 
     async def _run_scheduled(self, dir_path: str) -> None:
-        """Execute a scheduled scan for a directory."""
+        """Execute a scheduled scan for a directory（串行执行，防止多仓库并发被封 IP）。"""
         cfg = self._scheduled_configs.get(dir_path, {})
         mode = cfg.get("mode", "scan")
         logger.info("Running scheduled %s for %s", mode, dir_path)
+        start_time = datetime.now(timezone.utc)
 
-        try:
-            task_req = TaskCreate(
-                type=TaskType.SCAN if mode != "review" else TaskType.REVIEW,
-                params={"paths": [dir_path], "mode": mode},
-            )
-            task = await self.create_task(task_req)
-            asyncio.create_task(self.start_task(task.id))
+        # 串行锁：多个仓库同时触发时排队执行，避免并发扫被封 IP
+        async with self._scheduler_run_lock:
+            try:
+                task_req = TaskCreate(
+                    type=TaskType.SCAN if mode != "review" else TaskType.REVIEW,
+                    params={"paths": [dir_path], "mode": mode},
+                )
+                task = await self.create_task(task_req)
+                asyncio.create_task(self.start_task(task.id))
 
-            # Poll until task completes
-            while True:
-                await asyncio.sleep(1)
-                current = await self.get_task(task.id)
-                if current is None:
-                    break
-                if current.status in (
-                    TaskStatus.COMPLETED,
-                    TaskStatus.FAILED,
-                    TaskStatus.CANCELLED,
-                ):
-                    self._update_scheduled_status(
-                        dir_path, current.status.value, datetime.now(timezone.utc)
-                    )
-                    break
-        except Exception:
-            logger.exception("Scheduled task failed for %s", dir_path)
-            self._update_scheduled_status(dir_path, "failed", datetime.now(timezone.utc))
+                # Poll until task completes
+                while True:
+                    await asyncio.sleep(1)
+                    current = await self.get_task(task.id)
+                    if current is None:
+                        break
+                    if current.status in (
+                        TaskStatus.COMPLETED,
+                        TaskStatus.FAILED,
+                        TaskStatus.CANCELLED,
+                    ):
+                        duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
+                        self._update_scheduled_status(
+                            dir_path, current.status.value, datetime.now(timezone.utc), duration
+                        )
+                        break
+            except Exception:
+                logger.exception("Scheduled task failed for %s", dir_path)
+                duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
+                self._update_scheduled_status(
+                    dir_path, "failed", datetime.now(timezone.utc), duration
+                )
 
-    def _update_scheduled_status(self, dir_path: str, status: str, run_time: datetime) -> None:
-        """Update last_run and last_status for a scheduled task config."""
+    def _update_scheduled_status(
+        self, dir_path: str, status: str, run_time: datetime, duration_seconds: int = 0
+    ) -> None:
+        """Update last_run, last_status and last_duration for a scheduled task config."""
         cfg = self._scheduled_configs.get(dir_path)
         if cfg is None:
             return
         cfg["last_run"] = run_time.isoformat()
         cfg["last_status"] = status
+        cfg["last_duration_seconds"] = duration_seconds
         _save_scheduled_configs(self._scheduled_configs)
 
 

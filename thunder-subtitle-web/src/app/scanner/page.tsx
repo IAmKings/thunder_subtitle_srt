@@ -637,6 +637,11 @@ function ScannerPage() {
                         <>
                           <span className="text-on-surface-variant/40">|</span>
                           <span>{t("last_run")}: {new Date(sched.last_run).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}</span>
+                          {sched.last_duration_seconds > 0 && (
+                            <span className="text-on-surface-variant/50">
+                              ({Math.floor(sched.last_duration_seconds / 60)}m{sched.last_duration_seconds % 60}s)
+                            </span>
+                          )}
                         </>
                       )}
                     </div>
