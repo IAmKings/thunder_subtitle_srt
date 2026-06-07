@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/fastapi-architecture.md", "reason": "FastAPI模式：任务调度器生命周期、CRUD端点、asyncio调度"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "UI组件模式：弹窗配置、库信息卡片重构"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "代码质量：ruff/tsc零错误"}
