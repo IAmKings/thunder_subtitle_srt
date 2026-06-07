@@ -230,10 +230,15 @@ def review_directory(
 
 
 def list_review_movies(
-    base_dir: str, name_filter: str | None = None
+    base_dir: str,
+    name_filter: str | None = None,
+    parse_duration: bool = False,
 ) -> list[MovieEntry]:
     """
     轻量发现待审查电影 — 只做文件名收集和 .reviewed 检查，不做 encoding/SRT/CJK 深审。
+
+    Args:
+        parse_duration: 是否解析 NFO 获取 duration_seconds（计数场景无需此开销）
 
     替代 review_directory 用于验证页电影列表。
     """
@@ -275,15 +280,16 @@ def list_review_movies(
             # 读取审查日期
             _, review_date = _is_reviewed(movie_path)
 
-        # 读取 NFO 获取片长
+        # 读取 NFO 获取片长（仅 parse_duration=True 时，计数场景跳过）
         duration_seconds = 0
-        nfo_path = os.path.join(movie_path, "movie.nfo")
-        if os.path.isfile(nfo_path):
-            try:
-                nfo = parse_nfo(nfo_path)
-                duration_seconds = nfo.duration_seconds
-            except Exception:
-                pass
+        if parse_duration:
+            nfo_path = os.path.join(movie_path, "movie.nfo")
+            if os.path.isfile(nfo_path):
+                try:
+                    nfo = parse_nfo(nfo_path)
+                    duration_seconds = nfo.duration_seconds
+                except Exception:
+                    pass
 
         entries.append(
             MovieEntry(
