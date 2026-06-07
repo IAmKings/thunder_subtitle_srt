@@ -99,6 +99,7 @@ class ReviewService:
                 sub_files=e.sub_files,
                 review_status=e.review_status,
                 review_date=e.review_date,
+                duration_seconds=getattr(e, "duration_seconds", 0),
             )
             for e in entries
         ]

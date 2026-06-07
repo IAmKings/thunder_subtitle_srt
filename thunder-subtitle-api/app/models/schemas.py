@@ -193,6 +193,7 @@ class MovieEntryResponse(BaseModel):
     sub_files: list[str] = Field(default_factory=list)
     review_status: ReviewState = ReviewState.not_reviewed
     review_date: str = ""
+    duration_seconds: int = 0
 
 
 class MovieListResponse(BaseModel):

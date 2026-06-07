@@ -105,6 +105,7 @@ export interface MovieEntry {
   sub_files: string[];
   review_status: ReviewState;
   review_date: string;
+  duration_seconds: number;
 }
 
 // ---- Media types ----

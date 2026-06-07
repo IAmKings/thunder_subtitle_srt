@@ -42,6 +42,7 @@ class MovieEntry:
     sub_files: list[str] = field(default_factory=list)
     review_status: str = "not_reviewed"
     review_date: str = ""
+    duration_seconds: int = 0  # NFO 片长（秒），0 表示未知
 
 
 def mark_directory(
@@ -274,6 +275,16 @@ def list_review_movies(
             # 读取审查日期
             _, review_date = _is_reviewed(movie_path)
 
+        # 读取 NFO 获取片长
+        duration_seconds = 0
+        nfo_path = os.path.join(movie_path, "movie.nfo")
+        if os.path.isfile(nfo_path):
+            try:
+                nfo = parse_nfo(nfo_path)
+                duration_seconds = nfo.duration_seconds
+            except Exception:
+                pass
+
         entries.append(
             MovieEntry(
                 path=movie_path,
@@ -281,6 +292,7 @@ def list_review_movies(
                 sub_files=sub_names,
                 review_status=review_status,
                 review_date=review_date,
+                duration_seconds=duration_seconds,
             )
         )
 
