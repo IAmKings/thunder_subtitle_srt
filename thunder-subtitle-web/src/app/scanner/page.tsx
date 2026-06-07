@@ -387,7 +387,7 @@ function ScannerPage() {
 
   const openScheduleDialog = useCallback((dirPath: string) => {
     const existing = scheduledTasks.find((st) => st.directory_path === dirPath);
-    setScheduleEnabled(existing?.enabled ?? false);
+    setScheduleEnabled(existing?.enabled ?? true);  // 新建时默认启用
     setScheduleCron(existing?.cron ?? "0 2 * * *");
     setScheduleMode(existing?.mode ?? "scan");
     setScheduleDialogDir(dirPath);
