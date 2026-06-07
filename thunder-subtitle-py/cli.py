@@ -217,6 +217,20 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Mark specific movie dir as review FAILED (relative/absolute)",
     )
+    p.add_argument(
+        "--debug",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help="Debug mode: score a single subtitle file and show detailed report",
+    )
+    p.add_argument(
+        "--nfo",
+        type=str,
+        default=None,
+        metavar="NFO_FILE",
+        help="NFO file path for duration comparison (used with --debug)",
+    )
 
     # ===== scan 命令 =====
     p = subparsers.add_parser(
