@@ -142,6 +142,7 @@ class ScheduledTask(BaseModel):
 
 
 class ScheduledTaskUpdate(BaseModel):
+    directory_path: Optional[str] = None
     enabled: bool = False
     cron: str = "0 2 * * *"
     mode: str = "scan"

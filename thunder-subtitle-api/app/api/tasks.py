@@ -53,6 +53,9 @@ async def create_task(
             detail="创建任务失败",
         )
 
+    # 手动扫描优先：取消同目录正在运行的任务（排除自身）
+    await scan_service.cancel_tasks_for_paths(body.params, exclude_id=task.id)
+
     # Start the task in the background with error logging
     background_task = asyncio.create_task(scan_service.start_task(task.id))
     background_task.add_done_callback(_log_task_error)
@@ -111,10 +114,12 @@ async def get_task_progress(
     )
 
 
-# ---- Scheduled Task Endpoints ----
+# ---- Scheduled Task Endpoints (独立 router，避免与 tasks router 冲突) ----
+
+scheduled_router = APIRouter()
 
 
-@router.get("/scheduled", response_model=list[ScheduledTask])
+@scheduled_router.get("", response_model=list[ScheduledTask])
 async def list_scheduled_tasks(
     _user: str = Depends(get_current_user),
 ):
@@ -122,13 +127,14 @@ async def list_scheduled_tasks(
     return scan_service.get_scheduled_tasks()
 
 
-@router.put("/scheduled/{path:path}", response_model=ScheduledTask)
+@scheduled_router.put("", response_model=ScheduledTask)
 async def save_scheduled_task(
-    path: str,
     body: ScheduledTaskUpdate,
     _user: str = Depends(get_current_user),
 ):
-    """Save a scheduled task configuration for a directory."""
+    """Save a scheduled task configuration for a directory (directory_path in body)."""
+    if not body.directory_path:
+        raise HTTPException(status_code=400, detail="directory_path is required")
     # Validate cron expression
     try:
         from app.services.scan_service import _parse_cron
@@ -140,15 +146,14 @@ async def save_scheduled_task(
             detail=f"无效的 cron 表达式: {e}",
         )
 
-    result = scan_service.save_scheduled_task(path, body.model_dump())
-    # Restart scheduler for this directory
-    await scan_service.restart_scheduler_for_dir(path)
+    result = scan_service.save_scheduled_task(body.directory_path, body.model_dump())
+    await scan_service.restart_scheduler_for_dir(body.directory_path)
     return result
 
 
-@router.delete("/scheduled/{path:path}")
+@scheduled_router.delete("")
 async def delete_scheduled_task(
-    path: str,
+    path: str = Query(..., description="Media directory path"),
     _user: str = Depends(get_current_user),
 ):
     """Delete a scheduled task configuration for a directory."""

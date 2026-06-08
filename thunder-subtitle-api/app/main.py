@@ -132,6 +132,7 @@ from app.api.media import router as media_router  # noqa: E402
 from app.api.review import router as review_router  # noqa: E402
 from app.api.subtitle import router as subtitle_router  # noqa: E402
 from app.api.tasks import router as tasks_router  # noqa: E402
+from app.api.tasks import scheduled_router  # noqa: E402
 from app.auth.router import router as auth_router  # noqa: E402
 from app.ws.manager import router as ws_router  # noqa: E402
 
@@ -139,6 +140,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(subtitle_router, prefix="/api/subtitle", tags=["subtitle"])
 app.include_router(config_router, prefix="/api/config", tags=["config"])
 app.include_router(tasks_router, prefix="/api/tasks", tags=["tasks"])
+app.include_router(scheduled_router, prefix="/api/scheduled", tags=["scheduled"])
 app.include_router(media_router, prefix="/api/media", tags=["media"])
 app.include_router(review_router, prefix="/api/review", tags=["review"])
 app.include_router(health_check_router, prefix="/api", tags=["health"])

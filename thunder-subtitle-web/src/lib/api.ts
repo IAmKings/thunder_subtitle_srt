@@ -358,18 +358,18 @@ export class FastApiClient {
   // ---- Scheduled Tasks ----
 
   async listScheduledTasks(): Promise<ScheduledTask[]> {
-    return fastApiFetch<ScheduledTask[]>("/api/tasks/scheduled");
+    return fastApiFetch<ScheduledTask[]>("/api/scheduled");
   }
 
   async saveScheduledTask(path: string, body: { enabled: boolean; cron: string; mode: string }): Promise<ScheduledTask> {
-    return fastApiFetch<ScheduledTask>(`/api/tasks/scheduled/${encodeURIComponent(path)}`, {
+    return fastApiFetch<ScheduledTask>("/api/scheduled", {
       method: "PUT",
-      body: JSON.stringify(body),
+      body: JSON.stringify({ directory_path: path, ...body }),
     });
   }
 
   async deleteScheduledTask(path: string): Promise<{ success: boolean }> {
-    return fastApiFetch<{ success: boolean }>(`/api/tasks/scheduled/${encodeURIComponent(path)}`, {
+    return fastApiFetch<{ success: boolean }>(`/api/scheduled?path=${encodeURIComponent(path)}`, {
       method: "DELETE",
     });
   }

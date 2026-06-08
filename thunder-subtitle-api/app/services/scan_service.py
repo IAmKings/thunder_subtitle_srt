@@ -49,7 +49,8 @@ def _load_scheduled_configs() -> dict[str, dict]:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict):
-            return data
+            # 归一化所有路径 key，防止 // vs / 等格式不匹配
+            return {os.path.normpath(k): v for k, v in data.items()}
     except (json.JSONDecodeError, OSError):
         logger.exception("Failed to load scheduled configs")
     return {}
@@ -274,6 +275,8 @@ class ScanService:
             task.message = f"Task failed: {e}"
         finally:
             task.updated_at = datetime.now(timezone.utc).isoformat()
+            # 记录手动执行的活动时间到对应目录的定时任务配置
+            self._touch_scheduled_dirs(task)
             # Broadcast final state
             await ws_manager.broadcast(
                 task_id,
@@ -287,6 +290,34 @@ class ScanService:
             # Clean up handle
             async with self._tasks_lock:
                 self._task_handles.pop(task_id, None)
+
+    async def cancel_tasks_for_paths(
+        self, params: dict, exclude_id: str = ""
+    ) -> None:
+        """手动扫描前取消同目录正在运行的任务（手动优先于自动）。
+        无 paths 时（全量扫描），取消所有运行中的任务。
+        """
+        if not isinstance(params, dict):
+            return
+        new_paths = params.get("paths") or [params.get("path", "")]
+        new_paths = [p for p in new_paths if p]  # 过滤空值
+
+        async with self._tasks_lock:
+            for tid, t in list(self._tasks.items()):
+                if tid == exclude_id:
+                    continue
+                if t.status != TaskStatus.RUNNING:
+                    continue
+                task_paths = t.params.get("paths") or [t.params.get("path", "")]
+                # 新任务无指定路径（全量扫描）或路径重叠
+                if not new_paths or any(tp in new_paths for tp in task_paths):
+                    handle = self._task_handles.pop(tid, None)
+                    if handle and not handle.done():
+                        handle.cancel()
+                    t.status = TaskStatus.CANCELLED
+                    t.message = "Cancelled by manual scan"
+                    t.updated_at = datetime.now(timezone.utc).isoformat()
+                    logger.info("Cancelled task %s (manual scan priority)", tid)
 
     async def _execute_scan(self, task: TaskResponse) -> None:
         """Execute a scan task — process movies one by one for real-time progress."""
@@ -577,32 +608,48 @@ class ScanService:
         task.updated_at = datetime.now(timezone.utc).isoformat()
 
     def list_media_directories(self) -> list[MediaDirectory]:
-        """List configured media directories with file counts and pending review counts."""
-        dirs = []
-        for path in _get_media_paths():
-            if os.path.isdir(path):
+        """List configured media directories with file counts and pending review counts.
+        多仓库并行统计，避免串行等待导致页面长时间 loading。
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        paths = [p for p in _get_media_paths() if os.path.isdir(p)]
+        if not paths:
+            return []
+
+        # 并行收集各仓库数据
+        result: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=min(len(paths), 8)) as pool:
+            future_to_path = {
+                pool.submit(self._collect_dir_info, p): p for p in paths
+            }
+            for future in as_completed(future_to_path):
+                p = future_to_path[future]
                 try:
-                    entries = os.listdir(path)
-                    movie_count = sum(1 for e in entries if os.path.isdir(os.path.join(path, e)))
-                    pending_count = self._count_pending_review(path)
-                    dirs.append(
-                        MediaDirectory(
-                            path=path,
-                            name=os.path.basename(path),
-                            movie_count=movie_count,
-                            pending_review_count=pending_count,
-                        )
-                    )
-                except OSError:
-                    dirs.append(
-                        MediaDirectory(
-                            path=path,
-                            name=os.path.basename(path),
-                            movie_count=0,
-                            pending_review_count=0,
-                        )
-                    )
+                    result[p] = future.result()
+                except Exception:
+                    result[p] = {"movie_count": 0, "pending_count": 0,
+                                 "error": True}
+
+        dirs = []
+        for p in paths:
+            info = result.get(p, {})
+            dirs.append(
+                MediaDirectory(
+                    path=p,
+                    name=os.path.basename(p),
+                    movie_count=info.get("movie_count", 0),
+                    pending_review_count=info.get("pending_count", 0),
+                )
+            )
         return dirs
+
+    def _collect_dir_info(self, path: str) -> dict:
+        """收集单个目录的电影数和待审核数（线程安全）。"""
+        entries = os.listdir(path)
+        movie_count = sum(1 for e in entries if os.path.isdir(os.path.join(path, e)))
+        pending_count = self._count_pending_review(path)
+        return {"movie_count": movie_count, "pending_count": pending_count}
 
     def _count_pending_review(self, base_dir: str) -> int:
         """Count movies with review_status != 'ok' in a media directory（按电影计数）。"""
@@ -651,6 +698,7 @@ class ScanService:
 
     def save_scheduled_task(self, path: str, update: dict) -> ScheduledTask:
         """Save a scheduled task config for a directory."""
+        path = os.path.normpath(path)
         cfg = self._scheduled_configs.get(path, {})
         cfg["enabled"] = update.get("enabled", False)
         cfg["cron"] = update.get("cron", "0 2 * * *")
@@ -670,6 +718,7 @@ class ScanService:
 
     def delete_scheduled_task(self, path: str) -> bool:
         """Delete a scheduled task config for a directory."""
+        path = os.path.normpath(path)
         if path in self._scheduled_configs:
             del self._scheduled_configs[path]
             _save_scheduled_configs(self._scheduled_configs)
@@ -816,37 +865,62 @@ class ScanService:
                     params={"paths": [dir_path], "mode": mode},
                 )
                 task = await self.create_task(task_req)
-                asyncio.create_task(self.start_task(task.id))
-
-                # Poll until task completes
-                while True:
-                    await asyncio.sleep(1)
-                    current = await self.get_task(task.id)
-                    if current is None:
-                        break
-                    if current.status in (
-                        TaskStatus.COMPLETED,
-                        TaskStatus.FAILED,
-                        TaskStatus.CANCELLED,
-                    ):
-                        duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
-                        self._update_scheduled_status(
-                            dir_path, current.status.value, datetime.now(timezone.utc), duration
-                        )
-                        break
+                # 直接 await start_task，完成后记录状态
+                await self.start_task(task.id)
+                duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
+                self._update_scheduled_status(
+                    dir_path, task.status.value or "completed",
+                    datetime.now(timezone.utc), duration,
+                )
             except Exception:
                 logger.exception("Scheduled task failed for %s", dir_path)
                 duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
                 self._update_scheduled_status(
-                    dir_path, "failed", datetime.now(timezone.utc), duration
+                    dir_path, "failed", datetime.now(timezone.utc), duration,
                 )
+
+    def _touch_scheduled_dirs(self, task: TaskResponse) -> None:
+        """扫描完成后更新 last_run — 按 task.paths 精确匹配，人工/自动各自独立。"""
+        paths = task.params.get("paths") or [task.params.get("path", "")]
+        if not paths or not any(paths):
+            return
+        now = datetime.now().astimezone()
+        updated = False
+        for p in (p for p in paths if p):
+            np = os.path.normpath(p)
+            if np in self._scheduled_configs:
+                self._scheduled_configs[np]["last_run"] = now.isoformat()
+                self._scheduled_configs[np]["last_status"] = task.status.value
+                updated = True
+                logger.info("_touch_scheduled_dirs: updated %s last_run=%s", np, now.isoformat())
+            else:
+                # 无定时配置的目录也创建一条禁用记录，仅用于展示上次扫描时间
+                logger.info(
+                    "_touch_scheduled_dirs: creating new entry for %s, config keys: %s",
+                    np, list(self._scheduled_configs.keys()),
+                )
+                self._scheduled_configs[np] = {
+                    "enabled": False,
+                    "cron": "0 2 * * *",
+                    "mode": "scan",
+                    "last_run": now.isoformat(),
+                    "last_status": task.status.value,
+                }
+                updated = True
+        if updated:
+            _save_scheduled_configs(self._scheduled_configs)
 
     def _update_scheduled_status(
         self, dir_path: str, status: str, run_time: datetime, duration_seconds: int = 0
     ) -> None:
         """Update last_run, last_status and last_duration for a scheduled task config."""
-        cfg = self._scheduled_configs.get(dir_path)
+        normalized = os.path.normpath(dir_path)
+        cfg = self._scheduled_configs.get(normalized)
         if cfg is None:
+            logger.warning(
+                "_update_scheduled_status: no config for %s (keys: %s)",
+                normalized, list(self._scheduled_configs.keys()),
+            )
             return
         cfg["last_run"] = run_time.isoformat()
         cfg["last_status"] = status

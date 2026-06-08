@@ -201,6 +201,8 @@ function ScannerPage() {
               clearInterval(httpIntervalRef.current);
               httpIntervalRef.current = null;
             }
+            // 刷新仓库信息
+            refreshDirInfo();
             // HTTP polling fallback: populate findings when WebSocket is unavailable (e.g. local dev)
             if (task.results && Array.isArray(task.results) && task.results.length > 0) {
               setFindings(task.results);
@@ -269,6 +271,8 @@ function ScannerPage() {
         }
         if (update.status === "completed" || update.status === "failed" || update.status === "cancelled") {
           setDownloadStatus("");  // 清除下载进度提示
+          // 刷新仓库信息（待审核数 + 定时任务状态）
+          refreshDirInfo();
           // Final state — do a final poll to get all results
           fastApiClient.getTask(taskId).then((task) => {
             setActiveTask(task);
@@ -384,6 +388,17 @@ function ScannerPage() {
   const getScheduledTaskForDir = useCallback((dirPath: string): ScheduledTask | undefined => {
     return scheduledTasks.find((st) => st.directory_path === dirPath);
   }, [scheduledTasks]);
+
+  const refreshDirInfo = useCallback(() => {
+    fastApiClient.listMediaDirectories().then(setMediaDirs).catch(() => {});
+    fastApiClient.listScheduledTasks().then(setScheduledTasks).catch(() => {});
+  }, []);
+
+  // 定时轮询仓库信息（自动任务完成后前端无 WebSocket 通知，靠轮询兜底）
+  useEffect(() => {
+    const interval = setInterval(refreshDirInfo, 30_000);
+    return () => clearInterval(interval);
+  }, [refreshDirInfo]);
 
   const openScheduleDialog = useCallback((dirPath: string) => {
     const existing = scheduledTasks.find((st) => st.directory_path === dirPath);
@@ -636,7 +651,7 @@ function ScannerPage() {
                       {sched.last_run && (
                         <>
                           <span className="text-on-surface-variant/40">|</span>
-                          <span>{t("last_run")}: {new Date(sched.last_run).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}</span>
+                          <span>{t("last_run")}: {new Date(sched.last_run).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                           {sched.last_duration_seconds > 0 && (
                             <span className="text-on-surface-variant/50">
                               ({Math.floor(sched.last_duration_seconds / 60)}m{sched.last_duration_seconds % 60}s)
