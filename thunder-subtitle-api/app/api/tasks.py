@@ -1,5 +1,7 @@
 """Task management endpoints — scan, review, dump, and scheduled operations."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Optional
