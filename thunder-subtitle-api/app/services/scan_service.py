@@ -123,7 +123,7 @@ def _cron_matches(cron_expr: str, dt: datetime) -> bool:
         and dt.hour in hour_vals
         and dt.day in day_vals
         and dt.month in month_vals
-        and dt.weekday() in dow_vals  # weekday(): 0=Monday, cron: 0=Sunday → adjust
+        and ((dt.weekday() + 1) % 7) in dow_vals  # weekday(): 0=Monday→1, cron: 0=Sunday→0
     )
 
 
@@ -708,6 +708,11 @@ class ScanService:
         async with self._scheduler_lock:
             if dir_path in self._scheduler_tasks:
                 self._scheduler_tasks[dir_path].cancel()
+            cfg = self._scheduled_configs.get(dir_path, {})
+            logger.info(
+                "Starting scheduler for %s: enabled=%s cron=%s mode=%s",
+                dir_path, cfg.get("enabled"), cfg.get("cron"), cfg.get("mode"),
+            )
             task = asyncio.create_task(self._scheduler_loop(dir_path))
             self._scheduler_tasks[dir_path] = task
 
@@ -726,6 +731,12 @@ class ScanService:
         """Main cron loop for a directory. Sleeps until next trigger time."""
         cfg = self._scheduled_configs.get(dir_path, {})
         cron_expr = cfg.get("cron", "0 2 * * *")
+        next_run = _cron_next_run(cron_expr)
+        logger.info(
+            "Scheduler loop started for %s: cron=%s next=%s",
+            dir_path, cron_expr,
+            next_run.isoformat() if next_run else "N/A",
+        )
 
         while not self._scheduler_stop.is_set():
             now = datetime.now().astimezone()
@@ -763,6 +774,7 @@ class ScanService:
                 continue
 
             # Execute the scheduled scan
+            logger.info("Cron triggered for %s: %s", dir_path, cron_expr)
             await self._run_scheduled(dir_path)
 
     async def _wait_for_stop(self, timeout: float) -> None:
