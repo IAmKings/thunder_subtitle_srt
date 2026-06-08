@@ -121,7 +121,7 @@ def _cron_next_run(cron_expr: str, after: Optional[datetime] = None) -> Optional
 
     Returns None if no match within 1 year (prevents infinite loop).
     """
-    now = after or datetime.now(timezone.utc)
+    now = after or datetime.now().astimezone()
     # Search up to 1 year ahead
     for days_offset in range(367):
         check = now + timedelta(days=days_offset)
@@ -717,14 +717,14 @@ class ScanService:
         cron_expr = cfg.get("cron", "0 2 * * *")
 
         while not self._scheduler_stop.is_set():
-            now = datetime.now(timezone.utc)
+            now = datetime.now().astimezone()
             next_run = _cron_next_run(cron_expr, after=now)
             if next_run is None:
                 logger.warning("No future cron match for %s: %s", dir_path, cron_expr)
                 break
 
             # Sleep until next run
-            sleep_seconds = (next_run - datetime.now(timezone.utc)).total_seconds()
+            sleep_seconds = (next_run - datetime.now().astimezone()).total_seconds()
             if sleep_seconds > 0:
                 try:
                     await asyncio.wait_for(
