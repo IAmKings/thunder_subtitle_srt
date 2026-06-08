@@ -45,7 +45,9 @@ _SRT_PATTERN = re.compile(
 @overload
 def _parse_srt_entries(text: str, *, debug: Literal[False] = False) -> list[dict]: ...
 @overload
-def _parse_srt_entries(text: str, *, debug: Literal[True]) -> tuple[list[dict], dict]: ...
+def _parse_srt_entries(
+    text: str, *, debug: Literal[True]
+) -> tuple[list[dict], dict]: ...
 def _parse_srt_entries(
     text: str, debug: bool = False
 ) -> list[dict] | tuple[list[dict], dict]:
@@ -126,9 +128,13 @@ def _ms_to_ts_ms(ms: int) -> str:
 
 
 @overload
-def _find_last_content_end(entries: list[dict], nfo_duration_ms: int, *, debug: Literal[False] = False) -> int: ...
+def _find_last_content_end(
+    entries: list[dict], nfo_duration_ms: int, *, debug: Literal[False] = False
+) -> int: ...
 @overload
-def _find_last_content_end(entries: list[dict], nfo_duration_ms: int, *, debug: Literal[True]) -> tuple[int, list[str]]: ...
+def _find_last_content_end(
+    entries: list[dict], nfo_duration_ms: int, *, debug: Literal[True]
+) -> tuple[int, list[str]]: ...
 def _find_last_content_end(
     entries: list[dict], nfo_duration_ms: int, debug: bool = False
 ) -> int | tuple[int, list[str]]:
@@ -184,13 +190,19 @@ def _find_last_content_end(
 
 @overload
 def _check_srt_quality(
-    item: ReviewItem, entries: list[dict],
-    *, debug: Literal[False] = False, line_ranges: list[tuple[int, int]] | None = None,
+    item: ReviewItem,
+    entries: list[dict],
+    *,
+    debug: Literal[False] = False,
+    line_ranges: list[tuple[int, int]] | None = None,
 ) -> list[str]: ...
 @overload
 def _check_srt_quality(
-    item: ReviewItem, entries: list[dict],
-    *, debug: Literal[True], line_ranges: list[tuple[int, int]] | None = None,
+    item: ReviewItem,
+    entries: list[dict],
+    *,
+    debug: Literal[True],
+    line_ranges: list[tuple[int, int]] | None = None,
 ) -> tuple[list[str], dict]: ...
 def _check_srt_quality(
     item: ReviewItem,

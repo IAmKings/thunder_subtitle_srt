@@ -1284,3 +1284,55 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 37: 定时任务调试+CLI评分工具+审查页优化
+
+**Date**: 2026-06-08
+**Task**: 定时任务调试+CLI评分工具+审查页优化
+**Branch**: `master`
+
+### Summary
+
+定时任务调度(按目录cron+4模式+串行执行+时长展示+时区修正+手动优先)+CLI字幕评分调试(review--debug)+审查页时长展示+待审核电影计数+parse_duration优化+定时弹窗UX+mypy/cron/调度循环修复+gitignore更新
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `48ca670` | (see git log) |
+| `41feb8d` | (see git log) |
+| `653fdc1` | (see git log) |
+| `09ad306` | (see git log) |
+| `821d73e` | (see git log) |
+| `530ca08` | (see git log) |
+| `12840a1` | (see git log) |
+| `a8dca71` | (see git log) |
+| `55589b9` | (see git log) |
+| `9072434` | (see git log) |
+| `e786e2e` | (see git log) |
+| `f4a8d04` | (see git log) |
+| `6b472a4` | (see git log) |
+| `8ec6556` | (see git log) |
+| `8b80ca2` | (see git log) |
+| `b27edb8` | (see git log) |
+| `c1984e4` | (see git log) |
+| `f3fd342` | (see git log) |
+| `d3bd795` | (see git log) |
+| `d4bd268` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

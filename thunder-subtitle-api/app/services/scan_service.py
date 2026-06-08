@@ -291,9 +291,7 @@ class ScanService:
             async with self._tasks_lock:
                 self._task_handles.pop(task_id, None)
 
-    async def cancel_tasks_for_paths(
-        self, params: dict, exclude_id: str = ""
-    ) -> None:
+    async def cancel_tasks_for_paths(self, params: dict, exclude_id: str = "") -> None:
         """手动扫描前取消同目录正在运行的任务（手动优先于自动）。
         无 paths 时（全量扫描），取消所有运行中的任务。
         """
@@ -620,16 +618,13 @@ class ScanService:
         # 并行收集各仓库数据
         result: dict[str, dict] = {}
         with ThreadPoolExecutor(max_workers=min(len(paths), 8)) as pool:
-            future_to_path = {
-                pool.submit(self._collect_dir_info, p): p for p in paths
-            }
+            future_to_path = {pool.submit(self._collect_dir_info, p): p for p in paths}
             for future in as_completed(future_to_path):
                 p = future_to_path[future]
                 try:
                     result[p] = future.result()
                 except Exception:
-                    result[p] = {"movie_count": 0, "pending_count": 0,
-                                 "error": True}
+                    result[p] = {"movie_count": 0, "pending_count": 0, "error": True}
 
         dirs = []
         for p in paths:
@@ -760,7 +755,10 @@ class ScanService:
             cfg = self._scheduled_configs.get(dir_path, {})
             logger.info(
                 "Starting scheduler for %s: enabled=%s cron=%s mode=%s",
-                dir_path, cfg.get("enabled"), cfg.get("cron"), cfg.get("mode"),
+                dir_path,
+                cfg.get("enabled"),
+                cfg.get("cron"),
+                cfg.get("mode"),
             )
             task = asyncio.create_task(self._scheduler_loop(dir_path))
             self._scheduler_tasks[dir_path] = task
@@ -783,7 +781,8 @@ class ScanService:
         next_run = _cron_next_run(cron_expr)
         logger.info(
             "Scheduler loop started for %s: cron=%s next=%s",
-            dir_path, cron_expr,
+            dir_path,
+            cron_expr,
             next_run.isoformat() if next_run else "N/A",
         )
 
@@ -869,14 +868,19 @@ class ScanService:
                 await self.start_task(task.id)
                 duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
                 self._update_scheduled_status(
-                    dir_path, task.status.value or "completed",
-                    datetime.now(timezone.utc), duration,
+                    dir_path,
+                    task.status.value or "completed",
+                    datetime.now(timezone.utc),
+                    duration,
                 )
             except Exception:
                 logger.exception("Scheduled task failed for %s", dir_path)
                 duration = int((datetime.now(timezone.utc) - start_time).total_seconds())
                 self._update_scheduled_status(
-                    dir_path, "failed", datetime.now(timezone.utc), duration,
+                    dir_path,
+                    "failed",
+                    datetime.now(timezone.utc),
+                    duration,
                 )
 
     def _touch_scheduled_dirs(self, task: TaskResponse) -> None:
@@ -897,7 +901,8 @@ class ScanService:
                 # 无定时配置的目录也创建一条禁用记录，仅用于展示上次扫描时间
                 logger.info(
                     "_touch_scheduled_dirs: creating new entry for %s, config keys: %s",
-                    np, list(self._scheduled_configs.keys()),
+                    np,
+                    list(self._scheduled_configs.keys()),
                 )
                 self._scheduled_configs[np] = {
                     "enabled": False,
@@ -919,7 +924,8 @@ class ScanService:
         if cfg is None:
             logger.warning(
                 "_update_scheduled_status: no config for %s (keys: %s)",
-                normalized, list(self._scheduled_configs.keys()),
+                normalized,
+                list(self._scheduled_configs.keys()),
             )
             return
         cfg["last_run"] = run_time.isoformat()
