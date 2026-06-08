@@ -88,6 +88,17 @@ def _parse_cron(cron_expr: str) -> tuple[list[int], list[int], list[int], list[i
         lo, hi = ranges[i]
         if field == "*":
             result.append(list(range(lo, hi + 1)))
+        elif "/" in field:
+            # step values: */5, 1-30/5
+            base, step_str = field.split("/", 1)
+            step = int(step_str)
+            if base == "*":
+                result.append(list(range(lo, hi + 1, step)))
+            elif "-" in base:
+                a, b = base.split("-", 1)
+                result.append(list(range(int(a), int(b) + 1, step)))
+            else:
+                result.append(list(range(int(base), hi + 1, step)))
         else:
             values: list[int] = []
             for part in field.split(","):
