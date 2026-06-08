@@ -749,11 +749,12 @@ class ScanService:
             sleep_seconds = (next_run - datetime.now().astimezone()).total_seconds()
             if sleep_seconds > 0:
                 try:
-                    await asyncio.wait_for(
+                    stopped = await asyncio.wait_for(
                         self._wait_for_stop(timeout=sleep_seconds),
                         timeout=sleep_seconds + 1,
                     )
-                    break  # Stop was requested
+                    if stopped:
+                        break  # Stop was requested
                 except asyncio.TimeoutError:
                     pass  # Time to run
                 except asyncio.CancelledError:
@@ -777,12 +778,15 @@ class ScanService:
             logger.info("Cron triggered for %s: %s", dir_path, cron_expr)
             await self._run_scheduled(dir_path)
 
-    async def _wait_for_stop(self, timeout: float) -> None:
-        """Wait for the stop event, up to ``timeout`` seconds."""
+    async def _wait_for_stop(self, timeout: float) -> bool:
+        """Wait for the stop event, up to ``timeout`` seconds.
+        Returns True if the stop event was received, False if the timeout elapsed.
+        """
         for _ in range(int(timeout * 2)):
             if self._scheduler_stop.is_set():
-                return
+                return True
             await asyncio.sleep(0.5)
+        return False  # timeout elapsed, not stopped
 
     def _has_running_task_for_dir(self, dir_path: str) -> bool:
         """Check if there is a running/pending task for this directory."""
