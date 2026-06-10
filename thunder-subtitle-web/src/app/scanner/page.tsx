@@ -137,23 +137,28 @@ function ScannerPage() {
   const [downloadStatus, setDownloadStatus] = useState("");  // "正在下载字幕 3/18"
 
   // Load media directories + config + scheduled tasks
+  // 两阶段加载：Phase 1 快速渲染目录卡片（跳过待审核计数），Phase 2 后台异步加载计数
   useEffect(() => {
     async function loadDirs() {
       try {
-        const [dirs, cfg, scheduled] = await Promise.all([
-          fastApiClient.listMediaDirectories(),
+        // Phase 1: 并行加载 config + scheduled + fast directories
+        const [cfg, scheduled, fastDirs] = await Promise.all([
           fastApiClient.getConfig(),
           fastApiClient.listScheduledTasks().catch(() => [] as ScheduledTask[]),
+          fastApiClient.listMediaDirectories(false),  // 快速路径，不计算待审核数
         ]);
-        setMediaDirs(dirs);
         setConfig(cfg);
         setMediaPathsInput(cfg.media_paths);
         setScheduledTasks(scheduled);
+        setMediaDirs(fastDirs);
       } catch {
         setError(t("failed_load_dirs"));
       } finally {
-        setIsLoadingDirs(false);
+        setIsLoadingDirs(false);  // 立即渲染卡片
       }
+
+      // Phase 2: 后台异步加载待审核计数（不阻塞 UI）
+      fastApiClient.listMediaDirectories(true).then(setMediaDirs).catch(() => {});
     }
     loadDirs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,7 +395,10 @@ function ScannerPage() {
   }, [scheduledTasks]);
 
   const refreshDirInfo = useCallback(() => {
-    fastApiClient.listMediaDirectories().then(setMediaDirs).catch(() => {});
+    // Fast: 立即更新目录卡片（不计算待审核数）
+    fastApiClient.listMediaDirectories(false).then(setMediaDirs).catch(() => {});
+    // Slow: 后台更新待审核计数
+    fastApiClient.listMediaDirectories(true).then(setMediaDirs).catch(() => {});
     fastApiClient.listScheduledTasks().then(setScheduledTasks).catch(() => {});
   }, []);
 

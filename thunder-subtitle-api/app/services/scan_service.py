@@ -605,9 +605,11 @@ class ScanService:
         task.message = f"Dump completed. Processed {total_processed} directories."
         task.updated_at = datetime.now(timezone.utc).isoformat()
 
-    def list_media_directories(self) -> list[MediaDirectory]:
+    def list_media_directories(self, include_pending: bool = True) -> list[MediaDirectory]:
         """List configured media directories with file counts and pending review counts.
         多仓库并行统计，避免串行等待导致页面长时间 loading。
+
+        include_pending=False 时跳过待审核计数（快速路径，仅做 os.listdir）。
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -618,7 +620,9 @@ class ScanService:
         # 并行收集各仓库数据
         result: dict[str, dict] = {}
         with ThreadPoolExecutor(max_workers=min(len(paths), 8)) as pool:
-            future_to_path = {pool.submit(self._collect_dir_info, p): p for p in paths}
+            future_to_path = {
+                pool.submit(self._collect_dir_info, p, include_pending): p for p in paths
+            }
             for future in as_completed(future_to_path):
                 p = future_to_path[future]
                 try:
@@ -639,18 +643,22 @@ class ScanService:
             )
         return dirs
 
-    def _collect_dir_info(self, path: str) -> dict:
+    def _collect_dir_info(self, path: str, include_pending: bool = True) -> dict:
         """收集单个目录的电影数和待审核数（线程安全）。"""
         entries = os.listdir(path)
         movie_count = sum(1 for e in entries if os.path.isdir(os.path.join(path, e)))
-        pending_count = self._count_pending_review(path)
+        pending_count = self._count_pending_review(path) if include_pending else 0
         return {"movie_count": movie_count, "pending_count": pending_count}
 
     def _count_pending_review(self, base_dir: str) -> int:
-        """Count movies with review_status != 'ok' in a media directory（按电影计数）。"""
+        """Count movies with review_status != 'ok' in a media directory（按电影计数）。
+
+        使用 count_only=True 轻量路径：os.scandir early-exit，
+        不构建字幕列表，不复读 .reviewed。
+        """
         try:
             reviewer_mod = cli_import("src.reviewer")
-            movies = reviewer_mod.list_review_movies(base_dir)
+            movies = reviewer_mod.list_review_movies(base_dir, count_only=True)
             if not movies:
                 return 0
             return sum(1 for m in movies if m.review_status != "ok")

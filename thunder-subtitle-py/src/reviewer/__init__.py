@@ -229,16 +229,71 @@ def review_directory(
     return items
 
 
+# ---- count_only 轻量辅助函数 ----
+
+_SUB_EXTS_SET = frozenset({".srt", ".ass", ".ssa", ".sub", ".vtt"})
+
+
+def _check_review_status_fast(movie_path: str) -> str:
+    """单次读取 .reviewed 状态 — 不读日期，不复读，不构建对象。"""
+    reviewed_file = os.path.join(movie_path, ".reviewed")
+    if not os.path.isfile(reviewed_file):
+        return "not_reviewed"
+    try:
+        with open(reviewed_file, "r", encoding="utf-8") as f:
+            content = f.read().strip().lower()
+    except OSError:
+        return "not_reviewed"
+    return "fail" if content == "fail" else "ok"
+
+
+def _has_any_subtitle(movie_path: str, movie_name: str) -> bool:
+    """Early-exit os.scandir：目录下是否有匹配电影名的字幕文件。"""
+    try:
+        for entry in os.scandir(movie_path):
+            if not entry.is_file():
+                continue
+            base, ext = os.path.splitext(entry.name)
+            if ext.lower() not in _SUB_EXTS_SET:
+                continue
+            if (base == movie_name
+                    or base.startswith(movie_name + ".")
+                    or base.startswith(movie_name + "-")
+                    or base.isdigit()):
+                return True
+    except OSError:
+        pass
+    return False
+
+
+def _has_dump_subtitle_fast(movie_path: str) -> bool:
+    """Early-exit os.scandir：是否有 dump 数字命名字幕。"""
+    try:
+        for entry in os.scandir(movie_path):
+            if not entry.is_file():
+                continue
+            base, ext = os.path.splitext(entry.name)
+            if base.isdigit() and ext.lower() in _SUB_EXTS_SET:
+                return True
+    except OSError:
+        pass
+    return False
+
+
 def list_review_movies(
     base_dir: str,
     name_filter: str | None = None,
     parse_duration: bool = False,
+    count_only: bool = False,
 ) -> list[MovieEntry]:
     """
     轻量发现待审查电影 — 只做文件名收集和 .reviewed 检查，不做 encoding/SRT/CJK 深审。
 
     Args:
         parse_duration: 是否解析 NFO 获取 duration_seconds（计数场景无需此开销）
+        count_only: 纯计数模式 — os.scandir early-exit，不构建字幕列表，
+                    不重复读 .reviewed，不读日期/NFO。返回的 MovieEntry 仅含
+                    path/name/review_status。
 
     替代 review_directory 用于验证页电影列表。
     """
@@ -251,6 +306,21 @@ def list_review_movies(
     entries: list[MovieEntry] = []
     for movie_path in movie_dirs:
         movie_name = os.path.basename(movie_path)
+
+        # --- count_only 轻量路径：只做计数所需的最小 I/O ---
+        if count_only:
+            review_status = _check_review_status_fast(movie_path)
+            if review_status == "ok":
+                continue
+            if review_status == "not_reviewed" and not _has_any_subtitle(movie_path, movie_name):
+                continue
+            if review_status == "fail" and not _has_dump_subtitle_fast(movie_path):
+                continue
+            entries.append(MovieEntry(
+                path=movie_path, name=movie_name,
+                sub_files=[], review_status=review_status,
+            ))
+            continue
 
         # 跳过无字幕的
         sub_files = _find_all_subtitle_files(movie_path, movie_name)

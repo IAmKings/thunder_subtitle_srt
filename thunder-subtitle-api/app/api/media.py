@@ -33,10 +33,13 @@ def _resize_image_cached(real_path: str, width: int) -> bytes:
 
 @router.get("/directories", response_model=list[MediaDirectory])
 async def list_media_directories(
+    include_pending: bool = Query(
+        True, description="是否计算待审核数（耗时操作，设为 false 可快速返回）"
+    ),
     _user: str = Depends(get_current_user),
 ):
     """List configured media directories with stats."""
-    dirs = scan_service.list_media_directories()
+    dirs = scan_service.list_media_directories(include_pending=include_pending)
     return dirs
 
 

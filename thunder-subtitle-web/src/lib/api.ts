@@ -274,8 +274,9 @@ export class FastApiClient {
 
   // ---- Media ----
 
-  async listMediaDirectories(): Promise<MediaDirectory[]> {
-    return fastApiFetch<MediaDirectory[]>("/api/media/directories");
+  async listMediaDirectories(includePending: boolean = true): Promise<MediaDirectory[]> {
+    const params = includePending ? "" : "?include_pending=false";
+    return fastApiFetch<MediaDirectory[]>(`/api/media/directories${params}`);
   }
 
   async getNfoInfo(path: string): Promise<{
