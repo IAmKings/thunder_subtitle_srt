@@ -161,8 +161,13 @@ def _find_last_content_end(
             )
             continue
 
-        # 跳过片尾名单
-        matched_kw = next((kw for kw in _CREDIT_KEYWORDS if kw in content), None)
+        # 跳过片尾名单 — 至少一行以关键词开头才判定，避免日常对白中误伤
+        # （"翻译：张三"命中，"我感谢你"不命中）
+        matched_kw = next(
+            (kw for kw in _CREDIT_KEYWORDS
+             if any(line.strip().startswith(kw) for line in content.split("\n"))),
+            None,
+        )
         if matched_kw:
             scan_log.append(
                 f'    #{idx} 跳过 \u2192 片尾名单 "{matched_kw}..." "{first_line}"'
