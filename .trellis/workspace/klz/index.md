@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 40
+- **Total Sessions**: 41
 - **Last Active**: 2026-06-11
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1437 | Active |
+| `journal-1.md` | ~1470 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 41 | 2026-06-11 | Docker runtime Python版本锁定修复 — pydantic_core ABI兼容 | `dcad570` | `master` |
 | 40 | 2026-06-11 | v1.4.3 预发布代码审查优化 — 全面审计+版本号更新 | `48c04d8` | `master` |
 | 39 | 2026-06-11 | 审核页字幕DEBUG一键诊断 — brainstorm+实现+检查 | `1552e98` | `master` |
 | 38 | 2026-06-11 | v1.4.2 预发布审核 — 扫描页性能回归分析与修复 | `b6e7f57` | `master` |

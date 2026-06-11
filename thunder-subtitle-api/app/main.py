@@ -101,7 +101,7 @@ def _verify_cli_imports() -> None:
 app = FastAPI(
     title="Thunder Subtitle API",
     description="REST API for Thunder Subtitle - subtitle search, scan, and review management",
-    version="1.4.3",
+    version="1.4.4",
     lifespan=lifespan,
 )
 
@@ -150,4 +150,4 @@ app.include_router(ws_router, prefix="/ws", tags=["websocket"])
 @app.get("/api/health", tags=["health"])
 async def health_check():
     """Health check endpoint."""
-    return {"status": "ok", "version": "1.4.3"}
+    return {"status": "ok", "version": "1.4.4"}
