@@ -6,12 +6,16 @@ from typing import Literal, Optional
 
 from app._cli_imports import cli_import
 from app.models.schemas import (
+    DebugReviewResponse,
+    DeductionDetail,
+    EntryDiagnosis,
     MovieEntryResponse,
     MovieListResponse,
     ReviewItemResponse,
     ReviewListResponse,
     ReviewMarkResponse,
     ReviewState,
+    SrtParseDebug,
 )
 
 logger = logging.getLogger(__name__)
@@ -187,6 +191,68 @@ class ReviewService:
         except Exception as e:
             logger.exception("Failed to mark review for %s", path)
             return ReviewMarkResponse(success=False, message=str(e))
+
+    def debug_subtitle_file(
+        self, base_dir: str, file_path: str, file_name: str, duration_seconds: int = 0
+    ) -> DebugReviewResponse:
+        """对单个字幕文件执行完整 debug 诊断。
+
+        Args:
+            base_dir: 基础媒体目录
+            file_path: 电影目录相对路径
+            file_name: 字幕文件名
+            duration_seconds: NFO 片长（秒），0 表示未知
+        """
+        try:
+            from src.reviewer import debug_review_subtitle as _debug_one
+        except ImportError:
+            from thunder_subtitle.reviewer import (  # type: ignore
+                debug_review_subtitle as _debug_one,
+            )
+
+        full_filepath = os.path.join(base_dir, file_path, file_name)
+        result = _debug_one(full_filepath, file_name, duration_seconds=duration_seconds)
+
+        srt_parse_data = result.get("srt_parse", {})
+        entry_diag_data = result.get("entry_diagnosis", {})
+
+        return DebugReviewResponse(
+            file_path=result.get("file_path", ""),
+            file_name=result.get("file_name", ""),
+            score=result.get("score", 0),
+            status=result.get("status", ""),
+            encoding=result.get("encoding", ""),
+            size_bytes=result.get("size_bytes", 0),
+            cn_ratio=result.get("cn_ratio", 0.0),
+            deductions=result.get("deductions", []),
+            checks=result.get("checks", []),
+            ai_flags=result.get("ai_flags", []),
+            entry_count=result.get("entry_count", 0),
+            last_index=result.get("last_index", 0),
+            last_end_ms=result.get("last_end_ms", 0),
+            srt_parse=SrtParseDebug(
+                match_count=srt_parse_data.get("match_count", 0),
+                total_lines=srt_parse_data.get("total_lines", 0),
+                unmatched_tail_offset=srt_parse_data.get("unmatched_tail_offset", 0),
+            ),
+            debug_deductions=[
+                DeductionDetail(
+                    issue_type=d.get("issue_type", ""),
+                    entry_index=d.get("entry_index", 0),
+                    line_range=d.get("line_range", ""),
+                    detail=d.get("detail", ""),
+                    content_snippet=d.get("content_snippet", ""),
+                )
+                for d in result.get("debug_deductions", [])
+            ],
+            last_content_scan=result.get("last_content_scan", []),
+            entry_diagnosis=EntryDiagnosis(
+                size_kb=entry_diag_data.get("size_kb", 0.0),
+                valid_lines=entry_diag_data.get("valid_lines", 0),
+                srt_match_count=entry_diag_data.get("srt_match_count", 0),
+                unmatched_tail_bytes=entry_diag_data.get("unmatched_tail_bytes", 0),
+            ),
+        )
 
     def delete_file(self, path: str) -> None:
         """Delete a subtitle file from disk. Raises OSError on failure."""

@@ -37,6 +37,7 @@ class ConfigService:
             preferred_groups=getattr(config, "preferred_groups", ""),
             media_paths=ConfigService._effective_media_paths(config),
             poster_systems=getattr(config, "poster_systems", ["kodi"]),
+            debug_subtitle_enabled=getattr(config, "debug_subtitle_enabled", False),
         )
 
     def get_config(self) -> AppConfig:
@@ -69,6 +70,8 @@ class ConfigService:
             config.media_paths = update.media_paths
         if update.poster_systems is not None:
             config.poster_systems = update.poster_systems
+        if update.debug_subtitle_enabled is not None:
+            config.debug_subtitle_enabled = update.debug_subtitle_enabled
 
         config.save()
         return self._to_app_config(config)

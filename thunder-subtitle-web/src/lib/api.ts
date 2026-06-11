@@ -17,9 +17,10 @@ import type {
   HealthCheckItem,
   ScheduledTask,
   MediaDirectory,
+  DebugReviewResult,
 } from "@/lib/types";
 
-export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem, MovieEntry, HealthCheckItem, ScheduledTask, MediaDirectory };
+export type { Subtitle, ApiResponse, SearchResult, TaskResponse, AppConfig, ReviewItem, MovieEntry, HealthCheckItem, ScheduledTask, MediaDirectory, DebugReviewResult };
 
 const FASTAPI_BASE_URL = "";  // Relative path, proxied via Nginx
 const NEXTJS_API_BASE_URL = "/api";
@@ -339,6 +340,24 @@ export class FastApiClient {
       `/api/review/file?path=${encodeURIComponent(path)}`,
       { method: "DELETE" }
     );
+  }
+
+  /** 对单个字幕文件执行完整 debug 诊断 */
+  async debugSubtitleFile(
+    baseDir: string,
+    filePath: string,
+    fileName: string,
+    durationSeconds?: number
+  ): Promise<DebugReviewResult> {
+    const params = new URLSearchParams({
+      base_dir: baseDir,
+      path: filePath,
+      file_name: fileName,
+    });
+    if (durationSeconds && durationSeconds > 0) {
+      params.set("duration_seconds", String(durationSeconds));
+    }
+    return fastApiFetch<DebugReviewResult>(`/api/review/subtitle/debug?${params.toString()}`);
   }
 
   async renameSubtitleFile(path: string, newName: string): Promise<{ success: boolean; new_path: string }> {

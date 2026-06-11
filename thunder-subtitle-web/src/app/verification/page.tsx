@@ -20,12 +20,13 @@ import { fastApiClient } from "@/lib/api";
 import { withAuth } from "@/lib/auth";
 import { useVerificationState, useVerificationActions } from "@/lib/verification-state";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DebugModal } from "@/components/DebugModal";
 import { SubtitlePreview } from "@/components/SubtitlePreview";
 import { MovieList } from "@/components/MovieList";
 import { VerificationSubtitleList } from "@/components/VerificationSubtitleList";
 import { VerificationFilterBar, BatchActionBar } from "@/components/VerificationFilterBar";
 import { VerificationStats } from "@/components/VerificationStats";
-import type { ReviewItem, MovieEntry } from "@/lib/types";
+import type { ReviewItem, MovieEntry, DebugReviewResult } from "@/lib/types";
 import { getMovieName } from "@/lib/utils";
 
 // ---- Helpers ----
@@ -123,6 +124,13 @@ function VerificationPage() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameError, setRenameError] = useState("");
 
+  // ---- Debug state ----
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [debugResult, setDebugResult] = useState<DebugReviewResult | null>(null);
+  const [debugError, setDebugError] = useState<string | null>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugModalOpen, setDebugModalOpen] = useState(false);
+
   // ---- Filter state (useReducer) ----
   const [{ searchQuery, statusFilter, sortBySize, movieListPage, subtitleListPage }, dispatchFilter] = useReducer(filterReducer, initialFilterState);
   const PER_PAGE = 10;
@@ -192,6 +200,12 @@ function VerificationPage() {
       } else {
         setIsLoading(false);
       }
+      // 加载配置，检查 debug 开关
+      fastApiClient.getConfig().then((cfg) => {
+        setDebugEnabled(cfg.debug_subtitle_enabled);
+      }).catch(() => {
+        // 静默失败，debug 默认关闭
+      });
     }).catch(() => {
       setIsLoading(false);
     });
@@ -536,6 +550,28 @@ function VerificationPage() {
     }
   }, [movies, baseDir, setSelectedMovie, setPinnedItems, setItems, setIsLoading, dispatchFilter]);
 
+  // ---- Debug ----
+  const handleDebugClick = useCallback(async (item: ReviewItem) => {
+    setDebugResult(null);
+    setDebugError(null);
+    setDebugLoading(true);
+    setDebugModalOpen(true);
+    try {
+      const movie = movies.find((m) => m.path === item.file_path);
+      const result = await fastApiClient.debugSubtitleFile(
+        baseDir,
+        item.file_path,
+        item.file_name,
+        movie?.duration_seconds ?? 0,
+      );
+      setDebugResult(result);
+    } catch (err) {
+      setDebugError(err instanceof Error ? err.message : t("debug_error"));
+    } finally {
+      setDebugLoading(false);
+    }
+  }, [baseDir, movies, t]);
+
   return (
     <div className="grid grid-cols-12 gap-8 h-full">
       {/* Left Panel — hide on mobile when preview is open */}
@@ -671,6 +707,8 @@ function VerificationPage() {
               onSelectItem={setSelectedItem}
               isPinned={isPinned}
               t={t}
+              debugEnabled={debugEnabled}
+              onDebugClick={handleDebugClick}
             />
           ) : (
             <MovieList
@@ -1009,6 +1047,16 @@ function VerificationPage() {
           </>
         )}
       </ConfirmDialog>
+
+      {/* Debug Modal */}
+      <DebugModal
+        open={debugModalOpen}
+        result={debugResult}
+        error={debugError}
+        isLoading={debugLoading}
+        onClose={() => setDebugModalOpen(false)}
+        t={t}
+      />
     </div>
   );
 }

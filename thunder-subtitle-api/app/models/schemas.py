@@ -66,6 +66,7 @@ class AppConfig(BaseModel):
     preferred_groups: str = ""
     media_paths: str = ""
     poster_systems: list[str] = Field(default_factory=lambda: ["kodi"])
+    debug_subtitle_enabled: bool = False
 
 
 class AppConfigUpdate(BaseModel):
@@ -79,6 +80,7 @@ class AppConfigUpdate(BaseModel):
     preferred_groups: Optional[str] = None
     media_paths: Optional[str] = None
     poster_systems: Optional[list[str]] = None
+    debug_subtitle_enabled: Optional[bool] = None
 
 
 # ---- Tasks ----
@@ -243,3 +245,47 @@ class HealthCheckResponse(BaseModel):
 
     results: list[HealthCheckItem] = Field(default_factory=list)
     total: int = 0
+
+
+# ---- Debug Subtitle Review ----
+
+
+class SrtParseDebug(BaseModel):
+    match_count: int = 0
+    total_lines: int = 0
+    unmatched_tail_offset: int = 0
+
+
+class DeductionDetail(BaseModel):
+    issue_type: str = ""
+    entry_index: int = 0
+    line_range: str = ""
+    detail: str = ""
+    content_snippet: str = ""
+
+
+class EntryDiagnosis(BaseModel):
+    size_kb: float = 0.0
+    valid_lines: int = 0
+    srt_match_count: int = 0
+    unmatched_tail_bytes: int = 0
+
+
+class DebugReviewResponse(BaseModel):
+    file_path: str = ""
+    file_name: str = ""
+    score: int = 0
+    status: str = ""
+    encoding: str = ""
+    size_bytes: int = 0
+    cn_ratio: float = 0.0
+    deductions: list[str] = Field(default_factory=list)
+    checks: list[str] = Field(default_factory=list)
+    ai_flags: list[str] = Field(default_factory=list)
+    entry_count: int = 0
+    last_index: int = 0
+    last_end_ms: int = 0
+    srt_parse: SrtParseDebug = Field(default_factory=SrtParseDebug)
+    debug_deductions: list[DeductionDetail] = Field(default_factory=list)
+    last_content_scan: list[str] = Field(default_factory=list)
+    entry_diagnosis: EntryDiagnosis = Field(default_factory=EntryDiagnosis)

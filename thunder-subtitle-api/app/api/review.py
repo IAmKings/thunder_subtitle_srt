@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import (
+    DebugReviewResponse,
     MovieListResponse,
     ReviewItemResponse,
     ReviewListResponse,
@@ -159,6 +160,45 @@ async def review_subtitle_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="字幕文件不存在")
     except Exception as e:
         logger.error("review_subtitle_file failed: %s", e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
+
+
+@router.get("/subtitle/debug", response_model=DebugReviewResponse)
+async def debug_subtitle_file(
+    path: str = Query(..., description="Movie directory relative path"),
+    file_name: str = Query(..., description="Subtitle file name"),
+    base_dir: str = Query(..., description="Base media directory"),
+    duration_seconds: int = Query(0, description="NFO duration in seconds"),
+    service: ReviewService = Depends(get_review_service),
+    _user: str = Depends(get_current_user),
+):
+    """对单个字幕文件执行完整 debug 诊断（CLI --debug 同款完整诊断数据）"""
+    try:
+        validated_base = _validate_subtitle_path(base_dir)
+        full_filepath = os.path.join(validated_base, path, file_name)
+        _validate_subtitle_path(full_filepath)
+        if not os.path.isfile(full_filepath):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="字幕文件不存在")
+        result = service.debug_subtitle_file(
+            base_dir=validated_base,
+            file_path=path,
+            file_name=file_name,
+            duration_seconds=duration_seconds,
+        )
+        return result
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="审核模块不可用",
+        )
+    except HTTPException:
+        raise
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error("debug_subtitle_file failed: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
 
 

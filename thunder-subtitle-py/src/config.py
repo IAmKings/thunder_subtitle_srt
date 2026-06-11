@@ -36,6 +36,7 @@ class Config:
     poster_systems: list[str] = field(
         default_factory=lambda: ["kodi"]
     )  # 海报系统: kodi, emby
+    debug_subtitle_enabled: bool = False  # 审核页字幕DEBUG按钮
 
     @property
     def preferred_groups_list(self) -> list[str]:

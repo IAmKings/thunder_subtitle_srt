@@ -30,6 +30,7 @@ interface SettingsState {
   preferredGroups: string;
   mediaPaths: string;
   posterSystems: string[];
+  debugSubtitleEnabled: boolean;
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -41,6 +42,7 @@ type SettingsAction =
   | { type: "SET_FIELD"; field: "savePath" | "preferredGroups" | "mediaPaths"; value: string }
   | { type: "SET_FIELD"; field: "timeout" | "downloadTimeout" | "chunkSize" | "rateLimit" | "retryCount" | "retryDelay"; value: number }
   | { type: "SET_FIELD"; field: "posterSystems"; value: string[] }
+  | { type: "SET_DEBUG_SUBTITLE"; payload: boolean }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_SAVING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
@@ -64,10 +66,13 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
         preferredGroups: cfg.preferred_groups,
         mediaPaths: cfg.media_paths,
         posterSystems: cfg.poster_systems ?? ["kodi"],
+        debugSubtitleEnabled: cfg.debug_subtitle_enabled,
       };
     }
     case "SET_FIELD":
       return { ...state, [action.field]: action.value };
+    case "SET_DEBUG_SUBTITLE":
+      return { ...state, debugSubtitleEnabled: action.payload };
     case "SET_LOADING":
       return { ...state, isLoading: action.payload };
     case "SET_SAVING":
@@ -91,6 +96,7 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
         preferredGroups: cfg.preferred_groups,
         mediaPaths: cfg.media_paths,
         posterSystems: cfg.poster_systems ?? ["kodi"],
+        debugSubtitleEnabled: cfg.debug_subtitle_enabled,
         isSaving: false,
         error: null,
         success: null,
@@ -115,6 +121,7 @@ const initialState: SettingsState = {
   preferredGroups: "",
   mediaPaths: "",
   posterSystems: ["kodi"],
+  debugSubtitleEnabled: false,
   isLoading: true,
   isSaving: false,
   error: null,
@@ -126,7 +133,7 @@ const initialState: SettingsState = {
 function SettingsPage() {
   const t = useTranslations();
   const [state, dispatch] = useReducer(settingsReducer, initialState);
-  const { config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, posterSystems, isLoading, isSaving, error, success } = state;
+  const { config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, posterSystems, debugSubtitleEnabled, isLoading, isSaving, error, success } = state;
 
   const [showApiSchema, setShowApiSchema] = useState(false);
 
@@ -191,6 +198,7 @@ function SettingsPage() {
         preferred_groups: preferredGroups,
         media_paths: mediaPaths,
         poster_systems: posterSystems,
+        debug_subtitle_enabled: debugSubtitleEnabled,
       });
       dispatch({ type: "SET_CONFIG", payload: updated });
       dispatch({ type: "SET_SUCCESS", payload: t("configuration_saved") });
@@ -199,7 +207,7 @@ function SettingsPage() {
     } finally {
       dispatch({ type: "SET_SAVING", payload: false });
     }
-  }, [config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, posterSystems, t]);
+  }, [config, savePath, timeout, downloadTimeout, chunkSize, rateLimit, retryCount, retryDelay, preferredGroups, mediaPaths, posterSystems, debugSubtitleEnabled, t]);
 
   const handleResetDefaults = useCallback(async () => {
     dispatch({ type: "SET_SAVING", payload: true });
@@ -330,6 +338,34 @@ function SettingsPage() {
                 max={300}
                 className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
+            </div>
+          </div>
+
+          {/* Debug Subtitle Toggle */}
+          <div className="mt-6 border-t border-outline-variant/20 pt-6">
+            <div className="group flex items-center justify-between">
+              <div className="pr-4">
+                <p className="text-sm font-bold transition-colors group-hover:text-primary">
+                  {t("debug_subtitle_enabled")}
+                </p>
+                <p className="text-[10px] leading-relaxed text-on-surface-variant">
+                  {t("debug_subtitle_enabled_hint")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "SET_DEBUG_SUBTITLE", payload: !debugSubtitleEnabled })}
+                className={`relative h-6 w-12 flex-shrink-0 cursor-pointer rounded-full transition-all duration-300 ${
+                  debugSubtitleEnabled ? "bg-primary-container" : "bg-surface-variant"
+                }`}
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <div
+                  className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all duration-300 ${
+                    debugSubtitleEnabled ? "right-1" : "left-1"
+                  }`}
+                />
+              </button>
             </div>
           </div>
 

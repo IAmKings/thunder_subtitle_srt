@@ -1336,3 +1336,36 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 38: v1.4.2 预发布审核 — 扫描页性能回归分析与修复
+
+**Date**: 2026-06-11
+**Task**: v1.4.2 预发布审核 — 扫描页性能回归分析与修复
+**Branch**: `master`
+
+### Summary
+
+分析扫描页面进入卡顿根因：48ca670 提交在 list_media_directories 中引入 _count_pending_review 调用，导致每次页面加载对每个媒体库根目录执行全量文件系统遍历。修复方案：(1) 后端加 include_pending=false 快速路径（仅 os.listdir 根目录）；(2) list_review_movies 加 count_only 轻量路径（os.scandir early-exit，不复读 .reviewed）；(3) 前端两阶段加载（先渲染目录卡片，后台异步加载待审核计数）。ruff check + tsc 零错误。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b6e7f57` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

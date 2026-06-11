@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 37
-- **Last Active**: 2026-06-08
+- **Total Sessions**: 38
+- **Last Active**: 2026-06-11
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1338 | Active |
+| `journal-1.md` | ~1371 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 38 | 2026-06-11 | v1.4.2 预发布审核 — 扫描页性能回归分析与修复 | `b6e7f57` | `master` |
 | 37 | 2026-06-08 | 定时任务调试+CLI评分工具+审查页优化 | `48ca670`, `41feb8d`, `653fdc1`, `09ad306`, `821d73e`, `530ca08`, `12840a1`, `a8dca71`, `55589b9`, `9072434`, `e786e2e`, `f4a8d04`, `6b472a4`, `8ec6556`, `8b80ca2`, `b27edb8`, `c1984e4`, `f3fd342`, `d3bd795`, `d4bd268` | `master` |
 | 36 | 2026-06-07 | v1.4.2 功能增强 — 定时任务调度+CLI评分调试+时长展示+待审核统计 | `48ca670`, `41feb8d`, `653fdc1`, `09ad306`, `821d73e`, `530ca08`, `12840a1`, `a8dca71`, `55589b9` | `master` |
 | 35 | 2026-06-05 | v1.4.1 发布 — 海报系统配置+Python3.9兼容+缩略图缓存+hydration修复 | `988b7ab`, `9a42574`, `3e98202`, `f041894`, `3688e52` | `master` |

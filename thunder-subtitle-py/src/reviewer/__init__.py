@@ -28,6 +28,7 @@ __all__ = [
     "review_directory",
     "list_review_movies",
     "review_subtitle_file",
+    "debug_review_subtitle",
     "MovieEntry",
     "ReviewItem",
 ]
@@ -256,10 +257,12 @@ def _has_any_subtitle(movie_path: str, movie_name: str) -> bool:
             base, ext = os.path.splitext(entry.name)
             if ext.lower() not in _SUB_EXTS_SET:
                 continue
-            if (base == movie_name
-                    or base.startswith(movie_name + ".")
-                    or base.startswith(movie_name + "-")
-                    or base.isdigit()):
+            if (
+                base == movie_name
+                or base.startswith(movie_name + ".")
+                or base.startswith(movie_name + "-")
+                or base.isdigit()
+            ):
                 return True
     except OSError:
         pass
@@ -312,14 +315,20 @@ def list_review_movies(
             review_status = _check_review_status_fast(movie_path)
             if review_status == "ok":
                 continue
-            if review_status == "not_reviewed" and not _has_any_subtitle(movie_path, movie_name):
+            if review_status == "not_reviewed" and not _has_any_subtitle(
+                movie_path, movie_name
+            ):
                 continue
             if review_status == "fail" and not _has_dump_subtitle_fast(movie_path):
                 continue
-            entries.append(MovieEntry(
-                path=movie_path, name=movie_name,
-                sub_files=[], review_status=review_status,
-            ))
+            entries.append(
+                MovieEntry(
+                    path=movie_path,
+                    name=movie_name,
+                    sub_files=[],
+                    review_status=review_status,
+                )
+            )
             continue
 
         # 跳过无字幕的
@@ -373,6 +382,144 @@ def list_review_movies(
         )
 
     return entries
+
+
+def debug_review_subtitle(
+    file_path: str,
+    file_name: str,
+    duration_seconds: int = 0,
+) -> dict:
+    """对单个字幕文件执行完整 debug 诊断，返回结构化字典（用于 API）。
+
+    Args:
+        file_path: 字幕文件的完整路径
+        file_name: 字幕文件名
+        duration_seconds: NFO 片长（秒），0 表示未知
+
+    Returns:
+        包含完整诊断数据的字典，结构对应 DebugReviewResponse。
+    """
+    from ._encoding import _detect_encoding, _calc_cn_ratio
+    from ._srt import (
+        _check_srt_quality,
+        _find_last_content_end,
+        _parse_srt_entries,
+    )
+
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    is_srt = file_name.lower().endswith(".srt")
+    if not is_srt:
+        raise ValueError("Only .srt files are supported for debug mode")
+
+    size_bytes = os.path.getsize(file_path)
+
+    with open(file_path, "rb") as f:
+        raw = f.read()
+
+    encoding = _detect_encoding(raw)
+    try:
+        text = raw.decode(encoding)
+    except (UnicodeDecodeError, LookupError):
+        text = raw.decode("utf-8", errors="replace")
+
+    # ---- 解析 SRT 条目 ----
+    entries, debug_info = _parse_srt_entries(text, debug=True)
+    match_count = debug_info["match_count"]
+    total_lines = debug_info["total_lines"]
+    unmatched_offset = debug_info["unmatched_tail_offset"]
+    line_ranges = debug_info["line_ranges"]
+
+    entry_count = len(entries)
+    last_index = entries[-1]["index"] if entries else 0
+
+    # ---- 创建 ReviewItem 并评分 ----
+    from ._review import ReviewItem
+
+    item = ReviewItem(
+        movie_path=os.path.dirname(file_path),
+        movie_name=os.path.basename(os.path.dirname(file_path)),
+        filename=file_name,
+    )
+    item.size_bytes = size_bytes
+    item.encoding = encoding
+    item.line_count = total_lines
+    item.entry_count = entry_count
+    item.last_index = last_index
+
+    ai_flags, debug_issues = _check_srt_quality(
+        item, entries, debug=True, line_ranges=line_ranges
+    )
+    issues = debug_issues["issues"]
+    item.ai_flags = ai_flags
+
+    # ---- 中文占比 ----
+    item.cn_ratio = _calc_cn_ratio(text)
+
+    # ---- 片长匹配 ----
+    nfo_duration_ms = duration_seconds * 1000
+    last_end = 0
+    scan_log: list[str] = []
+    if nfo_duration_ms > 0 and entries:
+        last_end, scan_log = _find_last_content_end(
+            entries, nfo_duration_ms, debug=True
+        )
+        item.last_end_ms = last_end
+
+    # ---- 构建扣分明细列表 ----
+    debug_deductions: list[dict] = []
+    for iss in issues:
+        debug_deductions.append(
+            {
+                "issue_type": iss["type"],
+                "entry_index": iss["entry_index"],
+                "line_range": f"L{iss['line_start']}-L{iss['line_end']}",
+                "detail": iss.get("detail", ""),
+                "content_snippet": iss["content"],
+            }
+        )
+
+    # ---- 得分上限保护 ----
+    item.score = max(0, item.score)
+
+    from ..models import ReviewQuality
+
+    if item.score >= 80:
+        status = ReviewQuality.ok
+    elif item.score >= 50:
+        status = ReviewQuality.warn
+    else:
+        status = ReviewQuality.fail
+
+    return {
+        "file_path": os.path.dirname(file_path),
+        "file_name": file_name,
+        "score": item.score,
+        "status": status,
+        "encoding": encoding,
+        "size_bytes": size_bytes,
+        "cn_ratio": item.cn_ratio,
+        "deductions": item.deductions,
+        "checks": item.checks,
+        "ai_flags": ai_flags,
+        "entry_count": entry_count,
+        "last_index": last_index,
+        "last_end_ms": last_end,
+        "srt_parse": {
+            "match_count": match_count,
+            "total_lines": total_lines,
+            "unmatched_tail_offset": unmatched_offset,
+        },
+        "debug_deductions": debug_deductions,
+        "last_content_scan": scan_log,
+        "entry_diagnosis": {
+            "size_kb": size_bytes / 1024.0,
+            "valid_lines": total_lines,
+            "srt_match_count": match_count,
+            "unmatched_tail_bytes": unmatched_offset,
+        },
+    }
 
 
 def review_subtitle_file(

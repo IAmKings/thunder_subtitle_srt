@@ -72,6 +72,7 @@ export interface AppConfig {
   preferred_groups: string;
   media_paths: string;
   poster_systems: string[];
+  debug_subtitle_enabled: boolean;
 }
 
 // ---- Review types ----
@@ -156,4 +157,47 @@ export interface HealthCheckItem {
 export interface HealthCheckResponse {
   results: HealthCheckItem[];
   total: number;
+}
+
+// ---- Debug Subtitle Review types ----
+
+export interface SrtParseDebug {
+  match_count: number;
+  total_lines: number;
+  unmatched_tail_offset: number;
+}
+
+export interface DeductionDetail {
+  issue_type: string;
+  entry_index: number;
+  line_range: string;
+  detail: string;
+  content_snippet: string;
+}
+
+export interface EntryDiagnosis {
+  size_kb: number;
+  valid_lines: number;
+  srt_match_count: number;
+  unmatched_tail_bytes: number;
+}
+
+export interface DebugReviewResult {
+  file_path: string;
+  file_name: string;
+  score: number;
+  status: string;
+  encoding: string;
+  size_bytes: number;
+  cn_ratio: number;
+  deductions: string[];
+  checks: string[];
+  ai_flags: string[];
+  entry_count: number;
+  last_index: number;
+  last_end_ms: number;
+  srt_parse: SrtParseDebug;
+  debug_deductions: DeductionDetail[];
+  last_content_scan: string[];
+  entry_diagnosis: EntryDiagnosis;
 }

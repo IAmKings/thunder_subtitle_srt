@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { ChevronDown, ChevronRight, Star, AlertTriangle } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { Bug, ChevronDown, ChevronRight, Star, AlertTriangle } from "lucide-react";
 import type { ReviewItem } from "@/lib/types";
 import { getReviewStatusColor } from "@/components/StatusBadge";
 
@@ -11,6 +11,8 @@ interface SubtitleListProps {
   onSelectItem: (item: ReviewItem) => void;
   isPinned: (item: ReviewItem) => boolean;
   t: (key: string) => string;
+  debugEnabled?: boolean;
+  onDebugClick?: (item: ReviewItem) => void;
 }
 
 const AI_FLAG_LABELS: Record<string, string> = {
@@ -27,8 +29,11 @@ export function VerificationSubtitleList({
   onSelectItem,
   isPinned,
   t,
+  debugEnabled = false,
+  onDebugClick,
 }: SubtitleListProps) {
   const [expandedDeductions, setExpandedDeductions] = useState<Set<string>>(new Set());
+  const debugLastClickRef = useRef<number>(0);
 
   const toggleDeductions = useCallback((item: ReviewItem) => {
     const key = `${item.file_path}::${item.file_name}`;
@@ -43,8 +48,13 @@ export function VerificationSubtitleList({
     });
   }, []);
 
-  const isDeductionsExpanded = (item: ReviewItem) =>
-    expandedDeductions.has(`${item.file_path}::${item.file_name}`);
+  const handleDebugClick = useCallback((item: ReviewItem) => {
+    if (!onDebugClick) return;
+    const now = Date.now();
+    if (now - debugLastClickRef.current < 500) return; // 防抖 500ms
+    debugLastClickRef.current = now;
+    onDebugClick(item);
+  }, [onDebugClick]);
 
   return (
     <>
@@ -97,6 +107,22 @@ export function VerificationSubtitleList({
                         <AlertTriangle size={8} />
                         {item.ai_flags.length}
                       </span>
+                    )}
+                    {/* Debug 按钮 — 条件渲染，仅在 debugEnabled 时显示 */}
+                    {debugEnabled && onDebugClick && (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); handleDebugClick(item); } }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDebugClick(item);
+                        }}
+                        className="inline-flex items-center rounded-full bg-error/10 px-1.5 py-0.5 text-[9px] font-bold text-error transition-colors hover:bg-error/20 cursor-pointer"
+                        title={t("debug")}
+                      >
+                        <Bug size={10} />
+                      </div>
                     )}
                     {/* 评分 badge — 可点击展开扣分明细（div非button避免嵌套） */}
                     <div
