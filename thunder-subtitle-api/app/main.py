@@ -150,4 +150,4 @@ app.include_router(ws_router, prefix="/ws", tags=["websocket"])
 @app.get("/api/health", tags=["health"])
 async def health_check():
     """Health check endpoint."""
-    return {"status": "ok", "version": "1.4.0"}
+    return {"status": "ok", "version": "1.4.3"}

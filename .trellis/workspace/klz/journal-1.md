@@ -1402,3 +1402,36 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 40: v1.4.3 预发布代码审查优化 — 全面审计+版本号更新
+
+**Date**: 2026-06-11
+**Task**: v1.4.3 预发布代码审查优化 — 全面审计+版本号更新
+**Branch**: `master`
+
+### Summary
+
+v1.4.3 预发布全面代码审查：review 端点路径校验缺失修复(路径穿越)、mark_review 异常传播修复、RenameRequest 内联模型移至 schemas、_cron_next_run 死代码清理、DebugReviewResult.status 联合类型收窄、scanner 页 refreshDirInfo TDZ 修复、search 页 lint 修复。版本号 1.4.2→1.4.3 全量更新(5文件)。ruff check + tsc + ESLint 零错误。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `48c04d8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
