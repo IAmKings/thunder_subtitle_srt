@@ -5,12 +5,12 @@ import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
 from app.models.schemas import (
     DebugReviewResponse,
     MovieListResponse,
+    RenameRequest,
     ReviewItemResponse,
     ReviewListResponse,
     ReviewMarkRequest,
@@ -110,6 +110,8 @@ async def list_reviews(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="审核模块不可用",
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("list_reviews failed: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
@@ -132,6 +134,8 @@ async def list_movies(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="审核模块不可用",
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("list_movies failed: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
@@ -147,8 +151,9 @@ async def review_subtitle_file(
 ):
     """按需深审单个字幕文件（编码+SRT+CJK），用于验证页字幕详情"""
     try:
+        validated_base = _validate_subtitle_path(base_dir)
         result = service.review_subtitle_file(
-            base_dir=base_dir, file_path=path, file_name=file_name
+            base_dir=validated_base, file_path=path, file_name=file_name
         )
         return result
     except ImportError:
@@ -158,6 +163,8 @@ async def review_subtitle_file(
         )
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="字幕文件不存在")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("review_subtitle_file failed: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
@@ -210,8 +217,9 @@ async def mark_review(
 ):
     """Mark a subtitle directory as reviewed (ok/fail)."""
     try:
+        validated_base = _validate_subtitle_path(body.base_dir)
         result = service.mark_review(
-            base_dir=body.base_dir,
+            base_dir=validated_base,
             path=body.path,
             status=body.status,
         )
@@ -221,8 +229,12 @@ async def mark_review(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="审核模块不可用",
         )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="目录不存在")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("mark_review failed: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="操作失败")
@@ -274,11 +286,6 @@ async def delete_subtitle_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除文件失败",
         )
-
-
-class RenameRequest(BaseModel):
-    path: str  # current full path
-    new_name: str
 
 
 @router.post("/rename")

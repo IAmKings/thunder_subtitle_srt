@@ -215,8 +215,9 @@ class ReviewMarkRequest(BaseModel):
     status: Literal["ok", "fail"]
 
 
-class TokenVerifyRequest(BaseModel):
-    token: str
+class RenameRequest(BaseModel):
+    path: str  # current full path
+    new_name: str
 
 
 class ReviewMarkResponse(BaseModel):
@@ -228,6 +229,11 @@ class SubtitlePreviewResponse(BaseModel):
     content: str
     encoding: str
     total_lines: int
+
+
+# ---- Auth ----
+class TokenVerifyRequest(BaseModel):
+    token: str
 
 
 # ---- Health Check ----

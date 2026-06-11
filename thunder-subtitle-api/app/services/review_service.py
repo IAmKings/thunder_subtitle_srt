@@ -179,18 +179,14 @@ class ReviewService:
         """Mark a directory as reviewed (ok/fail)."""
         _review_directory, mark_directory = self._import_reviewer()
 
-        try:
-            if status == "fail":
-                mark_directory(base_dir, mark_fail_path=path)
-            elif status == "ok":
-                mark_directory(base_dir, mark_path=path)
-            else:
-                return ReviewMarkResponse(success=False, message=f"Invalid status: {status}")
+        if status == "fail":
+            mark_directory(base_dir, mark_fail_path=path)
+        elif status == "ok":
+            mark_directory(base_dir, mark_path=path)
+        else:
+            raise ValueError(f"Invalid status: {status}")
 
-            return ReviewMarkResponse(success=True, message=f"Marked as {status}")
-        except Exception as e:
-            logger.exception("Failed to mark review for %s", path)
-            return ReviewMarkResponse(success=False, message=str(e))
+        return ReviewMarkResponse(success=True, message=f"Marked as {status}")
 
     def debug_subtitle_file(
         self, base_dir: str, file_path: str, file_name: str, duration_seconds: int = 0

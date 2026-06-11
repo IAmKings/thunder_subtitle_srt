@@ -124,6 +124,20 @@ function ScannerPage() {
   const httpIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollFailCountRef = useRef(0);
 
+  // ---- Scheduled task helpers (hoisted before polling useEffect) ----
+
+  const getScheduledTaskForDir = useCallback((dirPath: string): ScheduledTask | undefined => {
+    return scheduledTasks.find((st) => st.directory_path === dirPath);
+  }, [scheduledTasks]);
+
+  const refreshDirInfo = useCallback(() => {
+    // Fast: 立即更新目录卡片（不计算待审核数）
+    fastApiClient.listMediaDirectories(false).then(setMediaDirs).catch(() => {});
+    // Slow: 后台更新待审核计数
+    fastApiClient.listMediaDirectories(true).then(setMediaDirs).catch(() => {});
+    fastApiClient.listScheduledTasks().then(setScheduledTasks).catch(() => {});
+  }, []);
+
   // Results table pagination
   const RESULTS_PER_PAGE = 10;
   const [resultsPage, setResultsPage] = useState(0);
@@ -387,20 +401,6 @@ function ScannerPage() {
       setError(err instanceof Error ? err.message : t("failed_cancel_task"));
     }
   }, [activeTask, t]);
-
-  // ---- Scheduled task helpers ----
-
-  const getScheduledTaskForDir = useCallback((dirPath: string): ScheduledTask | undefined => {
-    return scheduledTasks.find((st) => st.directory_path === dirPath);
-  }, [scheduledTasks]);
-
-  const refreshDirInfo = useCallback(() => {
-    // Fast: 立即更新目录卡片（不计算待审核数）
-    fastApiClient.listMediaDirectories(false).then(setMediaDirs).catch(() => {});
-    // Slow: 后台更新待审核计数
-    fastApiClient.listMediaDirectories(true).then(setMediaDirs).catch(() => {});
-    fastApiClient.listScheduledTasks().then(setScheduledTasks).catch(() => {});
-  }, []);
 
   // 定时轮询仓库信息（自动任务完成后前端无 WebSocket 通知，靠轮询兜底）
   useEffect(() => {

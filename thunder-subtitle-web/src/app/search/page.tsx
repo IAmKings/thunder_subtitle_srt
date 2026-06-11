@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import {
   Search as SearchIcon,
   Download,
@@ -392,10 +392,13 @@ function HistoryPanel({
   onClearHistory: () => void;
 }) {
   const t = useTranslations();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   // 避免 SSR hydration mismatch：localStorage 仅在客户端可用
-  if (!mounted || history.length === 0) return null;
+  if (!isHydrated || history.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-2xl">

@@ -136,13 +136,6 @@ def _cron_next_run(cron_expr: str, after: Optional[datetime] = None) -> Optional
     now = after or datetime.now().astimezone()
     # Search up to 1 year ahead
     for days_offset in range(367):
-        check = now + timedelta(days=days_offset)
-        # For the first day, start from the current minute; for subsequent days, start from midnight
-        start_minute = check.minute if days_offset == 0 else 0
-        check = check.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
-            minutes=start_minute + days_offset * 24 * 60 - (0 if days_offset == 0 else 0)
-        )
-        # Recalculate more carefully
         if days_offset == 0:
             current = now.replace(second=0, microsecond=0)
         else:
@@ -157,9 +150,6 @@ def _cron_next_run(cron_expr: str, after: Optional[datetime] = None) -> Optional
             current += timedelta(minutes=1)
             if current.day != (now + timedelta(days=days_offset)).day:
                 break
-        if days_offset == 0:
-            # Skip the remaining minutes of the first day if at end of day
-            pass
     return None
 
 

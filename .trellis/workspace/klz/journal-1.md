@@ -1369,3 +1369,36 @@ PR1：超时30→90s、错误残留修复(setError(null))、多目录容错。PR
 ### Next Steps
 
 - None - task complete
+
+
+## Session 39: 审核页字幕DEBUG一键诊断 — brainstorm+实现+检查
+
+**Date**: 2026-06-11
+**Task**: 审核页字幕DEBUG一键诊断 — brainstorm+实现+检查
+**Branch**: `master`
+
+### Summary
+
+将 CLI debug 功能集成到审核页 UI：配置文件加 debug_subtitle_enabled 开关，开启后字幕列表每项显示 debug 按钮，点击弹出完整诊断报告（文件信息/SRT解析/扣分明细/AI标记/片长匹配 5 个折叠区块），支持一键复制和 500ms 防抖。新增 GET /api/review/subtitle/debug 端点 + debug_review_subtitle() 函数 + DebugModal 组件。跨 3 个包共 13 个文件（含 1 个新建组件），ruff check + tsc 零错误通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1552e98` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

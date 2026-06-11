@@ -182,11 +182,13 @@ export interface EntryDiagnosis {
   unmatched_tail_bytes: number;
 }
 
+export type DebugReviewStatus = "ok" | "warn" | "fail";
+
 export interface DebugReviewResult {
   file_path: string;
   file_name: string;
   score: number;
-  status: string;
+  status: DebugReviewStatus;
   encoding: string;
   size_bytes: number;
   cn_ratio: number;
