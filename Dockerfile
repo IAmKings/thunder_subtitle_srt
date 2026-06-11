@@ -20,10 +20,12 @@ COPY thunder-subtitle-api/requirements.txt .
 RUN pip install --no-cache-dir --target=/install -r requirements.txt
 
 # ---- Stage 3: Runtime ----
-FROM node:22-alpine AS runtime
+# 用 python:3.12-alpine 避免 apk add python3 版本漂移导致
+# pydantic_core C 扩展 ABI 不兼容（builder 用 3.12 编译，runtime 须同版本）
+FROM python:3.12-alpine AS runtime
 
-# Install supervisord, nginx, and openssl
-RUN apk add --no-cache supervisor python3 py3-pip nginx openssl
+# Install nginx, nodejs (for Next.js standalone), supervisord
+RUN apk add --no-cache supervisor nodejs nginx openssl
 
 # Copy Python packages from builder (--target flat install)
 COPY --from=backend-builder /install /app/deps
