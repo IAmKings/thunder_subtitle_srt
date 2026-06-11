@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend conventions — review endpoint/service/schema consistency"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns — verify across new debug endpoint and scan service"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Backend code quality standards"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend conventions — review component patterns"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component patterns — DebugModal collapsible sections, modal dismiss"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "TypeScript type safety — cross-layer type alignment"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Cross-package code quality — DRY, SOLID, consistency"}

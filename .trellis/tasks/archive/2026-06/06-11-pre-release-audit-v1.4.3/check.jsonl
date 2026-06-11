@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verify backend conventions"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify error handling consistency"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Verify backend code quality"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Verify frontend conventions"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Verify component patterns"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify type safety"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Verify cross-package consistency"}
