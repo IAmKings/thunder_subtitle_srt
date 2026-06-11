@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verify backend conventions followed in new endpoint"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify error handling for edge cases (file missing, service unavailable)"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Verify backend code quality (ruff check pass)"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Verify frontend conventions followed"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Verify DebugModal component patterns (collapsible sections, modal dismiss)"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify TypeScript type safety (tsc zero errors)"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Verify frontend code quality standards"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Verify cross-package consistency (config model alignment)"}
