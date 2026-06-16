@@ -113,6 +113,7 @@ function VerificationPage() {
   const rehydratingRef = useRef(false);  // 防止 rehydration effect 与 handleSelectMovie 并发
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [baseDir, setBaseDir] = useState("");
+  const [dirsLoadError, setDirsLoadError] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewEncoding, setPreviewEncoding] = useState("");
@@ -150,7 +151,7 @@ function VerificationPage() {
     try {
       let enabledDirs = enabledDirsParam;
       if (!enabledDirs) {
-        const dirs = await fastApiClient.listMediaDirectories();
+        const dirs = await fastApiClient.listMediaDirectories(false);
         const disabled = getDisabledPaths();
         enabledDirs = dirs.filter((d) => !disabled.has(d.path));
       }
@@ -162,14 +163,17 @@ function VerificationPage() {
       }
       setBaseDir(enabledDirs[0].path);
 
-      // 轻量电影发现 — 每个目录独立容错，单个失败不阻塞其他目录
+      // 轻量电影发现 — 并行加载所有目录，单个失败不阻塞其他目录
+      const results = await Promise.allSettled(
+        enabledDirs.map((dir) => fastApiClient.listMovies(dir.path))
+      );
       const allMovies: MovieEntry[] = [];
-      for (const dir of enabledDirs) {
-        try {
-          const result = await fastApiClient.listMovies(dir.path);
-          allMovies.push(...result.movies);
-        } catch (err) {
-          console.warn(`Skipping directory due to error: ${dir.path}`, err);
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        if (r.status === "fulfilled") {
+          allMovies.push(...r.value.movies);
+        } else {
+          console.warn(`Skipping directory due to error: ${enabledDirs[i].path}`, r.reason);
         }
       }
       setMovies(allMovies);
@@ -180,8 +184,10 @@ function VerificationPage() {
         setItems([]); // 电影列表不预加载深审数据
       }
       setError(null); // 成功时清除残留错误
+      setDirsLoadError(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("review_list_error"));
+      setDirsLoadError(true);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -189,7 +195,7 @@ function VerificationPage() {
   }, [setMovies, setItems, setIsLoading, setError, t]);
 
   useEffect(() => {
-    fastApiClient.listMediaDirectories().then((dirs) => {
+    fastApiClient.listMediaDirectories(false).then((dirs) => {
       const disabled = getDisabledPaths();
       const enabledDirs = dirs.filter((d) => !disabled.has(d.path));
       if (enabledDirs.length > 0) {
@@ -207,6 +213,7 @@ function VerificationPage() {
         // 静默失败，debug 默认关闭
       });
     }).catch(() => {
+      setDirsLoadError(true);
       setIsLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -536,13 +543,25 @@ function VerificationPage() {
 
     setIsLoading(true);
     try {
-      const results = await Promise.all(
-        movie.sub_files.map((fname) =>
-          fastApiClient.reviewSubtitleFile(baseDir, filePath, fname).catch(() => null)
-        )
-      );
+      // 并行：字幕深审 + NFO 片长按需获取
+      const [results, nfoInfo] = await Promise.all([
+        Promise.all(
+          movie.sub_files.map((fname) =>
+            fastApiClient.reviewSubtitleFile(baseDir, filePath, fname).catch(() => null)
+          )
+        ),
+        fastApiClient.getNfoInfo(filePath).catch(() => null),
+      ]);
       const validItems = results.filter((r): r is ReviewItem => r !== null);
       setItems(validItems);
+      // 将 NFO 片长写回 movies state
+      if (nfoInfo?.duration_seconds) {
+        setMovies((prev) =>
+          prev.map((m) =>
+            m.path === filePath ? { ...m, duration_seconds: nfoInfo.duration_seconds } : m
+          )
+        );
+      }
     } catch (err) {
       console.warn("Failed to load subtitle details:", err);
     } finally {
@@ -689,9 +708,11 @@ function VerificationPage() {
               )
             : filteredMovies.length === 0 && (
                 <div className="py-12 text-center text-sm text-on-surface-variant">
-                  {baseDir
-                    ? searchQuery ? t("no_results_scan") : t("no_pending_subs")
-                    : t("no_media_dirs_settings")}
+                  {dirsLoadError
+                    ? t("failed_load_dirs")
+                    : baseDir
+                      ? searchQuery ? t("no_results_scan") : t("no_pending_subs")
+                      : t("no_media_dirs_settings")}
                   <br />
                   {baseDir && !searchQuery && t("run_scan_first")}
                 </div>

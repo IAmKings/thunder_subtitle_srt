@@ -95,7 +95,7 @@ class ReviewService:
         except ImportError:
             from thunder_subtitle.reviewer import list_review_movies  # type: ignore
 
-        entries = list_review_movies(base_dir, name_filter, parse_duration=True)
+        entries = list_review_movies(base_dir, name_filter, parse_duration=False)
         movies = [
             MovieEntryResponse(
                 path=e.path,
