@@ -185,12 +185,28 @@ def _apply_duration_match(
     注意：此函数在 _review_one_file 中被调用，score 改动后由 _review_one_file 统一
     做扣分上限保护和综合判定。本函数只做扣分和标记，不修改 item.status。
     """
+    if len(entries) < 3:
+        return
+
     nfo_duration_ms = nfo_duration_seconds * 1000
 
-    # 跳过条件
+    # NFO 缺失时仍用 SRT 时间戳反推片长，标记但不扣分
     if nfo_duration_seconds == 0:
+        last_end = _find_last_content_end(entries, 0)
+        item.last_end_ms = last_end
+        if last_end > 0:
+            item.ai_flags.append("nfo_missing")
+            # 用 SRT 最后有效时间戳反推的估算时长（秒）
+            estimated_seconds = int(last_end / 1000)
+            item.checks.append(f"srt_duration_est:{estimated_seconds}s")
         return
+
+    # 条目太少无法可靠对比，但仍然计算 last_end_ms 用于展示
     if len(entries) < 10:
+        last_end = _find_last_content_end(entries, nfo_duration_ms)
+        item.last_end_ms = last_end
+        if last_end > 0 and "entry_too_few" not in item.ai_flags:
+            item.ai_flags.append("entry_too_few")
         return
 
     last_end = _find_last_content_end(entries, nfo_duration_ms)

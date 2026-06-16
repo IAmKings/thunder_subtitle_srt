@@ -1501,3 +1501,36 @@ main.py×2 + pyproject.toml×2 + package.json + ROADMAP，6处版本号统一更
 ### Next Steps
 
 - None - task complete
+
+
+## Session 43: 修复验证页电影列表加载慢和显示未配置文件媒体目录
+
+**Date**: 2026-06-16
+**Task**: 修复验证页电影列表加载慢和显示未配置文件媒体目录
+**Branch**: `master`
+
+### Summary
+
+验证页 listMediaDirectories 传 include_pending=false 跳过递归计数；listMovies 取消 parse_duration 跳过 NFO 解析；loadReviews 串行改 Promise.allSettled 并行；选中电影按需 getNfoInfo 获取片长；新增 dirsLoadError 区分 API 失败与未配置目录。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fea1c22` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
